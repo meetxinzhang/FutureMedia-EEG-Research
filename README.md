@@ -1,2 +1,2 @@
 # OptimusPrime
-Reproduce of Transformer network
+Implementation of the Transformer
