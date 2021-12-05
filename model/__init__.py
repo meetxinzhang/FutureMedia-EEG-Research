@@ -29,7 +29,7 @@ Event IDs: [ 65281 131069 131071]
  [4961435   65280   65281]
  [4973791   65280   65281]]
  
- see https://mne.tools/dev/generated/mne.find_events.html#mne.find_events
+ see https://mne.tools/dev/generated/mne.find_events.html#mne.find_events for details
 """
 
 
