@@ -5,37 +5,38 @@
 @time: 12/4/21 3:35 PM
 @desc:
 """
-import pandas as pd
-from mne.io import read_raw_bdf
 import mne
-import numpy as np
 
-# with open('/media/xin/Raid0/dataset/CVPR2021-02785/data/imagenet40-1000-1-00.bdf', 'r', encoding='') as f:
-#     print(f.readline())
 
-bdf = read_raw_bdf('/media/xin/Raid0/dataset/CVPR2021-02785/data/imagenet40-1000-1-00.bdf')
-print(bdf.info, '\n')
-print('channels: ', len(bdf.ch_names), bdf.ch_names, '\n')
-print('times: ', bdf.n_times, bdf.times, '\n')
-# print(np.shape(bdf[0][0]), '\n')
-# print(np.shape(bdf[0][1]), '\n')
+class BDFReader(object):
+    def __init__(self, file_path='/media/xin/Raid0/dataset/CVPR2021-02785/data/imagenet40-1000-1-00.bdf'):
+        self.selection = []
+        self.file_path = file_path
+        self.EEG_datas, self.EEG_times = self.read()
 
-df = bdf.to_data_frame(index='time', time_format='ms')
+    def read(self):
+        bdf = mne.io.read_raw_bdf(self.file_path, preload=True)
 
-# Status = df['Status']
-# stimulus = []
-# i = 0
-# for index, row in Status.iteritems():
-#     if row not in stimulus:
-#         stimulus.append(i)
-#         i = 0
-#     else:
-#         i = i + 1
+        picks = mne.pick_types(bdf.info, eeg=True, stim=False,
+                               exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8', 'Status'])
+        EEG_datas = []
+        EEG_times = []
+        for i in range(400):
+            start = 3.0 * i
+            end = start + 2.0
+            t_idx = bdf.time_as_index([10. + start, 10. + end])
+            data, times = bdf[picks, t_idx[0]:t_idx[1]]
+            # EEGs[times[0]] = data.T
+            EEG_datas.append(data.T)
+            EEG_times.append(times[0])
+        return EEG_datas, EEG_times
 
-# print(len(stimulus), stimulus)
-with pd.option_context('display.max_rows', 500, 'display.max_columns', 10):
-    print(df[0:20]['EXG8'])
+    def get_item_matrix(self, file_path, sample_idx):
+        if file_path == self.file_path:
+            return self.EEG_datas[sample_idx]
+        else:
+            self.file_path = file_path
+            self.EEG_datas, self.EEG_times = self.read()
+            return self.EEG_datas[sample_idx]
 
-# for data, times in bdf:
-#     print(np.shape(data), data)
-#     print(np.shape(times), times)
+
