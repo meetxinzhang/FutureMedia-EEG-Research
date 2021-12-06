@@ -5,6 +5,7 @@
 @time: 12/5/21 7:56 PM
 @desc:
 """
+import numpy as np
 
 classes = {"n02106662": 0,
            "n02124075": 1,
@@ -48,6 +49,13 @@ classes = {"n02106662": 0,
            "n13054560": 39}
 
 
+def get_one_hot(idx):
+    one_hot = np.zeros([40], dtype=np.int)
+    print(one_hot, idx)
+    one_hot[idx] = 1
+    return one_hot
+
+
 class LabelReader(object):
     def __init__(self, file_path='/media/xin/Raid0/dataset/CVPR2021-02785/design/run-00.txt'):
         self.file_path = file_path
@@ -58,11 +66,13 @@ class LabelReader(object):
             lines = f.readlines()
         return [line.split('_')[0] for line in lines]
 
-    def get_item_int(self, file_path, sample_idx):
+    def get_item_one_hot(self, file_path, sample_idx):
         if self.file_path == file_path:
-            return classes[self.lines[sample_idx]]
+            idx = classes[self.lines[sample_idx]]
+            return idx
         else:
             self.file_path = file_path
             self.lines = self.read()
-            return classes[self.lines[sample_idx]]
+            idx = classes[self.lines[sample_idx]]
+            return idx
 

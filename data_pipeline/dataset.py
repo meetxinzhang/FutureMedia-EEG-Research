@@ -5,13 +5,13 @@
 @time: 12/5/21 8:12 PM
 @desc:
 """
-from torch.utils.data import Dataset
+import torch
 from data_pipeline.bdf_reader import BDFReader
 from data_pipeline.label_reader import LabelReader
 import glob
 
 
-class BDFDataset(Dataset):
+class BDFDataset(torch.utils.data.Dataset):
     def __init__(self, CVPR2021_02785_path, sample_rate=1):
         self.sample_rate = sample_rate
         self.BDFs_path = CVPR2021_02785_path + '/data'
@@ -41,9 +41,9 @@ class BDFDataset(Dataset):
         label_path = self.label_filenames[file_idx]
 
         x = self.bdf_reader.get_item_matrix(bdf_path, sample_idx)
-        label = self.label_reader.get_item_int(label_path, sample_idx)
+        label = self.label_reader.get_item_one_hot(label_path, sample_idx)
 
-        return x, label
+        return torch.tensor(x, dtype=torch.float), torch.tensor(label, dtype=torch.long)
 
     def file_filter(self, path, endswith):
         files = glob.glob(path + '/*')
