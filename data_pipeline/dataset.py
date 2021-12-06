@@ -12,7 +12,7 @@ import glob
 from torch.utils.data.dataloader import default_collate
 
 
-def collect_(batch):
+def collate_(batch):
     batch = list(filter(lambda x: x[0] is not None, batch))
     if len(batch) == 0:
         return torch.Tensor()

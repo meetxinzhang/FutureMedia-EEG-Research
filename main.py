@@ -5,7 +5,7 @@
 @time: 12/5/21 9:02 PM
 @desc:
 """
-from data_pipeline.dataset import BDFDataset
+from data_pipeline.dataset import BDFDataset, collate_
 from model.integrate import EEGModel
 import torch
 import torch.nn.functional as F
@@ -16,7 +16,7 @@ batch_size = 16
 learning_rate = 0.001
 
 dataset = BDFDataset(CVPR2021_02785_path='/media/xin/Raid0/dataset/CVPR2021-02785')
-loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=10)
+loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=10)
 model = EEGModel()
 if gpu:
     model.cuda()
