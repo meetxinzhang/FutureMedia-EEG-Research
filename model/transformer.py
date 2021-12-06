@@ -62,8 +62,8 @@ class MultiHeadAttention(nn.Module):
         # if mask:  # TODO
         #     mask = mask.repeat(self.num_head, 1, 1)  # TODO change this
         scale = K.size(-1) ** -0.5  # 根号dk分之一，对应Scaled操作
-        context = self.attention(Q, K, V, scale) # Scaled_Dot_Product_Attention计算
-        context = context.view(batch_size, -1, self.dim_head * self.num_head) # reshape 回原来的形状
+        context = self.attention(Q, K, V, scale)  # Scaled_Dot_Product_Attention计算
+        context = context.view(batch_size, -1, self.dim_head * self.num_head)  # reshape 回原来的形状
         out = self.fc(context)   # 全连接
         out = self.dropout(out)
         out = out + x      # 残差连接,ADD
@@ -72,7 +72,7 @@ class MultiHeadAttention(nn.Module):
 
 
 class ScaledDotProductAttention(nn.Module):
-    '''Scaled Dot-Product'''
+    """Scaled Dot-Product"""
     def __init__(self):
         super(ScaledDotProductAttention, self).__init__()
 
