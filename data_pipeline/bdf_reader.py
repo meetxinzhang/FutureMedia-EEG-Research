@@ -15,17 +15,23 @@ class BDFReader(object):
         self.EEG_datas, self.EEG_times = self.read_as_events()
 
     def read_as_paper(self):
-        # divide bdf into 400 samples according to the describing in paper
+        """
+        # divide bdf into 400 samples according to the describing in paper:
+        Each run started with 10 s of blanking, followed by 400 stimulus presentations, each lasting 2 s,
+        with 1 s of blanking between adjacent stimulus presentations, followed by 10 s of blanking at the end
+        of the run
+        """
         bdf = mne.io.read_raw_bdf(self.file_path, preload=True)
-        picks = mne.pick_types(bdf.info, eeg=True, stim=False,
+        new_bdf = bdf.resample(sfreq=1024)  # down sampling to 1024Hz
+        picks = mne.pick_types(new_bdf.info, eeg=True, stim=False,
                                exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8', 'Status'])
         EEG_datas = []
         EEG_times = []
         for i in range(400):
             start = 3.0 * i
-            end = start + 2.0
-            t_idx = bdf.time_as_index([10. + start, 10. + end])
-            data, times = bdf[picks, t_idx[0]:t_idx[1]]
+            end = start + 2.0  #
+            t_idx = new_bdf.time_as_index([10. + start, 10. + end])
+            data, times = new_bdf[picks, t_idx[0]:t_idx[1]]
             # EEGs[times[0]] = data.T
             EEG_datas.append(data.T)
             EEG_times.append(times[0])
@@ -34,13 +40,15 @@ class BDFReader(object):
     def read_as_events(self):
         # see https://mne.tools/dev/generated/mne.find_events.html#mne.find_events for more details
         bdf = mne.io.read_raw_bdf(self.file_path, preload=True)
-        picks = mne.pick_types(bdf.info, eeg=True, stim=False,
+        # bdf = bdf.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
+        events = mne.find_events(bdf, stim_channel='Status', initial_event=True, output='step')
+        new_bdf, new_events = bdf.resample(sfreq=1024, events=events)  # down sampling to 1024Hz
+
+        picks = mne.pick_types(new_bdf.info, eeg=True, stim=False,
                                exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8', 'Status'])
 
-        events = mne.find_events(bdf, stim_channel='Status', initial_event=True, output='step')
-
         start_time = []
-        for event in events:
+        for event in new_events:
             if event[1] == 65280 and event[2] == 65281:
                 start_time.append(event[0])
             if event[1] == 65280 and event[2] == 0:
@@ -51,11 +59,12 @@ class BDFReader(object):
         for i in range(len(start_time) - 1):
             start = start_time[i]
             # if i == 398:
-            end = start + 8192  # each sample lasting 2s, 2*1000*4.096=8192
+            # each sample lasting 2s, the 0.5s data of starting are selected in paper, 0.5*1000*1.024=512
+            end = start + 512
             # else:
             #     end = start_time[i + 1]
 
-            data, times = bdf[picks, start:end]
+            data, times = new_bdf[picks, start:end]
             EEG_datas.append(data.T)
             EEG_times.append(times[0])
         return EEG_datas, EEG_times
