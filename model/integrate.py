@@ -9,10 +9,10 @@ from torch import nn
 from model.transformer import Encoder
 
 
-def use_torch_interface():
-    encoder_layer = nn.TransformerEncoderLayer(d_model=96, nhead=8, batch_first=True)
-    encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
-    return encoder
+# def use_torch_interface():
+#     encoder_layer = nn.TransformerEncoderLayer(d_model=96, nhead=8, batch_first=True)
+#     encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
+#     return encoder
 
 
 class EEGModel(nn.Module):
