@@ -45,7 +45,7 @@ class BDFDataset(torch.utils.data.Dataset):
             label = self.label_reader.get_item_one_hot(label_path, sample_idx)
         except Exception as e:
             print(e)
-            return None, None
+            return 0, 0
 
         return torch.tensor(x, dtype=torch.float), torch.tensor(label, dtype=torch.long)
 
