@@ -43,7 +43,8 @@ class BDFDataset(torch.utils.data.Dataset):
         try:
             x = self.bdf_reader.get_item_matrix(bdf_path, sample_idx)
             label = self.label_reader.get_item_one_hot(label_path, sample_idx)
-        except IndexError as e:
+        except Exception as e:
+            print(e)
             return None, None
 
         return torch.tensor(x, dtype=torch.float), torch.tensor(label, dtype=torch.long)
