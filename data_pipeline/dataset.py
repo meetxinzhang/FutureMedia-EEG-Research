@@ -9,7 +9,14 @@ import torch
 from data_pipeline.bdf_reader import BDFReader
 from data_pipeline.label_reader import LabelReader
 import glob
-from utils.exception_message import ExceptionPassing
+from torch.utils.data.dataloader import default_collate
+
+
+def collect_(batch):
+    batch = list(filter(lambda x: x[0] is not None, batch))
+    if len(batch) == 0:
+        return torch.Tensor()
+    return default_collate(batch)
 
 
 class BDFDataset(torch.utils.data.Dataset):
@@ -45,7 +52,8 @@ class BDFDataset(torch.utils.data.Dataset):
             label = self.label_reader.get_item_one_hot(label_path, sample_idx)
         except Exception as e:
             print(e)
-            return 0, 0
+            print(bdf_path)
+            return None, None
 
         return torch.tensor(x, dtype=torch.float), torch.tensor(label, dtype=torch.long)
 

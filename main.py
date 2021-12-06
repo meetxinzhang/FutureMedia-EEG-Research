@@ -25,7 +25,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 step = 0
 for epoch in range(10):
     for x, label in loader:
-        if x == 0 and label == 0:
+        if x is None and label is None:
             step += 1
             continue
         if gpu:
