@@ -30,3 +30,5 @@ class EEGModel(nn.Module):
         h3 = self.den2(h2)
         logits = self.den3(h3)
         return logits
+
+

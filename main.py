@@ -6,7 +6,7 @@
 @desc:
 """
 from data_pipeline.dataset import BDFDataset
-from model.transform_encoder import EEGModel
+from model.integrate import EEGModel
 import torch
 import torch.nn.functional as F
 
@@ -16,7 +16,7 @@ batch_size = 16
 learning_rate = 0.001
 
 dataset = BDFDataset(CVPR2021_02785_path='/media/xin/Raid0/dataset/CVPR2021-02785')
-loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=20)
+loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, num_workers=10)
 model = EEGModel()
 if gpu:
     model.cuda()
@@ -25,6 +25,9 @@ optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 step = 0
 for epoch in range(10):
     for x, label in loader:
+        if x is None and label is None:
+            step += 1
+            continue
         if gpu:
             x = x.cuda()
             label = label.cuda()
@@ -42,5 +45,5 @@ for epoch in range(10):
             corrects = (torch.argmax(logits, dim=1).data == label.data)
             accuracy = corrects.cpu().int().sum().numpy() / batch_size
             print('epoch:{}/10 step:{}/{} loss:{:.5f} acc:{:.3f}'.format(epoch, step,
-                                                                         int(400 / batch_size), loss, accuracy))
+                                                                         int(400*100 / batch_size), loss, accuracy))
     step = 0

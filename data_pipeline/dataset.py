@@ -9,6 +9,7 @@ import torch
 from data_pipeline.bdf_reader import BDFReader
 from data_pipeline.label_reader import LabelReader
 import glob
+from utils.exception_message import ExceptionPassing
 
 
 class BDFDataset(torch.utils.data.Dataset):
@@ -39,9 +40,11 @@ class BDFDataset(torch.utils.data.Dataset):
         # print(file_idx, sample_idx)
         bdf_path = self.bdf_filenames[file_idx]
         label_path = self.label_filenames[file_idx]
-
-        x = self.bdf_reader.get_item_matrix(bdf_path, sample_idx)
-        label = self.label_reader.get_item_one_hot(label_path, sample_idx)
+        try:
+            x = self.bdf_reader.get_item_matrix(bdf_path, sample_idx)
+            label = self.label_reader.get_item_one_hot(label_path, sample_idx)
+        except IndexError as e:
+            return None, None
 
         return torch.tensor(x, dtype=torch.float), torch.tensor(label, dtype=torch.long)
 
