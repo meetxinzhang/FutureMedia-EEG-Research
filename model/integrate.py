@@ -6,20 +6,29 @@
 @desc:
 """
 from torch import nn
-from model.transformer import Encoder
+# from model._transformer_v0 import Encoder
+from model .transformer import Encoder, EncoderLayer, MultiHeadedAttention
 
 
-# def use_torch_interface():
-#     encoder_layer = nn.TransformerEncoderLayer(d_model=96, nhead=8, batch_first=True)
-#     encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
-#     return encoder
+def use_torch_interface():
+    encoder_layer = nn.TransformerEncoderLayer(d_model=96, nhead=8, batch_first=True)
+    encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
+    return encoder
+
+
+class TransformerEncoder(nn.Module):
+    def __init__(self):
+        super(TransformerEncoder, self).__init__()
+        self.encoder = Encoder()
 
 
 class EEGModel(nn.Module):
     def __init__(self):
         super(EEGModel, self).__init__()
+        # Encoder of transformer
         # self.encoder = use_torch_interface()
-        self.encoder = Encoder(dim_model=96, num_head=8, hidden=512, dropout=0.3)
+        # self.encoder = Encoder(dim_in=96, n_head=8, time_step=512, dropout=0.3)
+        # classifier
         self.den1 = nn.Linear(in_features=96, out_features=192)
         self.den2 = nn.Linear(in_features=192, out_features=96)
         self.den3 = nn.Linear(in_features=96, out_features=40)
