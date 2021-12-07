@@ -1,6 +1,10 @@
 # OptimusPrime
 Implementation of the Transformer
 
+Vaswani A, Shazeer N, Parmar N, et al. Attention is all you need[C]//Advances in neural information processing systems. 2017: 5998-6008.
+
+The Annotated Transformer: http://nlp.seas.harvard.edu/2018/04/03/attention.html
+
 ### Dataset:
 
 EEG of CVPR2021-02785
@@ -25,8 +29,11 @@ CVPR2021-02785
 │   │   n02106662_25.JPEG
 │   │   ...
    
-
 ```
+
+Input size of transformer: [batch_size, time_step, channels]
+
+You can change time_step at line 63 in bdf_reader.py, and change channels at line 27.
 
 ### Needs:
 torch
@@ -46,7 +53,7 @@ Run main.py file.
 
 ### issues:
 
-sometimes Error occurs due to non-standard .bdf files. I have already avoided this by skipping those .bdf files.
+Occasionally errors occur due to non-standard .bdf files. I have already avoided this by skipping those .bdf files.
 
 High time and CPU cost to read .bdf files. To address it, data should be restored as `.pkl` in advance in the future.
 

@@ -9,18 +9,37 @@ from data_pipeline.dataset import BDFDataset, collate_
 from model.integrate import EEGModel
 import torch
 import torch.nn.functional as F
+from utils.learning_rate import get_std_optimizer
 
 gpu = torch.cuda.is_available()
-
 batch_size = 16
-learning_rate = 0.001
 
 dataset = BDFDataset(CVPR2021_02785_path='/media/xin/Raid0/dataset/CVPR2021-02785')
 loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=10)
+
 model = EEGModel()
+for p in model.parameters():
+    if p.dim() > 1:
+        torch.nn.init.xavier_uniform_(p)
 if gpu:
     model.cuda()
-optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+
+# optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+optimizer = get_std_optimizer(model, d_model=96)
+
+
+# ----- Testing code start ----- Use following to test code without load data -----
+# fake_x_for_testing = torch.rand(3, 128, 96).cuda()      # [batch_size, time_step, channels]
+# fake_label_for_testing = torch.tensor([1, 0, 1], dtype=torch.long).cuda()
+# model.train()
+# optimizer.zero_grad()
+# logits = model(fake_x_for_testing, mask=None)  # [bs, 40]
+# loss = F.cross_entropy(logits, fake_label_for_testing)
+# loss.backward()
+# optimizer.step()
+# print(loss.data)
+# ----- Testing code end-----------------------------------------------------------
+
 
 step = 0
 for epoch in range(10):

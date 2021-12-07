@@ -8,9 +8,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import math, copy, time
-import seaborn
-seaborn.set_context(context="talk")
+import math, copy
 
 
 def clones(module, N):
@@ -127,8 +125,9 @@ class EncoderLayer(nn.Module):
 
     def forward(self, x, mask):
         #  [n_b, seq_len, d_model]
+        #  2nd param of forward in ResidualConnectionNorm is callable, so there passing a lambda function
         x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))  # sublayer 1
-        return self.sublayer[1](x, self.feed_forward(x))   # sublayer 2  [n_b, seq_len, d_model]
+        return self.sublayer[1](x, self.feed_forward)   # sublayer 2  [n_b, seq_len, d_model]
 
 
 class ResidualConnectionNorm(nn.Module):
@@ -143,7 +142,7 @@ class ResidualConnectionNorm(nn.Module):
 
     def forward(self, x, sublayer):
         """Apply residual connection to any sublayer with the same size."""
-        return self.norm(x + self.dropout(sublayer(x)))
+        return x + self.dropout(sublayer(self.norm(x)))
 
 
 class LayerNorm(nn.Module):
