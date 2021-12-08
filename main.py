@@ -41,7 +41,7 @@ optimizer = get_std_optimizer(model, d_model=96)
 
 
 step = 0
-for epoch in range(10):
+for epoch in range(11):
     for x, label in loader:
         if x is None and label is None:
             step += 1

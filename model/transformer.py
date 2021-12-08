@@ -115,7 +115,7 @@ class Encoder(nn.Module):
 
 
 class EncoderLayer(nn.Module):
-    """Encoder is made up of self-attention and feed forward"""
+    """EncoderLayer is made up of self-attention and feed forward"""
     def __init__(self, size, self_attn, feed_forward, dropout):
         super(EncoderLayer, self).__init__()
         self.self_attn = self_attn        # Multi-Head Attention on citation

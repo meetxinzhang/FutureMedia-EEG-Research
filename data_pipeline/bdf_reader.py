@@ -7,6 +7,8 @@
 """
 import mne
 import numpy as np
+from utils.exception_message import ExceptionPassing
+from skimage.measure import block_reduce
 mne.set_log_level(verbose='WARNING')
 
 
@@ -55,16 +57,18 @@ class BDFReader(object):
                 start_time.append(event[0])
             if event[1] == 65280 and event[2] == 0:
                 start_time.append(event[0])  # the last sample is contact with 10s blocking
+        if not len(start_time) == 401:
+            raise Exception('len(start_time) != 400')
 
         EEG_datas = []
-        # EEG_times = []
         for i in range(len(start_time) - 1):
             start = start_time[i]
             # each sample lasting 2s, the 0.5s data from starting are selected in citation, 0.5*1000*1.024=512
             end = start + 8192
 
             data, times = bdf[picks, start:end]
-            data = data[:, 0:8191:20]  # down sampling
+            # data = data[:, 0:8191:20]  # down sampling
+            data = block_reduce(data, block_size=(1, 20), func=np.mean, cval=np.mean(data))
             EEG_datas.append(data.T)  # [time, channels]
             # EEG_times.append(times[0])
         return EEG_datas
