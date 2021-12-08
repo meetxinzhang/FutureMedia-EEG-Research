@@ -16,14 +16,14 @@ class EEGModel(nn.Module):
         # Encoder of transformer
         # self.encoder = use_torch_interface()
         # self.encoder = Encoder(dim_in=96, n_head=8, time_step=512, dropout=0.3)
-        self.pe = PositionalEncoding(embed_len=96, dropout=0.2, max_seq_len=512)
+        self.pe = PositionalEncoding(embed_len=96, dropout=0.2, max_seq_len=410)
         attn = MultiHeadedAttention(n_head=8, d_model=96, dropout=0.2)
         ff = PositionWiseFeedForward(d_model=96, d_ff=256, dropout=0.2)
-        self.encoder = Encoder(EncoderLayer(96, attn, ff, dropout=0.2), N=6)
+        self.encoder = Encoder(EncoderLayer(96, attn, ff, dropout=0.2), N=5)
 
         # Classifier
         self.fl = nn.Flatten(start_dim=1, end_dim=-1)
-        self.den1 = nn.Linear(in_features=49152, out_features=512, bias=False)
+        self.den1 = nn.Linear(in_features=39360, out_features=512, bias=False)
         self.den2 = nn.Linear(in_features=512, out_features=128, bias=False)
         self.den3 = nn.Linear(in_features=128, out_features=40, bias=False)
         self.bn1 = nn.BatchNorm1d(512, affine=False)  # Without Learnable Parameters
