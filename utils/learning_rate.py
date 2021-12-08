@@ -10,7 +10,7 @@ import torch
 
 
 class NoamOpt:
-    """Optim wrapper that implements rate."""
+    """optimizer wrapper that implements rate."""
 
     def __init__(self, model_size, factor, warmup, optimizer):
         self.optimizer = optimizer
@@ -31,6 +31,7 @@ class NoamOpt:
             p['lr'] = rate
         self._rate = rate
         self.optimizer.step()
+        return rate
 
     def rate(self, step=None):
         """Implement `learning_rate` above"""

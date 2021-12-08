@@ -6,7 +6,7 @@
 @desc:
 """
 from torch import nn
-# from model._transformer_v0 import Encoder
+from torch.nn import functional as F
 from model .transformer import Encoder, EncoderLayer, MultiHeadedAttention, PositionWiseFeedForward, PositionalEncoding
 
 
@@ -16,25 +16,32 @@ class EEGModel(nn.Module):
         # Encoder of transformer
         # self.encoder = use_torch_interface()
         # self.encoder = Encoder(dim_in=96, n_head=8, time_step=512, dropout=0.3)
+        self.pe = PositionalEncoding(embed_len=96, dropout=0.2, max_seq_len=512)
         attn = MultiHeadedAttention(n_head=8, d_model=96, dropout=0.2)
         ff = PositionWiseFeedForward(d_model=96, d_ff=256, dropout=0.2)
-        self.encoder = Encoder(EncoderLayer(96, attn, ff, dropout=0.2), N=3)
+        self.encoder = Encoder(EncoderLayer(96, attn, ff, dropout=0.2), N=6)
 
         # Classifier
-        self.den1 = nn.Linear(in_features=96, out_features=192)
-        self.den2 = nn.Linear(in_features=192, out_features=96)
-        self.den3 = nn.Linear(in_features=96, out_features=40)
+        self.fl = nn.Flatten(start_dim=1, end_dim=-1)
+        self.den1 = nn.Linear(in_features=49152, out_features=512, bias=False)
+        self.den2 = nn.Linear(in_features=512, out_features=128, bias=False)
+        self.den3 = nn.Linear(in_features=128, out_features=40, bias=False)
+        self.bn1 = nn.BatchNorm1d(512, affine=False)  # Without Learnable Parameters
+        self.bn2 = nn.BatchNorm1d(128, affine=False)
         self.dropout = nn.Dropout(p=0.2)
 
     def forward(self, x, mask):
+        x = self.pe(x)
         h1 = self.encoder(x, mask)  # [bs, time_step, 96]
-        last_step = h1[:, -1, :]  # [bs, 96]
+        # last_step = h1[:, -1, :]  # [bs, 96]
+        fl = self.fl(h1)  # [bs, time_step*96]
 
-        h2 = self.den1(last_step)
-        h2 = self.dropout(h2)
-        h3 = self.den2(h2)
-        h3 = self.dropout(h3)
-        logits = self.den3(h3)
+        h2 = F.leaky_relu(self.den1(fl))  # [bs, 256]
+        h2 = self.dropout(self.bn1(h2))
+        h3 = F.leaky_relu(self.den2(h2))  # [bs, 128]
+        h3 = self.dropout(self.bn2(h3))
+        h4 = F.leaky_relu(self.den3(h3))  # [bs, 40]
+        logits = F.softmax(h4, dim=-1)
         return logits
 
 

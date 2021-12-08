@@ -58,8 +58,8 @@ class BDFReader(object):
         EEG_datas = []
         # EEG_times = []
         for i in range(len(start_time) - 1):
-            start = start_time[i]
-            # each sample lasting 2s, the 0.5s data of starting are selected in paper, 0.5*1000*1.024=512
+            start = start_time[i] + 512
+            # each sample lasting 2s, the 0.5s data from starting are selected in citation, 0.5*1000*1.024=512
             end = start + 512
 
             data, times = new_bdf[picks, start:end]

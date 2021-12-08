@@ -160,15 +160,15 @@ class LayerNorm(nn.Module):
 
 
 class PositionalEncoding(nn.Module):
-    """To embed."""
+    """To embed positional information."""
 
-    def __init__(self, embed_len, dropout, max_len=5000):
+    def __init__(self, embed_len, dropout, max_seq_len=5000):
         super(PositionalEncoding, self).__init__()
         self.dropout = nn.Dropout(p=dropout)
 
         # Compute the positional encodings once in log space.
-        pe = torch.zeros(max_len, embed_len)
-        position = torch.arange(0, max_len).unsqueeze(1)
+        pe = torch.zeros(max_seq_len, embed_len)
+        position = torch.arange(0, max_seq_len).unsqueeze(1)
         div_term = torch.exp(torch.arange(0, embed_len, 2) * -(math.log(10000.0) / embed_len))
         pe[:, 0::2] = torch.sin(position * div_term)
         pe[:, 1::2] = torch.cos(position * div_term)
