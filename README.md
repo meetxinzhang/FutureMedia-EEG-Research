@@ -57,7 +57,7 @@ Occasionally errors occur due to non-standard .bdf files. I have already avoided
 
 High time and CPU cost to read .bdf files. To address it, data should be restored as `.pkl` in advance in the future.
 
-Attention on the channel side maybe for useful EEG learning task.
+Attention on the channel side maybe useful for EEG learning task.
 
 PositionalEncoding isn't powerful enough.
 
