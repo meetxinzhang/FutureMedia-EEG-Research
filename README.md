@@ -1,5 +1,5 @@
 # OptimusPrime
-Implementation of the Transformer
+Implementation of the Transformer in pytorch
 
 Vaswani A, Shazeer N, Parmar N, et al. Attention is all you need[C]//Advances in neural information processing systems. 2017: 5998-6008.
 
