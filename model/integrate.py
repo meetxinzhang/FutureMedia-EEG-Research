@@ -7,7 +7,8 @@
 """
 from torch import nn
 from torch.nn import functional as F
-from model .transformer import Encoder, EncoderLayer, MultiHeadedAttention, PositionWiseFeedForward, PositionalEncoding
+from model.transformer import Encoder, EncoderLayer, MultiHeadedAttention, PositionWiseFeedForward, PositionalEncoding
+from einops.layers.torch import Rearrange
 
 
 class EEGModel(nn.Module):
@@ -16,14 +17,19 @@ class EEGModel(nn.Module):
         # Encoder of transformer
         # self.encoder = use_torch_interface()
         # self.encoder = Encoder(dim_in=96, n_head=8, time_step=512, dropout=0.3)
-        self.pe = PositionalEncoding(embed_len=96, dropout=0.2, max_seq_len=410)
-        attn = MultiHeadedAttention(n_head=8, d_model=96, dropout=0.2)
-        ff = PositionWiseFeedForward(d_model=96, d_ff=256, dropout=0.2)
-        self.encoder = Encoder(EncoderLayer(96, attn, ff, dropout=0.2), N=5)
+
+        # self.linear_list = clones(nn.Linear(in_features=96 * 16, out_features=96, bias=False), 64)
+        self.rearrange = Rearrange('bs (n t) c -> bs n (t c)', c=96, t=16)
+        self.pre_linear = nn.Linear(in_features=96 * 16, out_features=64, bias=False)
+
+        self.pe = PositionalEncoding(embed_len=96, dropout=0.2, max_seq_len=1024)
+        attn = MultiHeadedAttention(n_head=8, d_model=64, dropout=0.2)
+        ff = PositionWiseFeedForward(d_model=64, d_ff=256, dropout=0.2)
+        self.encoder = Encoder(EncoderLayer(64, attn, ff, dropout=0.2), N=5)
 
         # Classifier
         self.fl = nn.Flatten(start_dim=1, end_dim=-1)
-        self.den1 = nn.Linear(in_features=39360, out_features=512, bias=False)
+        self.den1 = nn.Linear(in_features=4096, out_features=512, bias=False)
         self.den2 = nn.Linear(in_features=512, out_features=128, bias=False)
         self.den3 = nn.Linear(in_features=128, out_features=40, bias=False)
         self.bn1 = nn.BatchNorm1d(512, affine=False)  # Without Learnable Parameters
@@ -31,8 +37,13 @@ class EEGModel(nn.Module):
         self.dropout = nn.Dropout(p=0.2)
 
     def forward(self, x, mask):
-        x = self.pe(x)
-        h1 = self.encoder(x, mask)  # [bs, time_step, 96]
+        x = self.pe(x)  # [bs, 1024, 96]
+
+        patches = self.rearrange(x)  # [bs, 64, 16*96]
+        patches_ed = F.leaky_relu(self.pre_linear(patches))  # [bs, n(time:1024/16=64), 64]
+
+        h1 = self.encoder(patches_ed, mask)  # [bs, time_step, 96]
+        # print(h1.shape)  # [bs, time:1024/16=64, 96]
         # last_step = h1[:, -1, :]  # [bs, 96]
         fl = self.fl(h1)  # [bs, time_step*96]
 
@@ -50,35 +61,3 @@ class EEGModel(nn.Module):
 #     encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
 #     return encoder
 
-# def make_transformer(N=6, d_model=512, d_ff=2048, h=8, dropout=0.1):
-#     """Helper: Construct a model from hyperparameters."""
-#     c = copy.deepcopy
-#     attn = MultiHeadedAttention(h, d_model)
-#     ff = PositionWiseFeedForward(d_model, d_ff, dropout)
-#     position = PositionalEncoding(d_model, dropout)
-#     model = TransformerModel(
-#         Encoder(EncoderLayer(d_model, c(attn), c(ff), dropout), N))
-#     # This was important from their code.
-#     # Initialize parameters with Glorot / fan_avg.
-#     for p in model.parameters():
-#         if p.dim() > 1:
-#             nn.init.xavier_uniform(p)
-#     return model
-
-#
-# class TransformerModel(nn.Module):
-#     """
-#     A standard Encoder-Decoder architecture. Base for this and many
-#     other models.
-#     """
-#
-#     def __init__(self, encoder):
-#         super(TransformerModel, self).__init__()
-#         self.encoder = encoder
-#
-#     def forward(self, src, src_mask):
-#         "Take in and process masked src and target sequences."
-#         return self.encode(src, src_mask)
-#
-#     def encode(self, src, src_mask):
-#         return self.encoder(src), src_mask

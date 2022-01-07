@@ -13,7 +13,7 @@ mne.set_log_level(verbose='WARNING')
 
 
 class BDFReader(object):
-    def __init__(self, file_path='/media/xin/Raid0/dataset/CVPR2021-02785/data/imagenet40-1000-1-00.bdf'):
+    def __init__(self, file_path='E:/Dataset/CVPR2021-02785/data/imagenet40-1000-1-00.bdf'):
         self.selection = []
         self.file_path = file_path
         self.EEG_datas = self.read_by_events()
@@ -68,7 +68,7 @@ class BDFReader(object):
 
             data, times = bdf[picks, start:end]
             # data = data[:, 0:8191:20]  # down sampling
-            data = block_reduce(data, block_size=(1, 20), func=np.mean, cval=np.mean(data))
+            data = block_reduce(data, block_size=(1, 8), func=np.mean, cval=np.mean(data))
             EEG_datas.append(data.T)  # [time, channels]
             # EEG_times.append(times[0])
         return EEG_datas

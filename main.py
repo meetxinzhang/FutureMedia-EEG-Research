@@ -14,7 +14,7 @@ from utils.learning_rate import get_std_optimizer
 gpu = torch.cuda.is_available()
 batch_size = 32
 
-dataset = BDFDataset(CVPR2021_02785_path='/media/xin/Raid0/dataset/CVPR2021-02785')
+dataset = BDFDataset(CVPR2021_02785_path='E:/Dataset/CVPR2021-02785')
 loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=10)
 
 model = EEGModel()
@@ -39,30 +39,30 @@ optimizer = get_std_optimizer(model, d_model=96)
 # print(loss.data)
 # ----- Testing code end-----------------------------------------------------------
 
-
-step = 0
-for epoch in range(11):
-    for x, label in loader:
-        if x is None and label is None:
-            step += 1
-            continue
-        if gpu:
-            x = x.cuda()
-            label = label.cuda()
-
-        model.train()
-        optimizer.zero_grad()
-
-        logits = model(x, mask=None)  # [bs, 40]
-        loss = F.cross_entropy(logits, label)
-        loss.backward()
-        lr = optimizer.step()
-
-        step += 1
-        if step % 5 == 0:
-            corrects = (torch.argmax(logits, dim=1).data == label.data)
-            accuracy = corrects.cpu().int().sum().numpy() / batch_size
-            print('epoch:{}/10 step:{}/{} loss={:.5f} acc={:.3f} lr={}'.format(epoch, step,
-                                                                               int(400 * 100 / batch_size), loss,
-                                                                               accuracy, lr))
+if __name__ == '__main__':
     step = 0
+    for epoch in range(11):
+        for x, label in loader:
+            if x is None and label is None:
+                step += 1
+                continue
+            if gpu:
+                x = x.cuda()
+                label = label.cuda()
+
+            model.train()
+            optimizer.zero_grad()
+
+            logits = model(x, mask=None)  # [bs, 40]
+            loss = F.cross_entropy(logits, label)
+            loss.backward()
+            lr = optimizer.step()
+
+            step += 1
+            if step % 5 == 0:
+                corrects = (torch.argmax(logits, dim=1).data == label.data)
+                accuracy = corrects.cpu().int().sum().numpy() / batch_size
+                print('epoch:{}/10 step:{}/{} loss={:.5f} acc={:.3f} lr={}'.format(epoch, step,
+                                                                                   int(400 * 100 / batch_size), loss,
+                                                                                   accuracy, lr))
+        step = 0
