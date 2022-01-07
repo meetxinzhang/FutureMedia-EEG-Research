@@ -51,7 +51,7 @@ if __name__ == '__main__':
                 label = label.cuda()
 
             model.train()
-            optimizer.zero_grad()
+            # optimizer.zero_grad()
 
             logits = model(x, mask=None)  # [bs, 40]
             loss = F.cross_entropy(logits, label)
