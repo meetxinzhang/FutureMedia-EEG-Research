@@ -24,8 +24,8 @@ for p in model.parameters():
 if gpu:
     model.cuda()
 
-# optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-optimizer = get_std_optimizer(model, d_model=96)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+# optimizer = get_std_optimizer(model, d_model=96)
 
 # ----- Testing code start ----- Use following to test code without load data -----
 # fake_x_for_testing = torch.rand(3, 128, 96).cuda()      # [batch_size, time_step, channels]
@@ -51,12 +51,12 @@ if __name__ == '__main__':
                 label = label.cuda()
 
             model.train()
-            # optimizer.zero_grad()
+            optimizer.zero_grad()
 
             logits = model(x, mask=None)  # [bs, 40]
             loss = F.cross_entropy(logits, label)
             loss.backward()
-            lr = optimizer.step()
+            optimizer.step()
 
             step += 1
             if step % 5 == 0:
@@ -64,5 +64,5 @@ if __name__ == '__main__':
                 accuracy = corrects.cpu().int().sum().numpy() / batch_size
                 print('epoch:{}/10 step:{}/{} loss={:.5f} acc={:.3f} lr={}'.format(epoch, step,
                                                                                    int(400 * 100 / batch_size), loss,
-                                                                                   accuracy, lr))
+                                                                                   accuracy, 0))
         step = 0
