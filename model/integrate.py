@@ -7,7 +7,8 @@
 """
 from torch import nn
 from torch.nn import functional as F
-from model.transformer import Encoder, EncoderLayer, MultiHeadedAttention, PositionWiseFeedForward, PositionalEncoding
+# from model.transformer import Encoder, EncoderLayer, MultiHeadedAttention, PositionWiseFeedForward, PositionalEncoding
+from model.transformer import PositionalEncoding
 from einops.layers.torch import Rearrange
 
 
@@ -15,7 +16,7 @@ class EEGModel(nn.Module):
     def __init__(self, d_model=96, dropout=0.2, n_layers=6, n_head=8):
         super(EEGModel, self).__init__()
         # Encoder of transformer
-        # self.encoder = use_torch_interface()
+        self.encoder = use_torch_interface()
         # self.encoder = Encoder(dim_in=96, n_head=8, time_step=512, dropout=0.3)
 
         # self.linear_list = clones(nn.Linear(in_features=96 * 16, out_features=96, bias=False), 64)
@@ -23,9 +24,9 @@ class EEGModel(nn.Module):
         self.pre_linear = nn.Linear(in_features=96 * 16, out_features=64, bias=False)
 
         self.pe = PositionalEncoding(embed_len=64, dropout=0.2, max_seq_len=64)
-        attn = MultiHeadedAttention(n_head=8, d_model=64, dropout=0.2)
-        ff = PositionWiseFeedForward(d_model=64, d_ff=256, dropout=0.2)
-        self.encoder = Encoder(EncoderLayer(64, attn, ff, dropout=0.2), N=5)
+        # attn = MultiHeadedAttention(n_head=8, d_model=64, dropout=0.2)
+        # ff = PositionWiseFeedForward(d_model=64, d_ff=256, dropout=0.2)
+        # self.encoder = Encoder(EncoderLayer(64, attn, ff, dropout=0.2), N=5)
 
         # Classifier
         self.fl = nn.Flatten(start_dim=1, end_dim=-1)
@@ -40,8 +41,8 @@ class EEGModel(nn.Module):
         patches = self.rearrange(x)  # [bs, 64, 16*96]
         patches_ed = F.leaky_relu(self.pre_linear(patches))  # [bs, n(time:1024/16=64), 64]
 
-        patches_ed = self.pe(patches_ed)  # [bs, 64, 64]
-        h1 = self.encoder(patches_ed, mask)  # [bs, time_step, 64]
+        patches_ed = self.pe.forward(patches_ed)  # [bs, 64, 64]
+        h1 = self.encoder.forward(patches_ed, mask)  # [bs, time_step, 64]
         # print(h1.shape)  # [bs, time:1024/16=64, 64]
         # last_step = h1[:, -1, :]  # [bs, 64]
         fl = self.fl(h1)  # [bs, time_step*64]
@@ -55,8 +56,8 @@ class EEGModel(nn.Module):
         return logits
 
 
-# def use_torch_interface():
-#     encoder_layer = nn.TransformerEncoderLayer(d_model=96, nhead=8, batch_first=True)
-#     encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
-#     return encoder
+def use_torch_interface():
+    encoder_layer = nn.TransformerEncoderLayer(d_model=64, nhead=8, batch_first=True)
+    encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
+    return encoder
 
