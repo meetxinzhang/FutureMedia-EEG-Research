@@ -12,9 +12,9 @@ import torch.nn.functional as F
 from utils.learning_rate import get_std_optimizer
 
 gpu = torch.cuda.is_available()
-batch_size = 16
+batch_size = 32
 
-dataset = BDFDataset(CVPR2021_02785_path='E:/Dataset/CVPR2021-02785')
+dataset = BDFDataset(CVPR2021_02785_path='D:/high_io_dataset/CVPR2021-02785')
 loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=10)
 
 model = EEGModel()
