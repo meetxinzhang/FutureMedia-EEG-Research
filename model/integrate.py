@@ -22,7 +22,7 @@ class EEGModel(nn.Module):
         self.rearrange = Rearrange('bs (n t) c -> bs n (t c)', c=96, t=16)
         self.pre_linear = nn.Linear(in_features=96 * 16, out_features=64, bias=False)
 
-        self.pe = PositionalEncoding(embed_len=96, dropout=0.2, max_seq_len=1024)
+        self.pe = PositionalEncoding(embed_len=64, dropout=0.2, max_seq_len=64)
         attn = MultiHeadedAttention(n_head=8, d_model=64, dropout=0.2)
         ff = PositionWiseFeedForward(d_model=64, d_ff=256, dropout=0.2)
         self.encoder = Encoder(EncoderLayer(64, attn, ff, dropout=0.2), N=5)
@@ -37,15 +37,14 @@ class EEGModel(nn.Module):
         self.dropout = nn.Dropout(p=0.2)
 
     def forward(self, x, mask):
-        x = self.pe(x)  # [bs, 1024, 96]
-
         patches = self.rearrange(x)  # [bs, 64, 16*96]
         patches_ed = F.leaky_relu(self.pre_linear(patches))  # [bs, n(time:1024/16=64), 64]
 
-        h1 = self.encoder(patches_ed, mask)  # [bs, time_step, 96]
-        # print(h1.shape)  # [bs, time:1024/16=64, 96]
-        # last_step = h1[:, -1, :]  # [bs, 96]
-        fl = self.fl(h1)  # [bs, time_step*96]
+        patches_ed = self.pe(patches_ed)  # [bs, 64, 64]
+        h1 = self.encoder(patches_ed, mask)  # [bs, time_step, 64]
+        # print(h1.shape)  # [bs, time:1024/16=64, 64]
+        # last_step = h1[:, -1, :]  # [bs, 64]
+        fl = self.fl(h1)  # [bs, time_step*64]
 
         h2 = F.leaky_relu(self.den1(fl))  # [bs, 256]
         h2 = self.dropout(self.bn1(h2))

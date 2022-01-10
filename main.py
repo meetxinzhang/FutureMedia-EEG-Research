@@ -24,8 +24,8 @@ for p in model.parameters():
 if gpu:
     model.cuda()
 
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-# optimizer = get_std_optimizer(model, d_model=96)
+# optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = get_std_optimizer(model, d_model=96)
 
 # ----- Testing code start ----- Use following to test code without load data -----
 # fake_x_for_testing = torch.rand(3, 128, 96).cuda()      # [batch_size, time_step, channels]
@@ -41,7 +41,7 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 if __name__ == '__main__':
     step = 0
-    for epoch in range(11):
+    for epoch in range(10):
         for x, label in loader:
             if x is None and label is None:
                 step += 1
@@ -51,7 +51,7 @@ if __name__ == '__main__':
                 label = label.cuda()
 
             model.train()
-            optimizer.zero_grad()
+            # optimizer.zero_grad()
 
             logits = model(x, mask=None)  # [bs, 40]
             loss = F.cross_entropy(logits, label)
