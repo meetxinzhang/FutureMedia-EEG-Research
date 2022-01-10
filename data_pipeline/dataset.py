@@ -36,7 +36,6 @@ class BDFDataset(torch.utils.data.Dataset):
         return len(self.bdf_filenames) * 400
 
     def __getitem__(self, idx):
-        print(idx)
         file_idx = int(idx / 400)
         sample_idx = idx % 400
 
