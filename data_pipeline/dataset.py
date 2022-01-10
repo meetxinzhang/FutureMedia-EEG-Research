@@ -27,7 +27,7 @@ class BDFDataset(torch.utils.data.Dataset):
         # self.image_path = CVPR2021_02785_path + '/stimuli'
 
         self.bdf_filenames = self.file_filter(self.BDFs_path, endswith='.bdf')
-        self.label_filenames = self.file_filter(self.labels_path, endswith='.txt')
+        # self.label_filenames = self.file_filter(self.labels_path, endswith='.txt')
 
         self.bdf_reader = BDFReader()
         self.label_reader = LabelReader()
@@ -36,6 +36,7 @@ class BDFDataset(torch.utils.data.Dataset):
         return len(self.bdf_filenames) * 400
 
     def __getitem__(self, idx):
+        print(idx)
         file_idx = int(idx / 400)
         sample_idx = idx % 400
 
@@ -46,10 +47,11 @@ class BDFDataset(torch.utils.data.Dataset):
 
         # print(file_idx, sample_idx)
         bdf_path = self.bdf_filenames[file_idx]
-        label_path = self.label_filenames[file_idx]
+        # label_path = self.label_filenames[file_idx]
         try:
             x = self.bdf_reader.get_item_matrix(bdf_path, sample_idx)
-            label = self.label_reader.get_item_one_hot(label_path, sample_idx)
+            number = bdf_path.split('.')[0].split('-')[-1]
+            label = self.label_reader.get_item_one_hot(self.labels_path+'/'+'run-'+number+'.txt', sample_idx)
         except Exception as e:
             print(e)
             print(bdf_path)
