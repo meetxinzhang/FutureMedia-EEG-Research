@@ -68,10 +68,9 @@ for epoch in range(11):
         if step % 5 == 0:
             corrects = (torch.argmax(logits, dim=1).data == label.data)
             accuracy = corrects.cpu().int().sum().numpy() / batch_size
-            print('epoch:{}/10 step:{}/{} global_step:{} loss={:.5f} acc={:.3f} lr={}'.format(epoch, step, global_step,
-                                                                                        int(400 * 100 / batch_size),
-                                                                                        loss,
-                                                                                        accuracy, lr))
+            print('epoch:{}/10 step:{}/{} global_step:{} '
+                  'loss={:.5f} acc={:.3f} lr={}'.format(epoch, step, int(400 * 100 / batch_size), global_step,
+                                                        loss, accuracy, lr))
             summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
             summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=global_step)
     step = 0
