@@ -11,12 +11,13 @@ import torch
 import torch.nn.functional as F
 from utils.learning_rate import get_std_optimizer
 from torch.utils.tensorboard import SummaryWriter
+
 summary = SummaryWriter(log_dir='./log/')
 
 gpu = torch.cuda.is_available()
 batch_size = 32
 
-dataset = BDFDataset(CVPR2021_02785_path='/home/xin/ACS/hight_io/CVPR2021-02785')
+dataset = BDFDataset(CVPR2021_02785_path='/home/xin/ACS/high_io/CVPR2021-02785')
 loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=10)
 
 model = EEGModel()
@@ -43,10 +44,12 @@ optimizer = get_std_optimizer(model, d_model=96)
 
 
 step = 0
+global_step = 0
 for epoch in range(11):
     for x, label in loader:
         if x is None and label is None:
             step += 1
+            global_step += 1
             continue
         if gpu:
             x = x.cuda()
@@ -61,13 +64,15 @@ for epoch in range(11):
         lr = optimizer.step()
 
         step += 1
+        global_step += 1
         if step % 5 == 0:
             corrects = (torch.argmax(logits, dim=1).data == label.data)
             accuracy = corrects.cpu().int().sum().numpy() / batch_size
-            print('epoch:{}/10 step:{}/{} loss={:.5f} acc={:.3f} lr={}'.format(epoch, step,
-                                                                               int(400 * 100 / batch_size), loss,
-                                                                               accuracy, lr))
-            summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=step)
-            summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=step)
+            print('epoch:{}/10 step:{}/{} global_step:{} loss={:.5f} acc={:.3f} lr={}'.format(epoch, step, global_step,
+                                                                                        int(400 * 100 / batch_size),
+                                                                                        loss,
+                                                                                        accuracy, lr))
+            summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
+            summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=global_step)
     step = 0
 summary.close()
