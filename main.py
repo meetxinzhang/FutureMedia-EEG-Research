@@ -42,36 +42,36 @@ optimizer = get_std_optimizer(model, d_model=96)
 # print(loss.data)
 # ----- Testing code end-----------------------------------------------------------
 
+if __name__ == '__main__':
+    step = 0
+    global_step = 0
+    for epoch in range(11):
+        for x, label in loader:
+            if x is None and label is None:
+                step += 1
+                global_step += 1
+                continue
+            if gpu:
+                x = x.cuda()
+                label = label.cuda()
 
-step = 0
-global_step = 0
-for epoch in range(11):
-    for x, label in loader:
-        if x is None and label is None:
+            model.train()
+            optimizer.zero_grad()
+
+            logits = model(x, mask=None)  # [bs, 40]
+            loss = F.cross_entropy(logits, label)
+            loss.backward()
+            lr = optimizer.step()
+
             step += 1
             global_step += 1
-            continue
-        if gpu:
-            x = x.cuda()
-            label = label.cuda()
-
-        model.train()
-        optimizer.zero_grad()
-
-        logits = model(x, mask=None)  # [bs, 40]
-        loss = F.cross_entropy(logits, label)
-        loss.backward()
-        lr = optimizer.step()
-
-        step += 1
-        global_step += 1
-        if step % 5 == 0:
-            corrects = (torch.argmax(logits, dim=1).data == label.data)
-            accuracy = corrects.cpu().int().sum().numpy() / batch_size
-            print('epoch:{}/10 step:{}/{} global_step:{} '
-                  'loss={:.5f} acc={:.3f} lr={}'.format(epoch, step, int(400 * 100 / batch_size), global_step,
-                                                        loss, accuracy, lr))
-            summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
-            summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=global_step)
-    step = 0
-summary.close()
+            if step % 5 == 0:
+                corrects = (torch.argmax(logits, dim=1).data == label.data)
+                accuracy = corrects.cpu().int().sum().numpy() / batch_size
+                print('epoch:{}/10 step:{}/{} global_step:{} '
+                      'loss={:.5f} acc={:.3f} lr={}'.format(epoch, step, int(400 * 100 / batch_size), global_step,
+                                                            loss, accuracy, lr))
+                summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
+                summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=global_step)
+        step = 0
+    summary.close()
