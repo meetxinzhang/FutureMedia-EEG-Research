@@ -13,7 +13,7 @@ mne.set_log_level(verbose='WARNING')
 
 
 class BDFReader(object):
-    def __init__(self, file_path='/home/xin/ACS/high_io/CVPR2021-02785/data/imagenet40-1000-1-00.bdf'):
+    def __init__(self, file_path='E:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-00.bdf'):
         self.selection = []
         self.file_path = file_path
         self.EEG_datas = self.read_by_events()

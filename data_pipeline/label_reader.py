@@ -57,7 +57,7 @@ def get_one_hot(idx):
 
 
 class LabelReader(object):
-    def __init__(self, file_path='/home/xin/ACS/high_io/CVPR2021-02785/design/run-00.txt'):
+    def __init__(self, file_path='E:/Datasets/CVPR2021-02785/design/run-00.txt'):
         self.file_path = file_path
         self.lines = self.read()
 

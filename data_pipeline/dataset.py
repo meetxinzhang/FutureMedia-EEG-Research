@@ -33,7 +33,7 @@ class BDFDataset(torch.utils.data.Dataset):
         self.label_reader = LabelReader()
 
     def __len__(self):
-        return len(self.bdf_filenames) * 400
+        return len(self.bdf_filenames) * 400  # each .bdf file embody 400 samples.
 
     def __getitem__(self, idx):
         file_idx = int(idx / 400)

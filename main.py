@@ -15,10 +15,10 @@ from torch.utils.tensorboard import SummaryWriter
 summary = SummaryWriter(log_dir='./log/')
 
 gpu = torch.cuda.is_available()
-batch_size = 32
+batch_size = 8
 
-dataset = BDFDataset(CVPR2021_02785_path='/home/xin/ACS/high_io/CVPR2021-02785')
-loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=10)
+dataset = BDFDataset(CVPR2021_02785_path='E:/Datasets/CVPR2021-02785')
+loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=6)
 
 model = EEGModel()
 for p in model.parameters():

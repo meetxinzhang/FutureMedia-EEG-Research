@@ -9,15 +9,16 @@
 """
 #
 # """
-# import mne
-# import numpy as np
-#
-# bdf = mne.io.read_raw_bdf('/media/xin/Raid0/dataset/CVPR2021-02785/data/imagenet40-1000-1-09.bdf', preload=True)
-# # dbf = bdf.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
-#
-# print(bdf.info, '\n')
-# print('channels: ', len(bdf.ch_names), bdf.ch_names, '\n')
-# print('times: ', bdf.n_times, bdf.times, '\n')
+import mne
+import numpy as np
+
+bdf = mne.io.read_raw_bdf('E:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-09.bdf',
+                          preload=True, infer_types=True)
+# dbf = bdf.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
+
+print(bdf.info, '\n')
+print('channels: ', len(bdf.ch_names), bdf.ch_names, '\n')
+print('times: ', bdf.n_times, bdf.times, '\n')
 #
 # events1 = mne.find_events(bdf, stim_channel='Status', initial_event=True, output='step')
 # # events2 = mne.find_events(bdf, stim_channel='Status', initial_event=True, output='onset')

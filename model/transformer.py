@@ -178,3 +178,7 @@ class PositionalEncoding(nn.Module):
     def forward(self, x):
         x = x + torch.autograd.Variable(self.pe[:, :x.size(1)], requires_grad=False)
         return self.dropout(x)
+
+    
+
+
