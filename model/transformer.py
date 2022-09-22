@@ -22,7 +22,7 @@ def clones(module, N):
 def attention(query, key, value, mask=None, dropout=None):
     """
     'Scaled Dot Product Attention'
-    Formulation on paper: Attention(Q,K,V)=softmax(QK^T/√d_k)V
+    Formulation in paper: Attention(Q,K,V)=softmax(QK^T/√d_k)V
     :params query, key, value are same size as [n_batches, n_head, seq_len, d_k]
     """
     d_k = query.size(-1)  # key.size = query.size
@@ -69,7 +69,7 @@ class MultiHeadedAttention(nn.Module):
         #    Advance n_head is for subsequent parallel calculations
         query, key, value = \
             [linear(x).view(nbatches, -1, self.n_h, self.d_k).transpose(1, 2)
-             for linear, x in zip(self.linear_list, (query, key, value))]
+             for linear, x in zip(self.linear_list, (query, key, value))]   # only 3 linear object take part in the loop
 
         # 2) Apply attention on all the projected vectors in batch.
         #    [n_batches, n_head, seq_len, d_k], [n_batches, n_head, seq_len, seq_len]
@@ -125,8 +125,8 @@ class EncoderLayer(nn.Module):
 
     def forward(self, x, mask):
         #  [n_b, seq_len, d_model]
-        #  2nd param of forward in ResidualConnectionNorm is callable, so there passing a lambda function
-        x = self.sublayer[0](x, lambda x: self.self_attn(x, x, x, mask))  # sublayer 1
+        #  2nd param of forward in ResidualConnectionNorm is callable, so there feed a lambda function
+        x = self.sublayer[0](x, lambda x_: self.self_attn(x_, x_, x_, mask))  # sublayer 1
         return self.sublayer[1](x, self.feed_forward)   # sublayer 2  [n_b, seq_len, d_model]
 
 
@@ -179,6 +179,6 @@ class PositionalEncoding(nn.Module):
         x = x + torch.autograd.Variable(self.pe[:, :x.size(1)], requires_grad=False)
         return self.dropout(x)
 
-    
+
 
 
