@@ -37,7 +37,8 @@ def attention(query, key, value, mask=None, dropout=None):
         p_attn = dropout(p_attn)  # [n_batches, n_head, seq_len, seq_len]
     # [n_batches, n_head, seq_len, seq_len] * [n_batches, n_head, seq_len, d_k]
     #   = [n_batches, n_head, seq_len, d_k]
-    #   Attend at element level of Value rather than at value itself, hard to understand(Took me 2h) but correct.
+    #   element-wise attention: Attend at element level of Value(Vector) rather than at value itself(the whole vector),
+    #   product the same output with attend value itself, hard to understand(Took me 2h) but correct.
     return torch.matmul(p_attn, value), p_attn
 
 
