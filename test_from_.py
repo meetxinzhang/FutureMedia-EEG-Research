@@ -13,14 +13,15 @@ import torch
 import numpy as np
 import cv2
 
-from model.ViT_LRP import vit_base_patch16_224 as vit_LRP
+from model.ViT_LRP import vit_base_patch16_224 as vit
 from model.ViT_explanation_generator import LRP
 from data_pipeline.imagenet_class import CLS2IDX
 
+# some image transform operators
 normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
 transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224),
+    transforms.Resize(256),  # rescale the shorter-edge to 256, and keep the ratio of length/weight
+    transforms.CenterCrop(224),  # cut at center, when input integer then return square
     transforms.ToTensor(),
     normalize,
 ])
@@ -36,9 +37,9 @@ def show_cam_on_image(img, mask):
 
 
 # initialize ViT pretrained
-model = vit_LRP(pretrained=False).cuda()
+model = vit(pretrained=False).cuda()
 model.eval()
-attribution_generator = LRP(model)
+attribution_generator = LRP(model)  # is a tensor flow graph
 
 
 def generate_visualization(original_image, class_index=None):
@@ -46,14 +47,17 @@ def generate_visualization(original_image, class_index=None):
                                                                  method="transformer_attribution",
                                                                  index=class_index).detach()
     transformer_attribution = transformer_attribution.reshape(1, 1, 14, 14)
+    # torch.nn.functional.interpolate up-sampling, to re
     transformer_attribution = torch.nn.functional.interpolate(transformer_attribution, scale_factor=16, mode='bilinear')
     transformer_attribution = transformer_attribution.reshape(224, 224).cuda().data.cpu().numpy()
     transformer_attribution = (transformer_attribution - transformer_attribution.min()) / (
             transformer_attribution.max() - transformer_attribution.min())
-    image_transformer_attribution = original_image.permute(1, 2, 0).data.cpu().numpy()
-    image_transformer_attribution = (image_transformer_attribution - image_transformer_attribution.min()) / (
-            image_transformer_attribution.max() - image_transformer_attribution.min())
-    vis = show_cam_on_image(image_transformer_attribution, transformer_attribution)
+    # permute: trans dimension at original image
+    _image = original_image.permute(1, 2, 0).data.cpu().numpy()
+    _image = (_image - _image.min()) / (
+            _image.max() - _image.min())
+    # image + attribution
+    vis = show_cam_on_image(_image, transformer_attribution)
     vis = np.uint8(255 * vis)
     vis = cv2.cvtColor(np.array(vis), cv2.COLOR_RGB2BGR)
     return vis

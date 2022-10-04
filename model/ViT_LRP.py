@@ -36,7 +36,7 @@ default_cfgs = {
 }
 
 
-def compute_rollout_attention(all_layer_matrices, start_layer=0):
+def compute_rollout_attention(all_layer_matrices, start_layer=0):  # layer-wise C=(A1*A2*A3*A4...An), and add one for each matrix
     # adding residual consideration
     num_tokens = all_layer_matrices[0].shape[1]
     batch_size = all_layer_matrices[0].shape[0]
@@ -89,9 +89,9 @@ class Attention(nn.Module):
         # attn = A*V
         self.matmul2 = einsum('bhij,bhjd->bhid')
 
-        self.qkv = Linear(dim, dim * 3, bias=qkv_bias)
+        self.qkv_linear = Linear(dim, dim * 3, bias=qkv_bias)
         self.attn_drop = Dropout(attn_drop)
-        self.proj = Linear(dim, dim)
+        self.proj_linear = Linear(dim, dim)
         self.proj_drop = Dropout(proj_drop)
         self.softmax = Softmax(dim=-1)
 
@@ -125,15 +125,15 @@ class Attention(nn.Module):
     def get_v_cam(self):
         return self.v_cam
 
-    def save_attn_gradients(self, attn_gradients):
+    def save_attn_gradients_hook(self, attn_gradients):
         self.attn_gradients = attn_gradients
 
     def get_attn_gradients(self):
         return self.attn_gradients
 
     def forward(self, x):
-        b, n, _, h = *x.shape, self.num_heads
-        qkv = self.qkv(x)
+        b, n, _, h = *x.shape, self.num_heads  # [b, n, dim]
+        qkv = self.qkv_linear(x)  # [b, n, dim] -> [b, n, dim*3]
         q, k, v = rearrange(qkv, 'b n (qkv h d) -> qkv b h n d', qkv=3, h=h)
 
         self.save_v(v)
@@ -144,23 +144,24 @@ class Attention(nn.Module):
         attn = self.attn_drop(attn)
 
         self.save_attn(attn)
-        attn.register_hook(self.save_attn_gradients)
+        attn.register_hook(self.save_attn_gradients_hook)  # save attn after drop
 
         out = self.matmul2([attn, v])
         out = rearrange(out, 'b h n d -> b n (h d)')
 
-        out = self.proj(out)
+        out = self.proj_linear(out)  # [b, n, dim=(h*d)]
         out = self.proj_drop(out)
         return out
 
     def relprop(self, cam, **kwargs):
+        # CAM(Class Activation Mapping)
         cam = self.proj_drop.relprop(cam, **kwargs)
-        cam = self.proj.relprop(cam, **kwargs)
+        cam = self.proj_linear.relprop(cam, **kwargs)
         cam = rearrange(cam, 'b n (h d) -> b h n d', h=self.num_heads)
 
-        # attn = A*V
+        # A*V <- out
         (cam1, cam_v) = self.matmul2.relprop(cam, **kwargs)
-        cam1 /= 2  # cam1 = cam1 / 2
+        cam1 /= 2  # cam1 = cam1 / 2, why?
         cam_v /= 2
 
         self.save_v_cam(cam_v)
@@ -169,14 +170,14 @@ class Attention(nn.Module):
         cam1 = self.attn_drop.relprop(cam1, **kwargs)
         cam1 = self.softmax.relprop(cam1, **kwargs)
 
-        # A = Q*K^T
+        # Q*K^T <- A
         (cam_q, cam_k) = self.matmul1.relprop(cam1, **kwargs)
         cam_q /= 2
         cam_k /= 2
 
         cam_qkv = rearrange([cam_q, cam_k, cam_v], 'qkv b h n d -> b n (qkv h d)', qkv=3, h=self.num_heads)
 
-        return self.qkv.relprop(cam_qkv, **kwargs)
+        return self.qkv_linear.relprop(cam_qkv, **kwargs)
 
 
 class Block(nn.Module):
@@ -190,7 +191,7 @@ class Block(nn.Module):
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, drop=drop)
 
-        self.add1 = Add()
+        self.add1 = Add()  # res-connect
         self.add2 = Add()
         self.clone1 = Clone()
         self.clone2 = Clone()
@@ -221,28 +222,28 @@ class PatchEmbed(nn.Module):
 
     def __init__(self, img_size=224, patch_size=16, in_chans=3, embed_dim=768):
         super().__init__()
-        img_size = to_2tuple(img_size)
-        patch_size = to_2tuple(patch_size)
+        img_size = to_2tuple(img_size)  # (224, 224)
+        patch_size = to_2tuple(patch_size)  # (16, 16)
         num_patches = (img_size[1] // patch_size[1]) * (img_size[0] // patch_size[0])
         self.img_size = img_size
         self.patch_size = patch_size
         self.num_patches = num_patches
-
-        self.proj = Conv2d(in_chans, embed_dim, kernel_size=patch_size, stride=patch_size)
+        # embed_dim: num of conv kernels
+        self.proj_conv = Conv2d(in_channels=in_chans, out_channels=embed_dim, kernel_size=patch_size, stride=patch_size)
 
     def forward(self, x):
         B, C, H, W = x.shape
         # FIXME look at relaxing size constraints
         assert H == self.img_size[0] and W == self.img_size[1], \
             f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
-        x = self.proj(x).flatten(2).transpose(1, 2)
+        x = self.proj_conv(x).flatten(2).transpose(1, 2)  # [b, c, h, w] -> [b, c, hw] -> [b, hw, c]
         return x
 
     def relprop(self, cam, **kwargs):
         cam = cam.transpose(1, 2)
         cam = cam.reshape(cam.shape[0], cam.shape[1],
                           (self.img_size[0] // self.patch_size[0]), (self.img_size[1] // self.patch_size[1]))
-        return self.proj.relprop(cam, **kwargs)
+        return self.proj_conv.relprop(cam, **kwargs)
 
 
 class VisionTransformer(nn.Module):
@@ -254,6 +255,7 @@ class VisionTransformer(nn.Module):
         super().__init__()
         self.num_classes = num_classes
         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
+
         self.patch_embed = PatchEmbed(
             img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
         num_patches = self.patch_embed.num_patches
@@ -307,11 +309,11 @@ class VisionTransformer(nn.Module):
 
     def forward(self, x):
         B = x.shape[0]
-        x = self.patch_embed(x)
+        x = self.patch_embed(x)  # [b, c, h, w] -> [b, c', h'w'] -> [b, h'w', c'] like [b, time, d]
 
-        cls_tokens = self.cls_token.expand(B, -1, -1)  # stole cls_tokens impl from Phil Wang, thanks
-        x = torch.cat((cls_tokens, x), dim=1)
-        x = self.add([x, self.pos_embed])
+        cls_tokens = self.cls_token.expand(B, -1, -1)  # [1, 1, embed_dim] -> [b, 1, embed_dim], embed_dim=c of conv
+        x = torch.cat((cls_tokens, x), dim=1)  # [b, 1, c'], [b, h'w', c']
+        x = self.add([x, self.pos_embed])  # [b, h'w'+1, c'] + [1, h'w'+1, c']
 
         x.register_hook(self.save_inp_grad)
 

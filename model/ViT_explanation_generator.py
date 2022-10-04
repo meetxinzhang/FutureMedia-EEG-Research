@@ -27,14 +27,14 @@ class LRP:
     def generate_LRP(self, input, index=None, method="transformer_attribution", is_ablation=False, start_layer=0):
         output = self.model(input)
         kwargs = {"alpha": 1}
-        if index == None:
+        if index is None:  # classificatory index
             index = np.argmax(output.cpu().data.numpy(), axis=-1)
 
         one_hot = np.zeros((1, output.size()[-1]), dtype=np.float32)
         one_hot[0, index] = 1
         one_hot_vector = one_hot
         one_hot = torch.from_numpy(one_hot).requires_grad_(True)
-        one_hot = torch.sum(one_hot.cuda() * output)
+        one_hot = torch.sum(one_hot.cuda() * output)  # classificatory mask
 
         self.model.zero_grad()
         one_hot.backward(retain_graph=True)
@@ -50,7 +50,7 @@ class Baselines:
 
     def generate_cam_attn(self, input, index=None):
         output = self.model(input.cuda(), register_hook=True)
-        if index == None:
+        if index is None:
             index = np.argmax(output.cpu().data.numpy())
 
         one_hot = np.zeros((1, output.size()[-1]), dtype=np.float32)
