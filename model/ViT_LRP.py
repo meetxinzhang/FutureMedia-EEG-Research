@@ -318,12 +318,12 @@ class VisionTransformer(nn.Module):
         x.register_hook(self.save_inp_grad)
 
         for blk in self.blocks:
-            x = blk(x)
+            x = blk(x)  # [b, h'w'+1, c']
 
         x = self.norm(x)
         x = self.pool(x, dim=1, indices=torch.tensor(0, device=x.device))
         x = x.squeeze(1)
-        x = self.head(x)
+        x = self.head(x)  # [b, h'w'+1, classes]
         return x
 
     def relprop(self, cam=None, method="transformer_attribution", is_ablation=False, start_layer=0, **kwargs):

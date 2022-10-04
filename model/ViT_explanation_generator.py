@@ -25,7 +25,7 @@ class LRP:
         self.model.eval()
 
     def generate_LRP(self, input, index=None, method="transformer_attribution", is_ablation=False, start_layer=0):
-        output = self.model(input)
+        output = self.model(input)  # [b, c, h, w] ->  [b, h'w'+1, classes]
         kwargs = {"alpha": 1}
         if index is None:  # classificatory index
             index = np.argmax(output.cpu().data.numpy(), axis=-1)
@@ -39,6 +39,7 @@ class LRP:
         self.model.zero_grad()
         one_hot.backward(retain_graph=True)
 
+        # the input of model.relprop() is one_hot
         return self.model.relprop(torch.tensor(one_hot_vector).to(input.device), method=method, is_ablation=is_ablation,
                                   start_layer=start_layer, **kwargs)
 
