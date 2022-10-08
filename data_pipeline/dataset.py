@@ -6,7 +6,7 @@
 @desc:
 """
 import torch
-from data_pipeline.bdf_reader import BDFReader
+from data_pipeline.mne_reader import MNEReader
 from data_pipeline.label_reader import LabelReader
 import glob
 from torch.utils.data.dataloader import default_collate
@@ -29,7 +29,7 @@ class BDFDataset(torch.utils.data.Dataset):
         self.bdf_filenames = self.file_filter(self.BDFs_path, endswith='.bdf')
         # self.label_filenames = self.file_filter(self.labels_path, endswith='.txt')
 
-        self.bdf_reader = BDFReader()
+        self.mne_reader = MNEReader()
         self.label_reader = LabelReader()
 
     def __len__(self):
@@ -48,7 +48,7 @@ class BDFDataset(torch.utils.data.Dataset):
         bdf_path = self.bdf_filenames[file_idx]
         # label_path = self.label_filenames[file_idx]
         try:
-            x = self.bdf_reader.get_item_matrix(bdf_path, sample_idx)
+            x = self.mne_reader.get_item_matrix(bdf_path, sample_idx)
             number = bdf_path.split('.')[0].split('-')[-1]
             label = self.label_reader.get_item_one_hot(self.labels_path+'/'+'run-'+number+'.txt', sample_idx)
         except Exception as e:

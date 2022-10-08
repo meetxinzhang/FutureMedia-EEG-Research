@@ -11,11 +11,11 @@ import numpy as np
 import mne
 
 
-def get_sample():
+def read_by_event(file_path='E:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-00.bdf'):
     # Visualization of EEG
-    raw = mne.io.read_raw_bdf('E:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-85.bdf', preload=True)
-    print(raw.info)
-    print(raw.ch_names)
+    raw = mne.io.read_raw_bdf(file_path, preload=True)
+    # print(raw.info)
+    # print(raw.ch_names)
     # raw.plot_psd(fmax=20)
     # raw.plot(duration=5, n_channels=104)
 
@@ -30,7 +30,7 @@ def get_sample():
     # epochs.equalize_event_counts(cond_we_care_about)
     start_epochs = epochs['start']
 
-    print(start_epochs)
+    # print(start_epochs)
     # start_epochs.plot_image(['B24', 'C17'])
 
     # frequencies = np.arange(7, 30, 3)
@@ -40,6 +40,22 @@ def get_sample():
     picks_channels = mne.pick_types(raw.info, eeg=True, stim=False,
                                     exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8', 'Status'])
     samples = start_epochs.get_data(picks_channels)
-    print(np.shape(samples))  # [400, 96, 2868]
+    # print(np.shape(samples))  # [400, 96, 2868]
     del raw, epochs, events
-    return samples[1]
+    return samples
+
+
+class MNEReader(object):
+    def __init__(self, file_path='E:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-00.bdf'):
+        self.file_path = file_path
+        self.samples = read_by_event(self.file_path)
+
+    def get_item_matrix(self, file_path, idx_item):
+        if file_path == self.file_path:
+            return self.samples[idx_item]
+        else:
+            self.file_path = file_path
+            self.samples = read_by_event(self.file_path)
+            return self.samples[idx_item]
+        pass
+

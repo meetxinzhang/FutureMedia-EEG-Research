@@ -6,7 +6,6 @@
  @desc:
 """
 
-from PIL import Image
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import torch
@@ -84,24 +83,24 @@ def print_top_classes(predictions, **kwargs):
 
 # image = Image.open('data_pipeline/samples/catdog.png')
 # dog_cat_image = transform(image)
-from test_for_EEG import get_sample
+from data_pipeline.mne_reader import read_by_event
 from PIL import Image
-image = Image.fromarray(get_sample())
-dog_cat_image = transform(image)
+image = Image.fromarray(read_by_event()[0])
+eeg_image = transform(image)
 
 fig, axs = plt.subplots(1, 3)
 axs[0].imshow(image)
 axs[0].axis('off')
 
-output = model(dog_cat_image.unsqueeze(0).cuda())
+output = model(eeg_image.unsqueeze(0).cuda())
 print_top_classes(output)
 
 # cat - the predicted class
-cat = generate_visualization(dog_cat_image)
+cat = generate_visualization(eeg_image)
 
 # dog
 # generate visualization for class 243: 'bull mastiff'
-dog = generate_visualization(dog_cat_image, class_index=243)
+dog = generate_visualization(eeg_image, class_index=243)
 
 
 axs[1].imshow(cat)
