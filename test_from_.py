@@ -18,7 +18,7 @@ from model.ViT_explanation_generator import LRP
 from data_pipeline.imagenet_class import CLS2IDX
 
 # some image transform operators
-normalize = transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5])
+normalize = transforms.Normalize(mean=[0.5], std=[0.5])
 transform = transforms.Compose([
     transforms.Resize(256),  # rescale the shorter-edge to 256, and keep the ratio of length/weight
     transforms.CenterCrop(224),  # cut at center, when input integer then return square
@@ -82,7 +82,11 @@ def print_top_classes(predictions, **kwargs):
         print(output_string)
 
 
-image = Image.open('data_pipeline/samples/catdog.png')
+# image = Image.open('data_pipeline/samples/catdog.png')
+# dog_cat_image = transform(image)
+from test_for_EEG import get_sample
+from PIL import Image
+image = Image.fromarray(get_sample())
 dog_cat_image = transform(image)
 
 fig, axs = plt.subplots(1, 3)
