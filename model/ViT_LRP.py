@@ -6,9 +6,9 @@ import torch.nn as nn
 from einops import rearrange
 from modules.layers_ours import *
 
-from model.helpers import load_pretrained
+# from model.helpers import load_pretrained
 from model.weight_init import trunc_normal_
-from model.layer_helpers import to_2tuple
+from utils.repeat import to_2tuple
 
 
 # def _cfg(url='', **kwargs):
@@ -417,9 +417,9 @@ def vit_base_patch16_224(pretrained=False, **kwargs):
     model = VisionTransformer(
         patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True, **kwargs)
     # model.default_cfg = default_cfgs['vit_base_patch16_224']
-    if pretrained:
-        load_pretrained(
-            model, num_classes=model.num_classes, in_chans=kwargs.get('in_chans', 1), filter_fn=_conv_filter)
+    # if pretrained:
+    #     load_pretrained(
+    #         model, num_classes=model.num_classes, in_chans=kwargs.get('in_chans', 1), filter_fn=_conv_filter)
     return model
 
 
