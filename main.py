@@ -7,6 +7,7 @@
 """
 from data_pipeline.dataset import BDFDataset, collate_
 from model.integrate import EEGModel
+from model.my_network import VisionTransformer
 import torch
 import torch.nn.functional as F
 from utils.learning_rate import get_std_optimizer
@@ -20,10 +21,11 @@ batch_size = 8
 dataset = BDFDataset(CVPR2021_02785_path='E:/Datasets/CVPR2021-02785')
 loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=6)
 
-model = EEGModel()
-for p in model.parameters():
-    if p.dim() > 1:
-        torch.nn.init.xavier_uniform_(p)
+# model = EEGModel()
+model = VisionTransformer(patch_size=16, embed_dim=768, depth=12, num_heads=12, mlp_ratio=4, qkv_bias=True)
+# for p in model.parameters():
+#     if p.dim() > 1:
+#         torch.nn.init.xavier_uniform_(p)
 if gpu:
     model.cuda()
 
@@ -47,6 +49,7 @@ if __name__ == '__main__':
     global_step = 0
     for epoch in range(11):
         for x, label in loader:
+            #  [b, 96, 2868], [b]
             if x is None and label is None:
                 step += 1
                 global_step += 1

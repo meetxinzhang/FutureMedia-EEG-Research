@@ -48,7 +48,7 @@ class BDFDataset(torch.utils.data.Dataset):
         bdf_path = self.bdf_filenames[file_idx]
         # label_path = self.label_filenames[file_idx]
         try:
-            x = self.mne_reader.get_item_matrix(bdf_path, sample_idx)
+            x = self.mne_reader.get_item_matrix(bdf_path, sample_idx)  # [96, 2868]
             number = bdf_path.split('.')[0].split('-')[-1]
             label = self.label_reader.get_item_one_hot(self.labels_path+'/'+'run-'+number+'.txt', sample_idx)
         except Exception as e:

@@ -6,8 +6,6 @@
  @desc:
 """
 
-from data_pipeline.bdf_reader import BDFReader
-import numpy as np
 import mne
 
 
