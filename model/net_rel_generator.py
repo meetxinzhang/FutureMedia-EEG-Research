@@ -23,7 +23,8 @@ class LRP:
         # TODO auto-validate per batch
 
         self.model.zero_grad()
-        one_hot.backward(retain_graph=True)  # backward to calculate gradients of all nodes
+        # backward to calculate gradients of all nodes /Deep Taylor Decomposition principle ?
+        one_hot.backward(retain_graph=True)
 
         # the input of model.relprop() is one_hot
         return self.model.relprop(cam=torch.tensor(one_hot_vector).to(input.device), method=method, is_ablation=is_ablation,

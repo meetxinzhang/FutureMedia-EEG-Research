@@ -4,7 +4,7 @@ Hacked together by / Copyright 2020 Ross Wightman
 import torch
 import torch.nn as nn
 from einops import rearrange
-from modules.layers_ours import *
+from modules.layers_Chefer_H import *
 
 from model.weight_init import trunc_normal_
 from utils.repeat import to_2tuple
@@ -54,6 +54,7 @@ class Mlp(nn.Module):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
+
         self.fc1 = Linear(in_features, hidden_features)
         self.act = GELU()
         self.fc2 = Linear(hidden_features, out_features)
@@ -402,14 +403,14 @@ class VisionTransformer(nn.Module):
             return cam
 
 
-def _conv_filter(state_dict, patch_size=16):
-    """ convert patch embedding weight from manual patchify + linear proj to conv"""
-    out_dict = {}
-    for k, v in state_dict.items():
-        if 'patch_embed.proj.weight' in k:
-            v = v.reshape((v.shape[0], 3, patch_size, patch_size))
-        out_dict[k] = v
-    return out_dict
+# def _conv_filter(state_dict, patch_size=16):
+#     """ convert patch embedding weight from manual patchify + linear proj to conv"""
+#     out_dict = {}
+#     for k, v in state_dict.items():
+#         if 'patch_embed.proj.weight' in k:
+#             v = v.reshape((v.shape[0], 3, patch_size, patch_size))
+#         out_dict[k] = v
+#     return out_dict
 
 
 def vit_base_patch16_224(pretrained=False, **kwargs):

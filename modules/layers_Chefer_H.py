@@ -1,3 +1,6 @@
+# Chefer H, Gur S, Wolf L. Transformer interpretability beyond attention visualization[C]
+# //Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition. 2021: 782-791.
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -8,9 +11,9 @@ __all__ = ['forward_hook', 'Clone', 'Add', 'Cat', 'ReLU', 'GELU', 'Dropout', 'Ba
 
 
 def safe_divide(a, b):
-    den = b.clamp(min=1e-9) + b.clamp(max=1e-9)
-    den = den + den.eq(0).type(den.type()) * 1e-9
-    return a / den * b.ne(0).type(b.type())
+    den = b.clamp(min=1e-9) + b.clamp(max=1e-9)  # set the min bound, means get larger than 1e-9, the "stabilizer"
+    den = den + den.eq(0).type(den.type()) * 1e-9   # if den==0 then +1*1e-9
+    return a / den * b.ne(0).type(b.type())  # / !0 first then *0 if b==0
 
 
 def forward_hook(self, input, output):
@@ -218,23 +221,25 @@ class BatchNorm2d(nn.BatchNorm2d, RelProp):
 class Linear(nn.Linear, RelProp):
     def relprop(self, R, alpha):
         beta = alpha - 1
-        pw = torch.clamp(self.weight, min=0)
-        nw = torch.clamp(self.weight, max=0)
-        px = torch.clamp(self.X, min=0)
-        nx = torch.clamp(self.X, max=0)
+        pw = torch.clamp(self.weight, min=0)  # positive w
+        nw = torch.clamp(self.weight, max=0)  # negative
+        px = torch.clamp(self.X, min=0)       # positive x
+        nx = torch.clamp(self.X, max=0)       # negative
 
         def f(w1, w2, x1, x2):
-            Z1 = F.linear(x1, w1)
-            Z2 = F.linear(x2, w2)
-            S1 = safe_divide(R, Z1 + Z2)
-            S2 = safe_divide(R, Z1 + Z2)
-            C1 = x1 * torch.autograd.grad(Z1, x1, S1)[0]
+            Z1 = F.linear(x1, w1)  #
+            Z2 = F.linear(x2, w2)  #
+            S1 = safe_divide(R, Z1 + Z2)  # R/Zj
+            S2 = safe_divide(R, Z1 + Z2)  # R/Zj
+            # grad_outputs: “vector” in the vector-Jacobian product for each x
+            # https://blog.csdn.net/waitingwinter/article/details/105774720 for more details
+            C1 = x1 * torch.autograd.grad(outputs=Z1, inputs=x1, grad_outputs=S1)[0]  # d(Z1)/d(X1) * S1
             C2 = x2 * torch.autograd.grad(Z2, x2, S2)[0]
 
             return C1 + C2
 
-        activator_relevances = f(pw, nw, px, nx)
-        inhibitor_relevances = f(nw, pw, px, nx)
+        activator_relevances = f(pw, nw, px, nx)  # Z1:++, Z2:--
+        inhibitor_relevances = f(nw, pw, px, nx)  # Z1:+-, Z2:-+
 
         R = alpha * activator_relevances - beta * inhibitor_relevances
 

@@ -7,6 +7,9 @@
 
     This file is a testing place, and can be deleted.
 """
+import torch
+
+
 #
 # """
 # import mne
@@ -100,3 +103,15 @@
 #
 # # with pd.option_context('display.max_rows', 500, 'display.max_columns', 10):
 # #     print(df.iloc[0:20, 1:96])
+
+
+# def safe_divide(a, b):
+#     den = b.clamp(min=1e-9) + b.clamp(max=1e-9)  # set the min bound, means get larger than 1e-9, the "stabilizer"
+#     den = den + den.eq(0).type(den.type()) * 1e-9   # if den==0 then +1*1e-9 else +0
+#     return a / den * b.ne(0).type(b.type())  # / !0 first then *0 if b==0 else *1
+#
+#
+# a = torch.Tensor([5])
+# b = torch.Tensor([0])
+#
+# print(safe_divide(a, b))
