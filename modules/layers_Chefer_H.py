@@ -35,7 +35,7 @@ def backward_hook(self, grad_input, grad_output):
     self.grad_output = grad_output
 
 
-class RelProp(nn.Module):
+class RelProp(nn.Module):  # Deep TayLor Decomposition
     def __init__(self):
         super(RelProp, self).__init__()
         # if not self.training:
@@ -55,7 +55,7 @@ class RelPropSimple(RelProp):
         S = safe_divide(R, Z)
         C = self.gradprop(Z, self.X, S)
 
-        if torch.is_tensor(self.X) == False:
+        if not torch.is_tensor(self.X):
             outputs = []
             outputs.append(self.X[0] * C[0])
             outputs.append(self.X[1] * C[1])

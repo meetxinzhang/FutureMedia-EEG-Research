@@ -6,7 +6,6 @@
 @desc:
 """
 from data_pipeline.dataset import BDFDataset, collate_
-from model.integrate import EEGModel
 from model.my_network import VisionTransformer
 import torch
 import torch.nn.functional as F

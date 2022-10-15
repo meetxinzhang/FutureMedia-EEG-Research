@@ -115,3 +115,6 @@ import torch
 # b = torch.Tensor([0])
 #
 # print(safe_divide(a, b))
+
+
+from data_pipeline.mne_reader import read_by_event
