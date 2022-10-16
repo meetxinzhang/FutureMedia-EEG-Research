@@ -6,7 +6,7 @@
 @desc:
 """
 from data_pipeline.dataset import BDFDataset, collate_
-from model.my_network import VisionTransformer
+from model.nn_lrp import VisionTransformer
 import torch
 import torch.nn.functional as F
 from utils.learning_rate import get_std_optimizer

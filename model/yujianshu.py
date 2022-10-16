@@ -6,9 +6,10 @@
  @time: 2022/10/13 21:22
  @desc:
 """
+import torch.nn
 import torch.nn as nn
 import modules.layers_Chefer_H as yi
-import model.my_network as tsfm
+import model.nn_lrp as nnlrp
 from einops import rearrange
 
 
@@ -18,23 +19,17 @@ class GraphFlow(nn.Module):
                  num_heads=6, mlp_ratio=4., qkv_bias=False, mlp_head=False, drop_rate=0., attn_drop_rate=0.):
         super().__init__()
         self.num_classes = num_classes
-        # self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
 
-        # self.patch_embed = PatchEmbed(
-        #     img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
-        # num_patches = self.patch_embed.num_patches
-
-        # self.pos_embed = nn.Parameter(torch.zeros(1, num_patches + 1, embed_dim))
-        # self.cls_token = nn.Parameter(torch.zeros(1, 1, embed_dim))
+        self.conv2 = nnlrp.Conv2d(in_channels=1, out_channels=)
 
         self.c_blocks = nn.ModuleList([
-            tsfm.Block(
+            nnlrp.Block(
                 dim=freqs, num_heads=num_heads, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias,
                 drop=drop_rate, attn_drop=attn_drop_rate)
             for i in range(3)])
 
         self.t_blocks = nn.ModuleList([
-            tsfm.Block(
+            nnlrp.Block(
                 dim=channels, num_heads=num_heads, mlp_ratio=mlp_ratio, qkv_bias=qkv_bias,
                 drop=drop_rate, attn_drop=attn_drop_rate)
             for i in range(4)])
@@ -54,10 +49,6 @@ class GraphFlow(nn.Module):
         trunc_normal_(self.pos_embed, std=.02)  # embeddings same as weights?
         trunc_normal_(self.cls_token, std=.02)
         self.apply(self._init_weights)
-
-
-
-
 
         self.pool = IndexSelect()
         self.add = Add()

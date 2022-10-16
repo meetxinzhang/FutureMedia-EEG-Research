@@ -12,8 +12,8 @@ import torch
 import numpy as np
 import cv2
 
-from model.my_network import vit_base_patch16_224 as vit
-from model.net_rel_generator import LRP
+from model.nn_lrp import vit_base_patch16_224 as vit
+from model.nn_rel_generator import LRP
 from data_pipeline.imagenet_class import CLS2IDX
 
 # some image transform operators
