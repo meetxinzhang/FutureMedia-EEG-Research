@@ -83,9 +83,9 @@ def print_top_classes(predictions, **kwargs):
 
 # image = Image.open('data_pipeline/samples/catdog.png')
 # dog_cat_image = transform(image)
-from data_pipeline.mne_reader import read_by_event
+from data_pipeline.mne_reader import read_auto
 from PIL import Image
-image = Image.fromarray(read_by_event()[0])
+image = Image.fromarray(read_auto()[0])
 eeg_image = transform(image)
 
 fig, axs = plt.subplots(1, 3)

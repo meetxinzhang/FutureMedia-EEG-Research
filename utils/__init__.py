@@ -116,5 +116,3 @@ import torch
 #
 # print(safe_divide(a, b))
 
-
-from data_pipeline.mne_reader import read_by_event
