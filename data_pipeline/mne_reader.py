@@ -30,9 +30,10 @@ class BDFReader(object):
         return self.set
 
     def get_item(self, file_path, sample_idx):
-        if file_path == self.file_path:
+        if self.file_path == file_path:
             return self.set[sample_idx]
         else:
+            print('un-hit', '\n', file_path, '\n', self.file_path)
             self.file_path = file_path
             self.set = self.method()
             return self.set[sample_idx]
@@ -42,13 +43,13 @@ class BDFReader(object):
                                   exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'],
                                   stim_channel='Status')
         print(raw)
-        print(raw.info)
+        # print(raw.info)
         # raw = raw.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
         events = mne.find_events(raw, stim_channel='Status', initial_event=True, output='step')
         if self.resample is not None:
             raw, events = raw.resample(sfreq=self.resample, events=events)  # down sampling to 1024Hz
-        print(np.shape(events))
-        print(events)
+        # print(np.shape(events))
+        # print(events)
         # print(raw.ch_names)
         # raw.plot_psd(fmax=20)
         # raw.plot(duration=5, c_channels=96)

@@ -12,7 +12,7 @@ __all__ = ['forward_hook', 'Clone', 'Add', 'Cat', 'ReLU', 'GELU', 'Dropout', 'Ba
 
 def safe_divide(a, b):
     den = b.clamp(min=1e-9) + b.clamp(max=1e-9)  # set the min bound, means get larger than 1e-9, the "stabilizer"
-    den = den + den.eq(0).type(den.type()) * 1e-9   # if den==0 then +1*1e-9
+    den = den + den.eq(0).type(den.type()) * 1e-9  # if den==0 then +1*1e-9
     return a / den * b.ne(0).type(b.type())  # / !0 first then *0 if b==0
 
 
@@ -75,6 +75,11 @@ class ReLU(nn.ReLU, RelProp):
 
 
 class GELU(nn.GELU, RelProp):
+    pass
+
+
+class Sigmoid(nn.Sigmoid, RelProp):
+    # TODO +- activation respectively
     pass
 
 
@@ -223,8 +228,8 @@ class Linear(nn.Linear, RelProp):
         beta = alpha - 1
         pw = torch.clamp(self.weight, min=0)  # positive w
         nw = torch.clamp(self.weight, max=0)  # negative
-        px = torch.clamp(self.X, min=0)       # positive x
-        nx = torch.clamp(self.X, max=0)       # negative
+        px = torch.clamp(self.X, min=0)  # positive x
+        nx = torch.clamp(self.X, max=0)  # negative
 
         def f(w1, w2, x1, x2):
             Z1 = F.linear(x1, w1)  #

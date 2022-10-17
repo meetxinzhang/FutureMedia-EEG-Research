@@ -40,7 +40,7 @@ class NoamOpt:
         return self.factor * (self.model_size ** (-0.5) * min(step ** (-0.5), step * self.warmup ** (-1.5)))
 
 
-def get_std_optimizer(model, d_model=64, factor=1, warmup=4000):
-    return NoamOpt(model_size=d_model, factor=factor, warmup=warmup,
+def get_std_optimizer(model, model_size=64, factor=1, warmup=4000):
+    return NoamOpt(model_size=model_size, factor=factor, warmup=warmup,
                    optimizer=torch.optim.Adam(model.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
 

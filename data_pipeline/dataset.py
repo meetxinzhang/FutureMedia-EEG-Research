@@ -6,9 +6,10 @@
 @desc:
 """
 import torch
-from data_pipeline.mne_reader import MNEReader
+from data_pipeline.mne_reader import BDFReader
 from data_pipeline.label_reader import LabelReader
 import glob
+import platform
 from torch.utils.data.dataloader import default_collate
 
 
@@ -29,7 +30,7 @@ class BDFDataset(torch.utils.data.Dataset):
         self.bdf_filenames = self.file_filter(self.BDFs_path, endswith='.bdf')
         # self.label_filenames = self.file_filter(self.labels_path, endswith='.txt')
 
-        self.mne_reader = MNEReader()
+        self.bdf_reader = BDFReader()
         self.label_reader = LabelReader()
 
     def __len__(self):
@@ -48,7 +49,7 @@ class BDFDataset(torch.utils.data.Dataset):
         bdf_path = self.bdf_filenames[file_idx]
         # label_path = self.label_filenames[file_idx]
         try:
-            x = self.mne_reader.get_item_matrix(bdf_path, sample_idx)  # [96, 2868]
+            x = self.bdf_reader.get_item(bdf_path, sample_idx)  # [96, 2868]
             number = bdf_path.split('.')[0].split('-')[-1]
             label = self.label_reader.get_item_one_hot(self.labels_path+'/'+'run-'+number+'.txt', sample_idx)
         except Exception as e:
@@ -60,6 +61,8 @@ class BDFDataset(torch.utils.data.Dataset):
 
     def file_filter(self, path, endswith):
         files = glob.glob(path + '/*')
+        if platform.system().lower() == 'windows':
+            files = [f.replace('\\', '/') for f in files]
         disallowed_file_endings = (".gitignore", ".DS_Store")
         _input_files = files[:int(len(files) * self.sample_rate)]
         return list(filter(lambda x: not x.endswith(disallowed_file_endings) and x.endswith(endswith),

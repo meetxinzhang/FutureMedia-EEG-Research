@@ -35,7 +35,8 @@ from utils.repeat import to_2tuple
 # }
 
 
-def compute_rollout_attention(all_layer_matrices, start_layer=0):  # layer-wise C=(A1*A2*A3*A4...An), and add one for each matrix
+def compute_rollout_attention(all_layer_matrices, start_layer=0):
+    # layer-wise C=(A1*A2*A3*A4...An), and add one for each matrix
     # adding residual consideration
     num_tokens = all_layer_matrices[0].shape[1]
     batch_size = all_layer_matrices[0].shape[0]
@@ -77,10 +78,11 @@ class Mlp(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, dim, num_heads=8, qkv_bias=False, attn_drop=0., proj_drop=0.):
+    def __init__(self, dim_in, dim_out=None, num_heads=8, qkv_bias=False, attn_drop=0., proj_drop=0.):
         super().__init__()
         self.num_heads = num_heads
-        head_dim = dim // num_heads
+        dim_out = dim_out or dim_in
+        head_dim = dim_out // num_heads
         # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
         self.scale = head_dim ** -0.5
 
@@ -89,9 +91,9 @@ class MultiHeadAttention(nn.Module):
         # attn = A*V
         self.matmul2 = einsum('bhij,bhjd->bhid')
 
-        self.qkv_linear = Linear(dim, dim * 3, bias=qkv_bias)
+        self.qkv_linear = Linear(dim_in, dim_out * 3, bias=qkv_bias)
         self.attn_drop = Dropout(attn_drop)
-        self.proj_linear = Linear(dim, dim)
+        self.proj_linear = Linear(dim_out, dim_out)
         self.proj_drop = Dropout(proj_drop)
         self.softmax = Softmax(dim=-1)
 
@@ -132,9 +134,9 @@ class MultiHeadAttention(nn.Module):
         return self.attn_gradients
 
     def forward(self, x):
-        b, n, _, h = *x.shape, self.num_heads  # [b, n, dim]
-        qkv = self.qkv_linear(x)  # [b, n, dim] -> [b, n, dim*3]
-        q, k, v = rearrange(qkv, 'b n (qkv h d) -> qkv b h n d', qkv=3, h=h)
+        b, n, _, = x.shape  # [b, n, dim]
+        qkv = self.qkv_linear(x)  # [b, n, dim_in] -> [b, n, dim_out*3]
+        q, k, v = rearrange(qkv, 'b n (qkv h d) -> qkv b h n d', qkv=3, h=self.num_heads)
 
         self.save_v(v)
 
@@ -149,7 +151,7 @@ class MultiHeadAttention(nn.Module):
         out = self.matmul2([attn, v])
         out = rearrange(out, 'b h n d -> b n (h d)')
 
-        out = self.proj_linear(out)  # [b, n, dim=(h*d)]
+        out = self.proj_linear(out)  # [b, n, dim_out=(h*d)] -> [b, n, dim_out]
         out = self.proj_drop(out)
         return out
 
@@ -182,13 +184,13 @@ class MultiHeadAttention(nn.Module):
 
 class Block(nn.Module):
 
-    def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, drop=0., attn_drop=0.):
+    def __init__(self, dim, num_heads, mlp_dilator=4., qkv_bias=False, drop=0., attn_drop=0.):
         super().__init__()
         self.norm1 = LayerNorm(dim, eps=1e-6)
         self.attn = MultiHeadAttention(
             dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop)
         self.norm2 = LayerNorm(dim, eps=1e-6)
-        mlp_hidden_dim = int(dim * mlp_ratio)
+        mlp_hidden_dim = int(dim * mlp_dilator)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, drop=drop)
 
         self.add1 = Add()  # res-connect

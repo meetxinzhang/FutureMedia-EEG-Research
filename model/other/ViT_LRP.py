@@ -137,7 +137,7 @@ class MultiHeadAttention(nn.Module):
 
         self.save_v(v)
 
-        dots = self.matmul1([q, k]) * self.scale
+        dots = self.matmul1([q, k]) * self.scale  # [b, h, n, d]
 
         attn = self.softmax(dots)
         attn = self.attn_drop(attn)
@@ -235,7 +235,8 @@ class PatchEmbed(nn.Module):
         # FIXME look at relaxing size constraints
         assert H == self.img_size[0] and W == self.img_size[1], \
             f"Input image size ({H}*{W}) doesn't match model ({self.img_size[0]}*{self.img_size[1]})."
-        x = self.proj_conv(x).flatten(2).transpose(1, 2)  # [b, c, h, w] -> [b, c, hw] -> [b, hw, c]
+        # [b, c, h, w] -> [b, embed_dim, h, w] -> [b, c, hw] -> [b, hw, c]
+        x = self.proj_conv(x).flatten(2).transpose(1, 2)
         return x
 
     def relprop(self, cam, **kwargs):
