@@ -8,7 +8,7 @@
 import mne
 import numpy as np
 from utils.exception_message import ExceptionPassing
-from skimage.measure import block_reduce
+# from skimage.measure import block_reduce
 mne.set_log_level(verbose='WARNING')
 
 
@@ -75,7 +75,7 @@ class BDFReader(object):
         #     print(np.shape(s))
 
         del raw, epochs, events
-        return stim_epochs.get_data()  # [b, c, t]
+        return stim_epochs.get_data().transpose(0, 2, 1)  # [b, c, t]
 
     def read_by_stim(self):
         raw, events = self.read_raw()
@@ -102,9 +102,9 @@ class BDFReader(object):
             data, times = raw[picks, start:end]
             # data = data[:, 0:8191:20]  # down sampling
             # data = block_reduce(data, block_size=(1, 4), func=np.mean, cval=np.mean(data))
-            set.append(data)  # [time, channels]
+            set.append(data.T)  # [time, channels]
             # EEG_times.append(times[0])
-        return set  # [b, c, t]
+        return set  # [b, t, c]
 
     def read_by_manual(self):
         """
@@ -122,7 +122,7 @@ class BDFReader(object):
             t_idx = raw.time_as_index([10. + start, 10. + end])
             data, times = raw[picks, t_idx[0]:t_idx[1]]
             # EEGs[times[0]] = data.T
-            set.append(data)
+            set.append(data.T)
             # EEG_times.append(times[0])
         return set
 

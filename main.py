@@ -22,7 +22,7 @@ batch_size = 3
 
 # model = EEGModel()
 ff = FieldFlow(num_heads=6, mlp_dilator=2, qkv_bias=False, drop_rate=0.1, attn_drop_rate=0.1,
-               batch_size=16, time=512, channels=96, n_classes=40)
+               batch_size=16, time=512, n_signals=96, n_classes=40)
 # for p in model.parameters():
 #     if p.dim() > 1:
 #         torch.nn.init.xavier_uniform_(p)
@@ -33,7 +33,7 @@ if gpu:
 optimizer = get_std_optimizer(ff, model_size=96)
 
 # ----- Testing code start ----- Use following to test code without load data -----
-fake_x_for_testing = torch.rand(3, 512, 96).unsqueeze(1).transpose(2, 3).cuda()      # [batch_size, time_step, channels]
+fake_x_for_testing = torch.rand(3, 512, 96).unsqueeze(1).cuda()      # [batch_size, time_step, channels]
 fake_label_for_testing = torch.tensor([1, 0, 1], dtype=torch.long).cuda()
 ff.train()
 optimizer.zero_grad()

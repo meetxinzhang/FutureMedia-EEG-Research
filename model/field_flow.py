@@ -26,12 +26,12 @@ def _init_weights(m):
 class FieldFlow(nn.Module):
 
     def __init__(self, num_heads=6, mlp_dilator=4, qkv_bias=False, drop_rate=0., attn_drop_rate=0.,
-                 batch_size=64, time=512, channels=96, n_classes=40):
+                 batch_size=64, time=512, n_signals=96, n_classes=40):
         super().__init__()
         self.n_classes = n_classes
         self.bs = batch_size
 
-        # [b, c=1, t=512, c=96]
+        # [b, c=1, t=512, signals=96]
         self.conv1 = nnlrp.Conv2d(in_channels=1, out_channels=128, kernel_size=(1, 5), stride=(1, 1), padding='same',
                                   dilation=1, bias=True)
         self.max_pool1 = nnlrp.MaxPool2d(kernel_size=(1, 2), stride=(1, 2), padding=0, dilation=1)
@@ -52,13 +52,13 @@ class FieldFlow(nn.Module):
             for i in range(2)])
 
         # embedding
-        self.gap = lylrp.AdaptiveAvgPool2d(output_size=(batch_size * time, channels, 1))  # [(b, t), c, a] -> [(b, t), c, 1]
+        self.gap = lylrp.AdaptiveAvgPool2d(output_size=(batch_size * time, n_signals, 1))  # [(b, t), c, a] -> [(b, t), c, 1]
         # squeeze [(b, t), c, 1] -> [(b, t), c]
 
         # Temporal Tokenization
         # rearrange [(b, t), c] -> [b, t, c]
 
-        self.attn_proj = nnlrp.MultiHeadAttention(dim_in=channels, dim_out=n_classes * mlp_dilator, num_heads=num_heads,
+        self.attn_proj = nnlrp.MultiHeadAttention(dim_in=n_signals, dim_out=n_classes * mlp_dilator, num_heads=num_heads,
                                                   attn_drop=0, proj_drop=0)  # [b, t, n_classes*mlp_ratio]
         self.fc_proj = nnlrp.Linear(in_features=n_classes * mlp_dilator, out_features=n_classes)  # [b, t, n_classes]
 
@@ -93,7 +93,7 @@ class FieldFlow(nn.Module):
         return self.inp_grad
 
     def forward(self, x):
-        # x [b, c=96, t=512]
+        # x [b, t=512, c=96]
         x = self.conv1(x)
         x = self.act_conv(x)
         x = self.max_pool1(x)  # [bs, a=128, c=96, t=256]

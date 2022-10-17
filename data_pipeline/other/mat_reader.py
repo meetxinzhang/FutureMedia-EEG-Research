@@ -41,6 +41,7 @@ print(np.shape(mat['AF3']))
 # continues wavelet transform
 # t = np.linspace(0, 500, 500, endpoint=False)
 # widths = np.arange(12, 28)
+
 # cwtmatr = scipy.signal.cwt(data=np.squeeze(mat['AF3']), wavelet=scipy.signal.ricker, widths=widths)
 # plt.imshow(cwtmatr, extent=[0, 500, 12, 28], cmap='PRGn', aspect='auto',
 #            vmax=abs(cwtmatr).max(), vmin=-abs(cwtmatr).max())
