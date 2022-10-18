@@ -35,15 +35,20 @@ from utils.repeat import to_2tuple
 # }
 
 
-def compute_rollout_attention(all_layer_matrices, start_layer=0):
-    # layer-wise C=(A1*A2*A3*A4...An), and add one for each matrix
-    # adding residual consideration
-    num_tokens = all_layer_matrices[0].shape[1]
-    batch_size = all_layer_matrices[0].shape[0]
-    eye = torch.eye(num_tokens).expand(batch_size, num_tokens, num_tokens).to(all_layer_matrices[0].device)
-    all_layer_matrices = [all_layer_matrices[i] + eye for i in range(len(all_layer_matrices))]
-    # all_layer_matrices = [all_layer_matrices[i] / all_layer_matrices[i].sum(dim=-1, keepdim=True)
-    #                       for i in range(len(all_layer_matrices))]
+def compute_rollout_attention(all_layer_matrices, start_layer=0, true_bs=None):
+    """input [layers, b, t, t]
+    @true_bs: somtimes we integrate other dimensions into batch_size, that lead to times addition of eye matrix,
+    so we need to do eye/integrated-dim. integrated-dim=batch_size//true_bs, modified by Xin Zhang.
+    layer-wise C=(A1*A2*A3*A4...An), and add one for each matrix adding residual consideration
+    """
+    num_tokens = all_layer_matrices[0].shape[1]  # t
+    batch_size = all_layer_matrices[0].shape[0]  # b
+    eye = torch.eye(num_tokens).expand(batch_size, num_tokens, num_tokens).to(all_layer_matrices[0].device)  # [b, t, t]
+    if true_bs is not None:
+        eye = torch.div(eye, batch_size//true_bs)
+    all_layer_matrices = [all_layer_matrices[i] + eye for i in range(len(all_layer_matrices))]  # [l, b, t, t]
+    all_layer_matrices = [all_layer_matrices[i] / all_layer_matrices[i].sum(dim=-1, keepdim=True)  # [l, b, t, t]
+                          for i in range(len(all_layer_matrices))]
     joint_attention = all_layer_matrices[start_layer]
     for i in range(start_layer + 1, len(all_layer_matrices)):
         joint_attention = all_layer_matrices[i].bmm(joint_attention)  # batch-size matrix multipy
@@ -134,9 +139,9 @@ class MultiHeadAttention(nn.Module):
         return self.attn_gradients
 
     def forward(self, x):
-        b, n, _, = x.shape  # [b, n, dim]
-        qkv = self.qkv_linear(x)  # [b, n, dim_in] -> [b, n, dim_out*3]
-        q, k, v = rearrange(qkv, 'b n (qkv h d) -> qkv b h n d', qkv=3, h=self.num_heads)
+        b, t, _, = x.shape  # [b, t, dim]
+        qkv = self.qkv_linear(x)  # [b, t, dim_in] -> [b, t, dim_out*3]
+        q, k, v = rearrange(qkv, 'b t (qkv h d) -> qkv b h t d', qkv=3, h=self.num_heads)
 
         self.save_v(v)
 
@@ -149,9 +154,9 @@ class MultiHeadAttention(nn.Module):
         attn.register_hook(self.save_attn_gradients_hook)  # save attn gradients for model.relprop: attn_grad*cam
 
         out = self.matmul2([attn, v])
-        out = rearrange(out, 'b h n d -> b n (h d)')
+        out = rearrange(out, 'b h t d -> b t (h d)')
 
-        out = self.proj_linear(out)  # [b, n, dim_out=(h*d)] -> [b, n, dim_out]
+        out = self.proj_linear(out)  # [b, t, dim_out=(h*d)] -> [b, t, dim_out]
         out = self.proj_drop(out)
         return out
 
@@ -167,19 +172,31 @@ class MultiHeadAttention(nn.Module):
         cam_v /= 2  # cam2 = cam2 / 2
 
         self.save_v_cam(cam_v)
-        self.save_attn_cam(cam1)
+        self.save_attn_cam(cam1)  # [b, head, t, t]
+
+        # Chefer H et al.
+        # attn_grad = self.get_attn_gradients()  # [b, head, t, t]
+        # cam1 = cam1 * attn_grad
+        # t = cam1.shape[-1]    # num of tokens, it's time in my model
+        # bs = cam1.shape[0]    # batch_size
+        # head = cam1.shape[1]  # num of head
+        # eye = torch.eye(t).expand(bs, head, t, t).to(cam1.device)
+        # cam1 = cam1 + eye                    # [b, head, t, t]
+        # cam1 = cam1.clamp(min=0).mean(dim=0)
+        # cam1 = cam1 / cam1.sum(dim=-1, keepdims=True)
+        # print('conservation 3', cam1.sum())
 
         cam1 = self.attn_drop.relprop(cam1, **kwargs)
-        cam1 = self.softmax.relprop(cam1, **kwargs)
+        cam1 = self.softmax.relprop(cam1, **kwargs)  # [b, head, t, t]
 
         # Q*K^T <- A
-        (cam_q, cam_k) = self.matmul1.relprop(cam1, **kwargs)
+        (cam_q, cam_k) = self.matmul1.relprop(cam1, **kwargs)  # [b, head, t, dim/head=h_dim]
         cam_q /= 2
         cam_k /= 2
 
-        cam_qkv = rearrange([cam_q, cam_k, cam_v], 'qkv b h n d -> b n (qkv h d)', qkv=3, h=self.num_heads)
-
-        return self.qkv_linear.relprop(cam_qkv, **kwargs)
+        cam_qkv = rearrange([cam_q, cam_k, cam_v], 'qkv b h t d -> b t (qkv h d)', qkv=3, h=self.num_heads)
+        # [b, t, dim*3]
+        return self.qkv_linear.relprop(cam_qkv, **kwargs)  # [b, t, dim]
 
 
 class Block(nn.Module):
@@ -211,8 +228,8 @@ class Block(nn.Module):
         cam2 = self.norm2.relprop(cam2, **kwargs)
         cam = self.clone2.relprop((cam1, cam2), **kwargs)
 
-        (cam1, cam2) = self.add1.relprop(cam, **kwargs)
-        cam2 = self.attn.relprop(cam2, **kwargs)
+        (cam1, cam2) = self.add1.relprop(cam, **kwargs)  # [b, t, dim] dim==classes or signals in my model
+        cam2 = self.attn.relprop(cam2, **kwargs)         # [b, t, dim]
         cam2 = self.norm1.relprop(cam2, **kwargs)
         cam = self.clone1.relprop((cam1, cam2), **kwargs)
         return cam

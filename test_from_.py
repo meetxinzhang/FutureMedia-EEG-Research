@@ -12,8 +12,8 @@ import torch
 import numpy as np
 import cv2
 
-from model.nn_lrp import vit_base_patch16_224 as vit
-from model.nn_rel_generator import LRP
+from model.other.ViT_LRP import vit_base_patch16_224 as vit
+from model.other.ViT_explanation_generator import LRP
 from data_pipeline.imagenet_class import CLS2IDX
 
 # some image transform operators
@@ -45,6 +45,7 @@ def generate_visualization(original_image, class_index=None):
     transformer_attribution = attribution_generator.generate_LRP(original_image.unsqueeze(0).cuda(),
                                                                  method="transformer_attribution",
                                                                  index=class_index).detach()
+    #  [b, t-1=196]  -> [b, c=1, 14, 14]
     transformer_attribution = transformer_attribution.reshape(1, 1, 14, 14)
     # torch.nn.functional.interpolate up-sampling, to re
     transformer_attribution = torch.nn.functional.interpolate(transformer_attribution, scale_factor=16, mode='bilinear')
@@ -81,31 +82,29 @@ def print_top_classes(predictions, **kwargs):
         print(output_string)
 
 
-# image = Image.open('data_pipeline/samples/catdog.png')
-# dog_cat_image = transform(image)
-from data_pipeline.mne_reader import read_auto
 from PIL import Image
-image = Image.fromarray(read_auto()[0])
-eeg_image = transform(image)
+
+# from data_pipeline.mne_reader import
+# image = Image.fromarray(read_auto()[0])
+image = Image.open('data_pipeline/samples/catdog.png')
+dog_cat_image = transform(image)
 
 fig, axs = plt.subplots(1, 3)
 axs[0].imshow(image)
 axs[0].axis('off')
 
-output = model(eeg_image.unsqueeze(0).cuda())
+output = model(dog_cat_image.unsqueeze(0).cuda())
 print_top_classes(output)
 
 # cat - the predicted class
-cat = generate_visualization(eeg_image)
+cat = generate_visualization(dog_cat_image)
 
 # dog
 # generate visualization for class 243: 'bull mastiff'
-dog = generate_visualization(eeg_image, class_index=243)
-
+dog = generate_visualization(dog_cat_image, class_index=243)
 
 axs[1].imshow(cat)
 axs[1].axis('off')
 axs[2].imshow(dog)
 axs[2].axis('off')
 plt.show()
-

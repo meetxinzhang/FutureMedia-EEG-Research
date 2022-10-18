@@ -4,32 +4,26 @@ import numpy as np
 from numpy import *
 
 
-class LRP:
-    def __init__(self, model):
-        self.model = model
-        self.model.eval()
+def ignite_relprop(model, x, index=None, method="transformer_attribution", is_ablation=False, start_layer=0):
+    model.eval()
+    logits = model(x)  # [b, c, h, w] -> [b, classes]
+    kwargs = {"alpha": 1}
+    if index is None:  # classificatory index
+        index = np.argmax(logits.cpu().data.numpy(), axis=-1)
 
-    def generate_LRP(self, input, index=None, method="transformer_attribution", is_ablation=False, start_layer=0):
-        output = self.model(input)  # [b, c, h, w] -> [b, classes]
-        kwargs = {"alpha": 1}
-        if index is None:  # classificatory index
-            index = np.argmax(output.cpu().data.numpy(), axis=-1)
+    one_hot = np.zeros((1, logits.size()[-1]), dtype=np.float32)  # [1, classes]
+    one_hot[0, index] = 1  # [1, classes]
+    one_hot_vector = one_hot
+    one_hot = torch.from_numpy(one_hot).requires_grad_(True)
+    one_hot = torch.sum(one_hot.cuda() * logits)  # classificatory mask, if b=1 then [1, classes]
+    # TODO auto-validate per batch
 
-        one_hot = np.zeros((1, output.size()[-1]), dtype=np.float32)  # [1, classes]
-        one_hot[0, index] = 1  # [1, classes]
-        one_hot_vector = one_hot
-        one_hot = torch.from_numpy(one_hot).requires_grad_(True)
-        one_hot = torch.sum(one_hot.cuda() * output)  # classificatory mask, if b=1 then [1, classes]
-        # TODO auto-validate per batch
+    model.zero_grad()
+    one_hot.backward(retain_graph=True)  # generate partial-gradients
 
-        self.model.zero_grad()
-        # backward to calculate gradients of all nodes /Deep Taylor Decomposition principle ?
-        one_hot.backward(retain_graph=True)
-
-        # the input of model.relprop() is one_hot
-        return self.model.relprop(cam=torch.tensor(one_hot_vector).to(input.device), method=method, is_ablation=is_ablation,
-                                  start_layer=start_layer, **kwargs)
-
+    # the input of model.relprop() is one_hot
+    return model.relprop(cam=torch.tensor(one_hot_vector).to(x.device), method=method, is_ablation=is_ablation,
+                         start_layer=start_layer, **kwargs).detach()
 
 # class Baselines:
 #     def __init__(self, model):

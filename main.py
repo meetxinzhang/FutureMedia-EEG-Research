@@ -5,12 +5,13 @@
 @time: 12/5/21 9:02 PM
 @desc:
 """
-from data_pipeline.dataset import BDFDataset, collate_
-from model.field_flow import FieldFlow
 import torch
 import torch.nn.functional as F
-from utils.learning_rate import get_std_optimizer
 from torch.utils.tensorboard import SummaryWriter
+from utils.learning_rate import get_std_optimizer
+from data_pipeline.dataset import BDFDataset, collate_
+from model.field_flow import FieldFlow
+from model.lrp_ignition import ignite_relprop
 
 summary = SummaryWriter(log_dir='./log/')
 
@@ -21,8 +22,8 @@ batch_size = 3
 # loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=1)
 
 # model = EEGModel()
-ff = FieldFlow(num_heads=6, mlp_dilator=2, qkv_bias=False, drop_rate=0.1, attn_drop_rate=0.1,
-               batch_size=16, time=512, n_signals=96, n_classes=40)
+ff = FieldFlow(num_heads=6, mlp_dilator=2, qkv_bias=False, drop_rate=0, attn_drop_rate=0,
+               time=512, n_signals=96, n_classes=40)
 # for p in model.parameters():
 #     if p.dim() > 1:
 #         torch.nn.init.xavier_uniform_(p)
@@ -33,7 +34,7 @@ if gpu:
 optimizer = get_std_optimizer(ff, model_size=96)
 
 # ----- Testing code start ----- Use following to test code without load data -----
-fake_x_for_testing = torch.rand(3, 512, 96).unsqueeze(1).cuda()      # [batch_size, time_step, channels]
+fake_x_for_testing = torch.rand(3, 512, 96).unsqueeze(1).cuda()  # [batch_size, 1, time_step, channels]
 fake_label_for_testing = torch.tensor([1, 0, 1], dtype=torch.long).cuda()
 ff.train()
 optimizer.zero_grad()
@@ -41,7 +42,10 @@ logits = ff(fake_x_for_testing)  # [bs, 40]
 loss = F.cross_entropy(logits, fake_label_for_testing)
 loss.backward()
 optimizer.step()
-print(loss.data)
+
+fake_x_vision = torch.rand(1, 512, 96).unsqueeze(1).cuda()  # [1, 1, time_step, channels]
+cam = ignite_relprop(model=ff, x=fake_x_vision, index=5)
+
 # ----- Testing code end-----------------------------------------------------------
 
 # if __name__ == '__main__':

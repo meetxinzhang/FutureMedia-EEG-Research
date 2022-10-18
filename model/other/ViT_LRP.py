@@ -1,6 +1,7 @@
 """ Vision Transformer (ViT) in PyTorch
 Hacked together by / Copyright 2020 Ross Wightman
 """
+import numpy as np
 import torch
 import torch.nn as nn
 from einops import rearrange
@@ -37,8 +38,9 @@ from utils.repeat import to_2tuple
 
 def compute_rollout_attention(all_layer_matrices, start_layer=0):  # layer-wise C=(A1*A2*A3*A4...An), and add one for each matrix
     # adding residual consideration
-    num_tokens = all_layer_matrices[0].shape[1]
-    batch_size = all_layer_matrices[0].shape[0]
+    # [l, b=1, t, t]
+    num_tokens = all_layer_matrices[0].shape[1]  # t
+    batch_size = all_layer_matrices[0].shape[0]  # b
     eye = torch.eye(num_tokens).expand(batch_size, num_tokens, num_tokens).to(all_layer_matrices[0].device)
     all_layer_matrices = [all_layer_matrices[i] + eye for i in range(len(all_layer_matrices))]
     # all_layer_matrices = [all_layer_matrices[i] / all_layer_matrices[i].sum(dim=-1, keepdim=True)
@@ -46,7 +48,7 @@ def compute_rollout_attention(all_layer_matrices, start_layer=0):  # layer-wise 
     joint_attention = all_layer_matrices[start_layer]
     for i in range(start_layer + 1, len(all_layer_matrices)):
         joint_attention = all_layer_matrices[i].bmm(joint_attention)  # batch-size matrix multipy
-    return joint_attention
+    return joint_attention  # [b, t, t]
 
 
 class Mlp(nn.Module):
@@ -250,7 +252,7 @@ class VisionTransformer(nn.Module):
     """ Vision Transformer with support for patch or hybrid CNN input stage
     """
 
-    def __init__(self, img_size=224, patch_size=16, in_chans=1, num_classes=1000, embed_dim=768, depth=12,
+    def __init__(self, img_size=224, patch_size=16, in_chans=3, num_classes=1000, embed_dim=768, depth=12,
                  num_heads=12, mlp_ratio=4., qkv_bias=False, mlp_head=False, drop_rate=0., attn_drop_rate=0.):
         super().__init__()
         self.num_classes = num_classes
@@ -362,15 +364,18 @@ class VisionTransformer(nn.Module):
         elif method == "transformer_attribution" or method == "grad":
             cams = []
             for blk in self.blocks:
-                grad = blk.attn.get_attn_gradients()
+                grad = blk.attn.get_attn_gradients()    # [b, head=12, t=14*14, t]
                 cam = blk.attn.get_attn_cam()
-                cam = cam[0].reshape(-1, cam.shape[-1], cam.shape[-1])
-                grad = grad[0].reshape(-1, grad.shape[-1], grad.shape[-1])
+                cam = cam[0].reshape(-1, cam.shape[-1], cam.shape[-1])      # [head=12, t=14*14, t]
+                grad = grad[0].reshape(-1, grad.shape[-1], grad.shape[-1])  # [head=12, t=14*14, t]
                 cam = grad * cam
-                cam = cam.clamp(min=0).mean(dim=0)
-                cams.append(cam.unsqueeze(0))
-            rollout = compute_rollout_attention(cams, start_layer=start_layer)
-            cam = rollout[:, 0, 1:]
+                cam = cam.clamp(min=0)      # [h, t, t]
+                cam = cam.mean(dim=0)       # [t, t]
+                cams.append(cam.unsqueeze(0))  # [l, b=1, t, t]
+            rollout = compute_rollout_attention(cams, start_layer=start_layer)  # [b, t, t]
+            cam = rollout[:, 0, 1:]  # [b, t-1=196]
+            # print("conservation 3", cam.sum())
+            # print("min", cam.min())
             return cam
 
         elif method == "last_layer":
