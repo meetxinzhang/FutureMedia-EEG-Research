@@ -8,8 +8,8 @@
 """
 import torch
 import torch.nn as nn
-from model.weight_init import trunc_normal_
-import model.nn_lrp as nnlrp
+from utils.weight_init import trunc_normal_
+import modules.nn_lrp as nnlrp
 import modules.layers_Chefer_H as lylrp
 import einops
 
@@ -27,7 +27,7 @@ def _init_weights(m):
 class FieldFlow(nn.Module):
 
     def __init__(self, num_heads=6, mlp_dilator=4, qkv_bias=False, drop_rate=0., attn_drop_rate=0.,
-                 time=512, n_signals=96, n_classes=40):
+                 n_signals=96, n_classes=40):
         super().__init__()
         self.n_classes = n_classes
         self.bs = None
@@ -97,7 +97,7 @@ class FieldFlow(nn.Module):
         return self.inp_grad
 
     def forward(self, x):
-        # [b, t=512, s=96]
+        # [b, 1, t=512, s=96]
         x = self.conv1(x)
         x = self.act_conv(x)
         x = self.max_pool1(x)  # [bs, c=128, t=256, s=96]
@@ -134,6 +134,7 @@ class FieldFlow(nn.Module):
 
     def relprop(self, cam=None, method="transformer_attribution", is_ablation=False, start_layer=0, **kwargs):
         # [1, classes]  b==1
+        print("conservation start", cam.sum())
         cam = cam.unsqueeze(1)  # [b, 1, classes]
         cam = self.gap_logits.relprop(cam, **kwargs)  # [b, t, classes]
         b, t, classes = cam.shape
@@ -183,13 +184,12 @@ class FieldFlow(nn.Module):
 
         # [(b, t), s, c] -> [bs, c=40, t=128, s=96]
         cam = einops.rearrange(cam, '(b t) s c -> b c t s', b=self.bs, t=self.t_h, s=self.s)
-
         cam = self.max_pool2.relprop(cam, **kwargs)
         cam = self.act_conv.relprop(cam, **kwargs)
         cam = self.conv2.relprop(cam, **kwargs)
         cam = self.max_pool1.relprop(cam, **kwargs)
         cam = self.act_conv.relprop(cam, **kwargs)
         cam = self.conv1.relprop(cam, **kwargs)
-        print("conservation 3", cam.sum())
+        print("conservation end", cam.sum())
         # print("min", cam.min())
         return cam

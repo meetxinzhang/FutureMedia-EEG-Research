@@ -1,13 +1,12 @@
 """ Vision Transformer (ViT) in PyTorch
 Hacked together by / Copyright 2020 Ross Wightman
 """
-import numpy as np
 import torch
 import torch.nn as nn
 from einops import rearrange
 from modules.layers_Chefer_H import *
 
-from model.weight_init import trunc_normal_
+from utils.weight_init import trunc_normal_
 from utils.repeat import to_2tuple
 
 

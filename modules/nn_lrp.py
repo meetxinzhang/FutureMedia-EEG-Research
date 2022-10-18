@@ -6,7 +6,6 @@ import torch.nn as nn
 from einops import rearrange
 from modules.layers_Chefer_H import *
 
-from model.weight_init import trunc_normal_
 from utils.repeat import to_2tuple
 
 

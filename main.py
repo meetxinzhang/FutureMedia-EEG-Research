@@ -23,7 +23,7 @@ batch_size = 3
 
 # model = EEGModel()
 ff = FieldFlow(num_heads=6, mlp_dilator=2, qkv_bias=False, drop_rate=0, attn_drop_rate=0,
-               time=512, n_signals=96, n_classes=40)
+               n_signals=128, n_classes=40)
 # for p in model.parameters():
 #     if p.dim() > 1:
 #         torch.nn.init.xavier_uniform_(p)
@@ -31,20 +31,29 @@ if gpu:
     ff.cuda()
 
 # optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-optimizer = get_std_optimizer(ff, model_size=96)
+optimizer = get_std_optimizer(ff, model_size=128)
 
 # ----- Testing code start ----- Use following to test code without load data -----
 fake_x_for_testing = torch.rand(3, 512, 96).unsqueeze(1).cuda()  # [batch_size, 1, time_step, channels]
 fake_label_for_testing = torch.tensor([1, 0, 1], dtype=torch.long).cuda()
-ff.train()
-optimizer.zero_grad()
-logits = ff(fake_x_for_testing)  # [bs, 40]
-loss = F.cross_entropy(logits, fake_label_for_testing)
-loss.backward()
-optimizer.step()
+from data_pipeline.other.mat_reader import read_mat
+import numpy as np
+from utils.lrp_visualiztion import generate_visualization
+x = np.array(read_mat())  # [128, t=500]
+x = torch.Tensor(x)
+x = x.transpose(0, 1).unsqueeze(0).unsqueeze(0).cuda()
 
-fake_x_vision = torch.rand(1, 512, 96).unsqueeze(1).cuda()  # [1, 1, time_step, channels]
-cam = ignite_relprop(model=ff, x=fake_x_vision, index=5)
+# optimizer.zero_grad()
+# logits = ff(fake_x_for_testing)  # [bs, 40]
+# loss = F.cross_entropy(logits, fake_label_for_testing)
+# loss.backward()
+# optimizer.step()
+
+cam = ignite_relprop(model=ff, x=x, index=5)
+
+# [1, 1, 500, 128]
+generate_visualization(x.squeeze(), cam.squeeze())
+
 
 # ----- Testing code end-----------------------------------------------------------
 
