@@ -44,7 +44,8 @@ def compute_rollout_attention(all_layer_matrices, start_layer=0, true_bs=None):
     batch_size = all_layer_matrices[0].shape[0]  # b
     eye = torch.eye(num_tokens).expand(batch_size, num_tokens, num_tokens).to(all_layer_matrices[0].device)  # [b, t, t]
     if true_bs is not None:
-        eye = torch.div(eye, batch_size//true_bs)
+        eye = torch.div(eye, 128)
+        print(batch_size)
     all_layer_matrices = [all_layer_matrices[i] + eye for i in range(len(all_layer_matrices))]  # [l, b, t, t]
     all_layer_matrices = [all_layer_matrices[i] / all_layer_matrices[i].sum(dim=-1, keepdim=True)  # [l, b, t, t]
                           for i in range(len(all_layer_matrices))]

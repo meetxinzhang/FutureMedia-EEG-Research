@@ -179,6 +179,7 @@ class FieldFlow(nn.Module):
             cams1.append(cam)  # [bt, s, s]
         rollout = nnlrp.compute_rollout_attention(cams1, start_layer=start_layer, true_bs=b)  # [bt, s, s]
         cam = rollout[:, 0, :]  # [bt, s]  if class taken added then =rollout[:, 0, :]
+        print("conservation 2", cam.shape)
         cam = cam.unsqueeze(-1).expand(bt, self.s, classes)  # [bt, s] -> [bt, s, 1] -> [bt, s, classes]  cam=1*40
         cam = torch.div(cam, classes*t)
 
