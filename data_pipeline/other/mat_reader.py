@@ -46,7 +46,7 @@ def read_mat():
     for c in c_names:
         signals.append(mat[str(c)].squeeze())
 
-    return signals
+    return np.array(signals)
 
 # continues wavelet transform
 # t = np.linspace(0, 500, 500, endpoint=False)

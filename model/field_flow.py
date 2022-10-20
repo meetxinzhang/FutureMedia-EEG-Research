@@ -22,6 +22,9 @@ def _init_weights(m):
     elif isinstance(m, nn.LayerNorm):
         nn.init.constant_(m.bias, 0)
         nn.init.constant_(m.weight, 1.0)
+    elif isinstance(m, nn.Conv2d):
+        nn.init.xavier_uniform_(m.weight)
+        nn.init.constant_(m.bias, 0)
 
 
 class FieldFlow(nn.Module):
@@ -134,7 +137,7 @@ class FieldFlow(nn.Module):
 
     def relprop(self, cam=None, method="transformer_attribution", is_ablation=False, start_layer=0, **kwargs):
         # [1, classes]  b==1
-        print("conservation start", cam.sum())
+        # print("conservation start", cam.sum())
         cam = cam.unsqueeze(1)  # [b, 1, classes]
         cam = self.gap_logits.relprop(cam, **kwargs)  # [b, t, classes]
         b, t, classes = cam.shape
@@ -179,7 +182,6 @@ class FieldFlow(nn.Module):
             cams1.append(cam)  # [bt, s, s]
         rollout = nnlrp.compute_rollout_attention(cams1, start_layer=start_layer, true_bs=b)  # [bt, s, s]
         cam = rollout[:, 0, :]  # [bt, s]  if class taken added then =rollout[:, 0, :]
-        print("conservation 2", cam.shape)
         cam = cam.unsqueeze(-1).expand(bt, self.s, classes)  # [bt, s] -> [bt, s, 1] -> [bt, s, classes]  cam=1*40
         cam = torch.div(cam, classes*t)
 
@@ -191,6 +193,6 @@ class FieldFlow(nn.Module):
         cam = self.max_pool1.relprop(cam, **kwargs)
         cam = self.act_conv.relprop(cam, **kwargs)
         cam = self.conv1.relprop(cam, **kwargs)
-        print("conservation end", cam.sum())
+        # print("conservation end", cam.sum())
         # print("min", cam.min())
         return cam

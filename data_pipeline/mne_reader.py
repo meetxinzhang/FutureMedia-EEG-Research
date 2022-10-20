@@ -33,7 +33,7 @@ class BDFReader(object):
         if self.file_path == file_path:
             return self.set[sample_idx]
         else:
-            print('un-hit', '\n', file_path, '\n', self.file_path)
+            # print('un-hit', '\n', file_path, '\n', self.file_path)
             self.file_path = file_path
             self.set = self.method()
             return self.set[sample_idx]
@@ -42,7 +42,7 @@ class BDFReader(object):
         raw = mne.io.read_raw_bdf(self.file_path, preload=True,
                                   exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'],
                                   stim_channel='Status')
-        print(raw)
+        # print(raw)
         # print(raw.info)
         # raw = raw.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
         events = mne.find_events(raw, stim_channel='Status', initial_event=True, output='step')

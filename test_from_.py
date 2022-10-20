@@ -14,7 +14,7 @@ import cv2
 
 from model.other.ViT_LRP import vit_base_patch16_224 as vit
 from model.other.ViT_explanation_generator import LRP
-from data_pipeline.imagenet_class import CLS2IDX
+from data_pipeline.other.imagenet_class import CLS2IDX
 
 # some image transform operators
 normalize = transforms.Normalize(mean=[0.5], std=[0.5])

@@ -49,7 +49,7 @@ class BDFDataset(torch.utils.data.Dataset):
         bdf_path = self.bdf_filenames[file_idx]
         # label_path = self.label_filenames[file_idx]
         try:
-            x = self.bdf_reader.get_item(bdf_path, sample_idx)  # [96, 2868]
+            x = self.bdf_reader.get_item(bdf_path, sample_idx)  # [t=512, channels=96]
             number = bdf_path.split('.')[0].split('-')[-1]
             label = self.label_reader.get_item_one_hot(self.labels_path+'/'+'run-'+number+'.txt', sample_idx)
         except Exception as e:
@@ -57,7 +57,7 @@ class BDFDataset(torch.utils.data.Dataset):
             print(bdf_path)
             return None, None
 
-        return torch.tensor(x, dtype=torch.float), torch.tensor(label, dtype=torch.long)
+        return torch.tensor(x, dtype=torch.float).unsqueeze(0), torch.tensor(label, dtype=torch.long)
 
     def file_filter(self, path, endswith):
         files = glob.glob(path + '/*')

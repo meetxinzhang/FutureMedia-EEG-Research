@@ -58,3 +58,8 @@ def trunc_normal_(tensor, mean=0., std=1., a=-2., b=2.):
         >>> nn.init.trunc_normal_(w)
     """
     return _no_grad_trunc_normal_(tensor, mean, std, a, b)
+
+
+# for p in model.parameters():
+#     if p.dim() > 1:
+#         torch.nn.init.xavier_uniform_(p)
