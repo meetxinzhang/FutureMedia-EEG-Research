@@ -16,7 +16,7 @@ from utils.lrp_visualiztion import generate_visualization
 
 summary = SummaryWriter(log_dir='./log/')
 gpu = torch.cuda.is_available()
-batch_size = 32
+batch_size = 16
 
 dataset = BDFDataset(CVPR2021_02785_path='E:/Datasets/CVPR2021-02785')
 loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=6)
@@ -79,7 +79,6 @@ if __name__ == '__main__':
                 summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=global_step)
 
             if step % 100 == 0:
-                print('image saved')
                 cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
                 generate_visualization(x[0].squeeze(), cam.squeeze(), save_name='C'+str(label[0].cpu().numpy())+'_'+str(global_step))
 
