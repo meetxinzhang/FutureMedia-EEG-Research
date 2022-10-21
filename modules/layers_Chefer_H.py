@@ -16,17 +16,24 @@ def safe_divide(a, b):
     return a / den * b.ne(0).type(b.type())  # / !0 first then *0 if b==0
 
 
-def forward_hook(self, input, output):
-    if type(input[0]) in (list, tuple):
-        self.X = []
-        for i in input[0]:
-            x = i.detach()
-            x.requires_grad = True
-            self.X.append(x)
-    else:
-        self.X = input[0].detach()
-        self.X.requires_grad = True
-
+def forward_hook(self, inputs, output):
+    try:
+        if type(inputs[0]) in (list, tuple):
+            self.X = []
+            for i in inputs[0]:
+                x = i.detach()
+                x.requires_grad = True
+                self.X.append(x)
+        else:
+            self.X = inputs[0].detach()
+            self.X.requires_grad = True
+    except IndexError as e:
+        print(e)
+        # print(numpy.shape(input), '\n', input)
+        # print(numpy.shape(output), '\n', output)
+        # self.X = input[0].detach()
+        # self.X.requires_grad = True
+        print('Error in forward_hook', inputs)
     self.Y = output
 
 
@@ -146,15 +153,41 @@ class einsum(RelPropSimple):
         return torch.einsum(self.equation, *operands)
 
 
-class IndexSelect(RelProp):
+# class IndexSelect(RelProp):
+#     def forward(self, inputs, dim, indices):
+#         self.__setattr__('dim', dim)
+#         self.__setattr__('indices', indices)
+#
+#         return torch.index_select(inputs, dim, indices)
+#
+#     def relprop(self, R, alpha):
+#         # Z = self.forward(self.X, self.dim, self.indices)
+#         Z = torch.index_select(self.X, self.dim, self.indices)
+#         S = safe_divide(R, Z)
+#         C = self.gradprop(Z, self.X, S)
+#
+#         if torch.is_tensor(self.X) == False:
+#             outputs = []
+#             outputs.append(self.X[0] * C[0])
+#             outputs.append(self.X[1] * C[1])
+#         else:
+#             outputs = self.X * (C[0])
+#         return outputs
+
+
+class IndexSelect(nn.Module):
+
     def forward(self, inputs, dim, indices):
         self.__setattr__('dim', dim)
         self.__setattr__('indices', indices)
-
-        return torch.index_select(inputs, dim, indices)
+        self.X = inputs.detach()
+        self.X.requires_grad = True
+        self.Y = torch.index_select(input=inputs, dim=dim, index=indices)
+        return self.Y
 
     def relprop(self, R, alpha):
-        Z = self.forward(self.X, self.dim, self.indices)
+        # Z = self.forward(inputs=self.X, dim=self.dim, indices=self.indices)
+        Z = torch.index_select(self.X, self.dim, self.indices)
         S = safe_divide(R, Z)
         C = self.gradprop(Z, self.X, S)
 
@@ -163,6 +196,12 @@ class IndexSelect(RelProp):
         else:
             outputs = self.X * (C[0])
         return outputs
+
+    def gradprop(self, Z, X, S):
+        C = torch.autograd.grad(Z, X, S, retain_graph=True)
+        return C
+
+
 
 
 class Clone(RelProp):

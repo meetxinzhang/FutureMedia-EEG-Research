@@ -22,11 +22,12 @@ import torchvision.transforms as transforms
 # ])
 
 
-def generate_visualization(x, cam, class_index=None):
+def generate_visualization(x, cam, save_name=None):
     # image = Image.fromarray(x)
     # image = transform(image)
     # torch.nn.functional.interpolate up-sampling, to re
     # cam = torch.nn.functional.interpolate(cam, scale_factor=16, mode='bilinear')
+    print('save size: ', x.shape)
     cam = cam.cuda().data.cpu().numpy()
     cam = (cam - cam.min()) / (
             cam.max() - cam.min())
@@ -35,20 +36,23 @@ def generate_visualization(x, cam, class_index=None):
     x = (x - x.min()) / (
             x.max() - x.min())
     # image + attribution
-    img, vis = show_cam_on_image(x, cam)
+    img, vis = add_cam_on_image(x, cam)
     vis = np.uint8(255 * vis)
     vis = cv2.cvtColor(np.array(vis), cv2.COLOR_RGB2BGR)
-
-    fig, axs = plt.subplots(1, 2)
-    axs[0].imshow(img)
-    axs[0].axis('off')
-    axs[1].imshow(vis)
-    axs[1].axis('off')
-    plt.show()
+    if save_name is not None:
+        img = Image.fromarray(vis)
+        img.save('./log/image/'+save_name+'.jpg')
+    else:
+        fig, axs = plt.subplots(1, 2)
+        axs[0].imshow(img)
+        axs[0].axis('off')
+        axs[1].imshow(vis)
+        axs[1].axis('off')
+        plt.show()
     return vis
 
 
-def show_cam_on_image(img, mask):
+def add_cam_on_image(img, mask):
     heatmap = cv2.applyColorMap(np.uint8(255 * mask), cv2.COLORMAP_JET)
     heatmap = np.float32(heatmap) / 255
     img = cv2.applyColorMap(np.uint8(255 * img), cv2.COLORMAP_JET)

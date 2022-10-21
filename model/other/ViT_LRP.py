@@ -322,7 +322,7 @@ class VisionTransformer(nn.Module):
             x = blk(x)  # [b, h'w'+1, c']
 
         x = self.norm(x)
-        x = self.pool(x, dim=1, indices=torch.tensor(0, device=x.device))  # select the indices of dim 1 -> [b, 1, c']
+        x = self.pool(x, dim=1, index=torch.tensor(0, device=x.device))  # select the indices of dim 1 -> [b, 1, c']
         x = x.squeeze(1)  # [b, c']
         x = self.head(x)  # [b, classes]
         return x
