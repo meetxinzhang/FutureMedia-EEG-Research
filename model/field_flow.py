@@ -40,11 +40,15 @@ class FieldFlow(nn.Module):
         # [b, c=1, t=512, s=96]
         self.conv1 = nnlrp.Conv2d(in_channels=1, out_channels=128, kernel_size=(5, 1), stride=(1, 1), padding='same',
                                   dilation=1, bias=True)
+        self.act_conv1 = lylrp.Sigmoid()
         self.max_pool1 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
+        self.norm1 = lylrp.BatchNorm2d(128)
         self.conv2 = nnlrp.Conv2d(in_channels=128, out_channels=n_classes, kernel_size=(5, 1), stride=(1, 1), padding='same',
                                   dilation=1, bias=True)
+        self.act_conv2 = lylrp.Sigmoid()
         self.max_pool2 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
-        self.act_conv = lylrp.Sigmoid()
+        self.norm2 = lylrp.BatchNorm2d(n_classes)
+
         # [b, c=40, t=128, s=96]
         # self.freqs_residue = nnlrp.Add()
 
@@ -56,7 +60,7 @@ class FieldFlow(nn.Module):
             nnlrp.Block(
                 dim=n_classes, num_heads=num_heads, mlp_dilator=mlp_dilator, qkv_bias=qkv_bias,
                 drop=drop_rate, attn_drop=attn_drop_rate)
-            for i in range(2)])
+            for _ in range(2)])
         # self.ct_select = lylrp.IndexSelect()  # [bt, s+1, c] -> [bt, 1, c]
         #  squeeze [bt, 1, c] -> [bt, c]
         # rearrange [(bt), c] -> [b, t, c]
@@ -74,7 +78,7 @@ class FieldFlow(nn.Module):
             nnlrp.Block(
                 dim=n_classes, num_heads=num_heads, mlp_dilator=mlp_dilator, qkv_bias=qkv_bias,
                 drop=drop_rate, attn_drop=attn_drop_rate)
-            for i in range(3)])
+            for _ in range(3)])
         # [b, t, n_classes]
 
         # [b, t, classes] -> [b, 1, classes]
@@ -90,7 +94,7 @@ class FieldFlow(nn.Module):
         #     self.head = Linear(embed_dim, num_classes)
         #
         # # FIXME not quite sure what the proper weight init is supposed to be,
-        # # normal / trunc normal w/ std == .02 similar to other Bert like transformers
+        # # normal / trunc normal w/ std == .02 similar to vit Bert like transformers
         # trunc_normal_(self.pos_embed, std=.02)  # embeddings same as weights?
         trunc_normal_(self.channel_token, std=.02)
         trunc_normal_(self.temp_token, std=.02)
@@ -98,6 +102,7 @@ class FieldFlow(nn.Module):
 
         self.ct_select = lylrp.IndexSelect()
         self.tt_select = lylrp.IndexSelect()
+        self.softmax = lylrp.Softmax(dim=1)
         self.inp_grad = None
 
     def save_inp_grad(self, grad):
@@ -110,12 +115,14 @@ class FieldFlow(nn.Module):
         # [b, 1, t=512, s=96] if shenzhenface: [b, 1, 500, 128]
 
         x = self.conv1(x)
-        x = self.act_conv(x)
+        x = self.act_conv1(x)
         x = self.max_pool1(x)  # [bs, c=128, t=256, s=96]
+        x = self.norm1(x)
 
         x = self.conv2(x)
-        x = self.act_conv(x)
+        x = self.act_conv2(x)
         x = self.max_pool2(x)  # [bs, c=40, t=128, s=96]
+        x = self.norm2(x)
         self.t_h = x.shape[2]
         self.bs = x.shape[0]
 
@@ -135,10 +142,6 @@ class FieldFlow(nn.Module):
         x = x.squeeze(1)
         x = einops.rearrange(x, '(b t) c -> b t c', b=self.bs, t=self.t_h, c=self.n_classes)
 
-        # x = self.gap(x).squeeze(-1)  # [b, t, s, c] -> [b, t, s, 1] -> [b, t, s]
-        # x = self.attn_proj(x)  # [b, t, s] -> [b, t, n_classes * mlp_dilator]
-        # x = self.fc_proj(x)    # [b, t, n_classes * mlp_dilator] -> [b, t, n_classes]
-
         temp_tokens = self.temp_token.expand(self.bs, -1, -1)  # [1, 1, c] -> [b, 1, c]
         x = torch.cat((temp_tokens, x), dim=1)  # [b, 1, c], [b, 1+t, c]
 
@@ -147,12 +150,13 @@ class FieldFlow(nn.Module):
 
         # [b, 1+t, c] -> [b, 1, c] -> [b, c]
         logits = self.tt_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
-        # logits = self.gap_logits(x).squeeze()  # [b, t, n_classes] -> [b, 1, n_classes] -> [b, n_classes]
-        return logits
+        y = self.softmax(logits)
+        return y
 
     def relprop(self, cam=None, method="transformer_attribution", is_ablation=False, start_layer=0, **kwargs):
         # [1, classes]  b==1
-        # print("conservation start", cam.sum())
+        print("conservation start", cam.sum())
+        cam = self.softmax.relprop(cam, **kwargs)
         cam = cam.unsqueeze(1)  # [b, 1, classes]
         # cam = self.gap_logits.relprop(cam, **kwargs)  # [b, _t, classes]
         cam = self.tt_select.relprop(cam, **kwargs)  # [b, 1+t, c]
@@ -172,22 +176,18 @@ class FieldFlow(nn.Module):
             cam = grad * cam                       # [b, head, _t, _t]
             cam = cam.clamp(min=0).mean(dim=1)     # [b, _t, _t]
             cams.append(cam)          # [b, _t, _t]
-        rollout = nnlrp.compute_rollout_attention(cams, start_layer=start_layer)  # [b, _t, _t]
+        rollout = nnlrp.compute_rollout_attention(cams, start_layer=start_layer, true_bs=None)  # [b, _t, _t]
         cam = rollout[:, 0, 1:]                     # [b, t]  temp taken added
-
+        # _cam = rollout[:, 0, 0]
+        print("conservation 0", rollout[:, 0, :].sum())
+        print("conservation 1", cam.sum())
         cam = cam.unsqueeze(-1).expand(b, t, classes)  # [b, t] -> [b, t, 1] -> [b, t, classes]  cam=1*40
         cam = torch.div(cam, classes)  # attention in temporary-dim, so divide it equally among classes
-
-        # cam = cam[:, 1:]  # cat  [b, t, c]
-
-        # cam = self.fc_proj.relprop(cam, **kwargs)    # [b, 1_t, n_classes] -> [b, 1_t, n_classes * mlp_dilator]
-        # cam = self.attn_proj.relprop(cam, **kwargs)  # [b, 1_t, n_classes * mlp_dilator] -> [b, 1_t, signals]
 
         # [(b, t), c] -> [b, t, c]
         cam = einops.rearrange(cam, 'b t c -> (b t) c', b=b, t=t, c=classes)
         cam = cam.unsqueeze(1)   # [bt, 1, c]
         cam = self.ct_select.relprop(cam, **kwargs)  # [bt, 1+s, c]
-        # cam = self.gap.relprop(cam, **kwargs)  # [b, 1_t, s ,channels_of_conv2]
 
         for blk in reversed(self.s_blocks):
             cam = blk.relprop(cam, **kwargs)   # [(b, t), 1+s, c] [128, 1+96, 40]
@@ -205,15 +205,18 @@ class FieldFlow(nn.Module):
         rollout = nnlrp.compute_rollout_attention(cams1, start_layer=start_layer, true_bs=b)  # [bt, 1+s, 1+s]
         cam = rollout[:, 0, 1:]  # [bt, s] temp taken added
         cam = cam.unsqueeze(-1).expand(bt, self.s, classes)  # [bt, s] -> [bt, s, 1] -> [bt, s, classes]  cam=1*40
-        cam = torch.div(cam, classes*t)  # attention on signal-dim, so divide it equally among classes
+        cam = torch.div(cam, classes)  # attention on signal-dim, so divide it equally among classes
         # [(b, t), s, c] -> [bs, c=40, 1_t=128, s=96]
         cam = einops.rearrange(cam, '(b t) s c -> b c t s', b=self.bs, t=self.t_h, s=self.s)
 
+        print("conservation 2", cam.sum())
+        cam = self.norm2.relprop(cam, **kwargs)
         cam = self.max_pool2.relprop(cam, **kwargs)
-        cam = self.act_conv.relprop(cam, **kwargs)
+        cam = self.act_conv2.relprop(cam, **kwargs)
         cam = self.conv2.relprop(cam, **kwargs)
+        cam = self.norm1.relprop(cam, **kwargs)
         cam = self.max_pool1.relprop(cam, **kwargs)
-        cam = self.act_conv.relprop(cam, **kwargs)
+        cam = self.act_conv1.relprop(cam, **kwargs)
         cam = self.conv1.relprop(cam, **kwargs)
         # print("conservation end", cam.sum())
         # print("min", cam.min())

@@ -4,8 +4,7 @@ Hacked together by / Copyright 2020 Ross Wightman
 import torch
 import torch.nn as nn
 from einops import rearrange
-from modules.layers_Chefer_H import *
-
+import modules.layers_Chefer_H as lylrp
 from utils.weight_init import trunc_normal_
 from utils.repeat import to_2tuple
 
@@ -55,10 +54,10 @@ class Mlp(nn.Module):
         super().__init__()
         out_features = out_features or in_features
         hidden_features = hidden_features or in_features
-        self.fc1 = Linear(in_features, hidden_features)
-        self.act = GELU()
-        self.fc2 = Linear(hidden_features, out_features)
-        self.drop = Dropout(drop)
+        self.fc1 = lylrp.Linear(in_features, hidden_features)
+        self.act = lylrp.GELU()
+        self.fc2 = lylrp.Linear(hidden_features, out_features)
+        self.drop = lylrp.Dropout(drop)
 
     def forward(self, x):
         x = self.fc1(x)
@@ -85,15 +84,15 @@ class MultiHeadAttention(nn.Module):
         self.scale = head_dim ** -0.5
 
         # A = Q*K^T
-        self.matmul1 = einsum('bhid,bhjd->bhij')
+        self.matmul1 = lylrp.einsum('bhid,bhjd->bhij')
         # attn = A*V
-        self.matmul2 = einsum('bhij,bhjd->bhid')
+        self.matmul2 = lylrp.einsum('bhij,bhjd->bhid')
 
-        self.qkv_linear = Linear(dim, dim * 3, bias=qkv_bias)
-        self.attn_drop = Dropout(attn_drop)
-        self.proj_linear = Linear(dim, dim)
-        self.proj_drop = Dropout(proj_drop)
-        self.softmax = Softmax(dim=-1)
+        self.qkv_linear = lylrp.Linear(dim, dim * 3, bias=qkv_bias)
+        self.attn_drop = lylrp.Dropout(attn_drop)
+        self.proj_linear = lylrp.Linear(dim, dim)
+        self.proj_drop = lylrp.Dropout(proj_drop)
+        self.softmax = lylrp.Softmax(dim=-1)
 
         self.attn_cam = None
         self.attn = None
@@ -184,17 +183,17 @@ class Block(nn.Module):
 
     def __init__(self, dim, num_heads, mlp_ratio=4., qkv_bias=False, drop=0., attn_drop=0.):
         super().__init__()
-        self.norm1 = LayerNorm(dim, eps=1e-6)
+        self.norm1 = lylrp.LayerNorm(dim, eps=1e-6)
         self.attn = MultiHeadAttention(
             dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop)
-        self.norm2 = LayerNorm(dim, eps=1e-6)
+        self.norm2 = lylrp.LayerNorm(dim, eps=1e-6)
         mlp_hidden_dim = int(dim * mlp_ratio)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, drop=drop)
 
-        self.add1 = Add()  # res-connect
-        self.add2 = Add()
-        self.clone1 = Clone()
-        self.clone2 = Clone()
+        self.add1 = lylrp.Add()  # res-connect
+        self.add2 = lylrp.Add()
+        self.clone1 = lylrp.Clone()
+        self.clone2 = lylrp.Clone()
 
     def forward(self, x):
         x1, x2 = self.clone1(x, 2)
@@ -229,7 +228,7 @@ class PatchEmbed(nn.Module):
         self.patch_size = patch_size
         self.num_patches = num_patches
         # embed_dim: num of conv kernels
-        self.proj_conv = Conv2d(in_channels=in_chans, out_channels=embed_dim, kernel_size=patch_size, stride=patch_size)
+        self.proj_conv = lylrp.Conv2d(in_channels=in_chans, out_channels=embed_dim, kernel_size=patch_size, stride=patch_size)
 
     def forward(self, x):
         B, C, H, W = x.shape
@@ -255,7 +254,7 @@ class VisionTransformer(nn.Module):
                  num_heads=12, mlp_ratio=4., qkv_bias=False, mlp_head=False, drop_rate=0., attn_drop_rate=0.):
         super().__init__()
         self.num_classes = num_classes
-        self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
+        self.num_features = self.embed_dim = embed_dim  # num_features for consistency with vit models
 
         self.patch_embed = PatchEmbed(
             img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
@@ -270,22 +269,22 @@ class VisionTransformer(nn.Module):
                 drop=drop_rate, attn_drop=attn_drop_rate)
             for i in range(depth)])
 
-        self.norm = LayerNorm(embed_dim)
+        self.norm = lylrp.LayerNorm(embed_dim)
         if mlp_head:
             # paper diagram suggests 'MLP head', but results in 4M extra parameters vs paper
             self.head = Mlp(embed_dim, int(embed_dim * mlp_ratio), num_classes)
         else:
             # with a single Linear layer as head, the param count within rounding of paper
-            self.head = Linear(embed_dim, num_classes)
+            self.head = lylrp.Linear(embed_dim, num_classes)
 
         # FIXME not quite sure what the proper weight init is supposed to be,
-        # normal / trunc normal w/ std == .02 similar to other Bert like transformers
+        # normal / trunc normal w/ std == .02 similar to vit Bert like transformers
         trunc_normal_(self.pos_embed, std=.02)  # embeddings same as weights?
         trunc_normal_(self.cls_token, std=.02)
         self.apply(self._init_weights)
 
-        self.pool = IndexSelect()
-        self.add = Add()
+        self.pool = lylrp.IndexSelect()
+        self.add = lylrp.Add()
 
         self.inp_grad = None
 
@@ -322,7 +321,7 @@ class VisionTransformer(nn.Module):
             x = blk(x)  # [b, h'w'+1, c']
 
         x = self.norm(x)
-        x = self.pool(x, dim=1, index=torch.tensor(0, device=x.device))  # select the indices of dim 1 -> [b, 1, c']
+        x = self.pool(x, dim=1, indices=torch.tensor(0, device=x.device))  # select the indices of dim 1 -> [b, 1, c']
         x = x.squeeze(1)  # [b, c']
         x = self.head(x)  # [b, classes]
         return x
@@ -337,7 +336,7 @@ class VisionTransformer(nn.Module):
         for blk in reversed(self.blocks):
             cam = blk.relprop(cam, **kwargs)
 
-        # print("conservation 2", cam.sum())
+        print("conservation 2", cam.sum())
         # print("min", cam.min())
 
         if method == "full":
@@ -373,7 +372,7 @@ class VisionTransformer(nn.Module):
                 cams.append(cam.unsqueeze(0))  # [l, b=1, t, t]
             rollout = compute_rollout_attention(cams, start_layer=start_layer)  # [b, t, t]
             cam = rollout[:, 0, 1:]  # [b, t-1=196]
-            # print("conservation 3", cam.sum())
+            print("conservation 3", cam.sum())
             # print("min", cam.min())
             return cam
 

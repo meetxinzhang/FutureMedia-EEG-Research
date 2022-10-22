@@ -1,7 +1,17 @@
-import argparse
+# encoding: utf-8
+"""
+ @author: Xin Zhang
+ @contact: 2250271011@email.szu.edu.cn
+ @time: 2022/10/18 22:40
+ @name:
+ @desc:
+"""
 import torch
 import numpy as np
-from numpy import *
+np.seterr(divide='ignore', invalid='ignore')
+import cv2
+import matplotlib.pyplot as plt
+from PIL import Image
 
 
 def ignite_relprop(model, x, index=None, method="transformer_attribution", is_ablation=False, start_layer=0):
@@ -24,6 +34,7 @@ def ignite_relprop(model, x, index=None, method="transformer_attribution", is_ab
     # the input of model.relprop() is one_hot
     return model.relprop(cam=torch.tensor(one_hot_vector).to(x.device), method=method, is_ablation=is_ablation,
                          start_layer=start_layer, **kwargs).detach()
+
 
 # class Baselines:
 #     def __init__(self, model):
@@ -64,3 +75,51 @@ def ignite_relprop(model, x, index=None, method="transformer_attribution", is_ab
 #             all_layer_attentions.append(avg_heads)
 #         rollout = compute_rollout_attention(all_layer_attentions, start_layer=start_layer)
 #         return rollout[:, 0, 1:]
+
+
+# normalize = transforms.Normalize(mean=[0.5], std=[0.5])
+# transform = transforms.Compose([
+#     transforms.Resize(256),  # rescale the shorter-edge to 256, and keep the ratio of length/weight
+#     transforms.CenterCrop(224),  # cut at center, when input integer then return square
+#     transforms.ToTensor(),
+#     normalize,
+# ])
+
+
+def generate_visualization(x, cam, save_name=None):
+    # image = Image.fromarray(x)
+    # image = transform(image)
+    # torch.nn.functional.interpolate up-sampling, to re
+    # cam = torch.nn.functional.interpolate(cam, scale_factor=16, mode='bilinear')
+    cam = cam.cuda().data.cpu().numpy()
+    cam = (cam - cam.min()) / (
+            cam.max() - cam.min())
+    # permute: trans dimension at original image.permute(1, 2, 0)
+    x = x.data.cpu().numpy()
+    x = (x - x.min()) / (x.max() - x.min())
+    # image + attribution
+    img, vis = add_cam_on_image(x, cam)
+    vis = np.uint8(255 * vis)
+    vis = cv2.cvtColor(np.array(vis), cv2.COLOR_RGB2BGR)
+    if save_name is not None:
+        img = Image.fromarray(vis)
+        img.save('./log/image/' + save_name + '.jpg')
+        print('saved ' + save_name)
+    else:
+        fig, axs = plt.subplots(1, 2)
+        axs[0].imshow(img)
+        axs[0].axis('off')
+        axs[1].imshow(vis)
+        axs[1].axis('off')
+        plt.show()
+    return vis
+
+
+def add_cam_on_image(img, mask):
+    heatmap = cv2.applyColorMap(np.uint8(255 * mask), cv2.COLORMAP_JET)
+    heatmap = np.float32(heatmap) / 255
+    img = cv2.applyColorMap(np.uint8(255 * img), cv2.COLORMAP_JET)
+    img = np.float32(img) / 255
+    cam = heatmap + np.float32(img)
+    cam = cam / np.max(cam)
+    return img, cam

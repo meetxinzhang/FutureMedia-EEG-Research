@@ -36,7 +36,7 @@ from utils.repeat import to_2tuple
 
 def compute_rollout_attention(all_layer_matrices, start_layer=0, true_bs=None):
     """input [layers, b, t, t]
-    @true_bs: somtimes we integrate other dimensions into batch_size, that lead to times addition of eye matrix,
+    @true_bs: somtimes we integrate vit dimensions into batch_size, that lead to times addition of eye matrix,
     so we need to do eye/integrated-dim. integrated-dim=batch_size//true_bs, modified by Xin Zhang.
     layer-wise C=(A1*A2*A3*A4...An), and add one for each matrix adding residual consideration
     """
@@ -44,8 +44,7 @@ def compute_rollout_attention(all_layer_matrices, start_layer=0, true_bs=None):
     batch_size = all_layer_matrices[0].shape[0]  # b
     eye = torch.eye(num_tokens).expand(batch_size, num_tokens, num_tokens).to(all_layer_matrices[0].device)  # [b, t, t]
     if true_bs is not None:
-        eye = torch.div(eye, 128)
-        print(batch_size)
+        eye = torch.div(eye, (batch_size//true_bs)**2)
     all_layer_matrices = [all_layer_matrices[i] + eye for i in range(len(all_layer_matrices))]  # [l, b, t, t]
     all_layer_matrices = [all_layer_matrices[i] / all_layer_matrices[i].sum(dim=-1, keepdim=True)  # [l, b, t, t]
                           for i in range(len(all_layer_matrices))]
@@ -273,7 +272,7 @@ class PatchEmbed(nn.Module):
 #                  num_heads=12, mlp_ratio=4., qkv_bias=False, mlp_head=False, drop_rate=0., attn_drop_rate=0.):
 #         super().__init__()
 #         self.num_classes = num_classes
-#         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with other models
+#         self.num_features = self.embed_dim = embed_dim  # num_features for consistency with vit models
 #
 #         self.patch_embed = PatchEmbed(
 #             img_size=img_size, patch_size=patch_size, in_chans=in_chans, embed_dim=embed_dim)
@@ -297,7 +296,7 @@ class PatchEmbed(nn.Module):
 #             self.head = Linear(embed_dim, num_classes)
 #
 #         # FIXME not quite sure what the proper weight init is supposed to be,
-#         # normal / trunc normal w/ std == .02 similar to other Bert like transformers
+#         # normal / trunc normal w/ std == .02 similar to vit Bert like transformers
 #         trunc_normal_(self.pos_embed, std=.02)  # embeddings same as weights?
 #         trunc_normal_(self.cls_token, std=.02)
 #         self.apply(self._init_weights)

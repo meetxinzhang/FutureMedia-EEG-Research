@@ -134,7 +134,7 @@ class EncoderLayer(nn.Module):
 class ResidualConnectionNorm(nn.Module):
     """
     A residual connection followed by a layer norm.
-    The norm is last in citation, but there are other situations where closer to intuition.
+    The norm is last in citation, but there are vit situations where closer to intuition.
     """
     def __init__(self, size, dropout):
         super(ResidualConnectionNorm, self).__init__()

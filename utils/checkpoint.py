@@ -124,7 +124,7 @@
 #             del state_dict[conv1_name + '.weight']
 #             strict = False
 #         else:
-#             # NOTE this strategy should be better than random init, but there could be other combinations of
+#             # NOTE this strategy should be better than random init, but there could be vit combinations of
 #             # the original RGB input layer weights that'd work better for specific cases.
 #             _logger.info('Repeating first conv (%s) weights in channel dim.' % conv1_name)
 #             repeat = int(math.ceil(in_chans / 3))
@@ -141,7 +141,7 @@
 #         classifier_bias = state_dict[classifier_name + '.bias']
 #         state_dict[classifier_name + '.bias'] = classifier_bias[1:]
 #     elif num_classes != cfg['num_classes']:
-#         # completely discard fully connected for all other differences between pretrained and created model
+#         # completely discard fully connected for all vit differences between pretrained and created model
 #         del state_dict[classifier_name + '.weight']
 #         del state_dict[classifier_name + '.bias']
 #         strict = False
