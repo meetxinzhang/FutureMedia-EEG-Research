@@ -13,7 +13,7 @@ mne.set_log_level(verbose='WARNING')
 
 
 class BDFReader(object):
-    def __init__(self, file_path='E:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-00.bdf', method='stim', resample=None):
+    def __init__(self, file_path=None, method='stim', resample=None):
         self.selection = []
         self.file_path = file_path
         self.resample = resample

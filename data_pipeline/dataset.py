@@ -30,8 +30,8 @@ class BDFDataset(torch.utils.data.Dataset):
         self.bdf_filenames = self.file_filter(self.BDFs_path, endswith='.bdf')
         # self.label_filenames = self.file_filter(self.labels_path, endswith='.txt')
 
-        self.bdf_reader = BDFReader()
-        self.label_reader = LabelReader()
+        self.bdf_reader = BDFReader(file_path='../../Datasets/CVPR2021-02785/data/imagenet40-1000-1-00.bdf')
+        self.label_reader = LabelReader(file_path='../../Datasets/CVPR2021-02785/design/run-00.txt')
 
     def __len__(self):
         return len(self.bdf_filenames) * 400  # each .bdf file embody 400 samples.
@@ -50,7 +50,7 @@ class BDFDataset(torch.utils.data.Dataset):
         # label_path = self.label_filenames[file_idx]
         try:
             x = self.bdf_reader.get_item(bdf_path, sample_idx)  # [t=512, channels=96]
-            number = bdf_path.split('.')[0].split('-')[-1]
+            number = bdf_path.split('-')[-1].split('.')[0]
             label = self.label_reader.get_item_one_hot(self.labels_path+'/'+'run-'+number+'.txt', sample_idx)
         except Exception as e:
             print(e)
