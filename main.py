@@ -15,23 +15,24 @@ from model.lrp_manager import ignite_relprop, generate_visualization
 
 summary = SummaryWriter(log_dir='./log/')
 gpu = torch.cuda.is_available()
-batch_size = 32
+batch_size = 64
 n_epoch = 10
 total_x = 400*100
 
 
 # E:/Datasets/CVPR2021-02785
-dataset = BDFDataset(CVPR2021_02785_path='../../Datasets/CVPR2021-02785')
+dataset = BDFDataset(CVPR2021_02785_path='../../Datasets/CVPR2021-02785', sample_rate=1024)
 loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=6)
 
-ff = FieldFlow(num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0.2,
+ff = FieldFlow(num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0,
                n_signals=96, n_classes=40)
 
 if gpu:
     ff.cuda()
 
-optimizer = NoamOpt(model_size=40, factor=1, warmup=8000,
-                    optimizer=torch.optim.Adam(ff.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
+optimizer = torch.optim.Adam(ff.parameters(), lr=0.002, betas=(0.9, 0.98), eps=1e-9)
+# optimizer = NoamOpt(model_size=40, factor=1, warmup=8000,
+#                     optimizer=torch.optim.Adam(ff.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
 
 # ----- Testing code start ----- Use following to test code without load data -----
 # x = torch.ones(3, 512, 96).unsqueeze(1).cuda()  # [batch_size, 1, time_step, channels]
@@ -63,13 +64,14 @@ if __name__ == '__main__':
                 label = label.cuda()
 
             ff.train()
-            if step % 2 == 0:
-                optimizer.zero_grad()  # clean grad per 2 step, to double the batch_size
+            # if step % 2 == 0:
+            optimizer.zero_grad()  # clean grad per 2 step, to double the batch_size
 
             y = ff(x)  # [bs, 40]
             loss = F.cross_entropy(y, label)
             loss.backward()
-            lr = optimizer.step()
+            optimizer.step()
+            lr = optimizer.param_groups[0]['lr']
 
             step += 1
             global_step += 1
@@ -84,7 +86,7 @@ if __name__ == '__main__':
 
             if step % 100 == 0:
                 cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
-                generate_visualization(x[0].squeeze(), cam.squeeze(), save_name='C'+str(label[0].cpu().numpy())+'_'+str(global_step))
+                generate_visualization(x[0].squeeze(), cam.squeeze(), save_name='S'+str(global_step)+'_C'+str(label[0].cpu().numpy()))
 
         step = 0
     summary.close()

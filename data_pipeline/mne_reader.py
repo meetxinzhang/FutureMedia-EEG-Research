@@ -89,8 +89,8 @@ class BDFReader(object):
                 start_time.append(event[0])  # 3s and the last sample is contact with 10s blocking
             if event[1] == 65280 and event[2] == 0:
                 pass  # end 11s
-        if not len(start_time) == 400:
-            raise Exception('len(start_time) != 400')
+        if len(start_time) != 400:
+            raise ExceptionPassing('len(start_time) != 400')
 
         set = []
         for i in range(len(start_time)):

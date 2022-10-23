@@ -21,7 +21,7 @@ def collate_(batch):
 
 
 class BDFDataset(torch.utils.data.Dataset):
-    def __init__(self, CVPR2021_02785_path, sample_rate=1):
+    def __init__(self, CVPR2021_02785_path, sample_rate=1024):
         self.sample_rate = sample_rate
         self.BDFs_path = CVPR2021_02785_path + '/data'
         self.labels_path = CVPR2021_02785_path + '/design'
@@ -30,7 +30,8 @@ class BDFDataset(torch.utils.data.Dataset):
         self.bdf_filenames = self.file_filter(self.BDFs_path, endswith='.bdf')
         # self.label_filenames = self.file_filter(self.labels_path, endswith='.txt')
 
-        self.bdf_reader = BDFReader(file_path='../../Datasets/CVPR2021-02785/data/imagenet40-1000-1-00.bdf')
+        self.bdf_reader = BDFReader(file_path='../../Datasets/CVPR2021-02785/data/imagenet40-1000-1-00.bdf',
+                                    resample=self.sample_rate)
         self.label_reader = LabelReader(file_path='../../Datasets/CVPR2021-02785/design/run-00.txt')
 
     def __len__(self):
