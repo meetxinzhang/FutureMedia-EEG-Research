@@ -8,7 +8,7 @@
 import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
-from utils.learning_rate import NoamOpt
+import time
 from data_pipeline.dataset import BDFDataset, collate_
 from model.field_flow import FieldFlow
 from model.lrp_manager import ignite_relprop, generate_visualization
@@ -24,7 +24,7 @@ total_x = 400*100
 dataset = BDFDataset(CVPR2021_02785_path='../../Datasets/CVPR2021-02785', sample_rate=1024)
 loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=6)
 
-ff = FieldFlow(num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0,
+ff = FieldFlow(num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0.2,
                n_signals=96, n_classes=40)
 
 if gpu:
@@ -89,4 +89,6 @@ if __name__ == '__main__':
                 generate_visualization(x[0].squeeze(), cam.squeeze(), save_name='S'+str(global_step)+'_C'+str(label[0].cpu().numpy()))
 
         step = 0
+    current_info = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+    torch.save(ff, 'log/checkpoint/'+current_info+'.pkl')
     summary.close()

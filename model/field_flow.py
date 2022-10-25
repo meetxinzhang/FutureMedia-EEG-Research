@@ -40,14 +40,14 @@ class FieldFlow(nn.Module):
         # [b, c=1, t=512, s=96]
         self.conv1 = nnlrp.Conv2d(in_channels=1, out_channels=128, kernel_size=(5, 1), stride=(1, 1), padding='same',
                                   dilation=1, bias=True)
-        self.act_conv1 = lylrp.Sigmoid()
+        self.act_conv1 = lylrp.Softsign()
         self.max_pool1 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm1 = lylrp.BatchNorm2d(128)
         self.conv2 = nnlrp.Conv2d(in_channels=128, out_channels=n_classes, kernel_size=(5, 1), stride=(1, 1), padding='same',
                                   dilation=1, bias=True)
-        self.act_conv2 = lylrp.Sigmoid()
+        self.act_conv2 = lylrp.Softsign()
         self.max_pool2 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
-        self.norm2 = lylrp.BatchNorm2d(n_classes)
+        self.norm2 = lylrp.LayerNorm(n_classes, eps=1e-6)
 
         # [b, c=40, t=128, s=96]
         # self.freqs_residue = nnlrp.Add()
@@ -62,7 +62,7 @@ class FieldFlow(nn.Module):
             nnlrp.Block(
                 dim=n_classes, num_heads=num_heads, mlp_dilator=mlp_dilator, qkv_bias=qkv_bias,
                 drop=drop_rate, attn_drop=attn_drop_rate)
-            for _ in range(2)])
+            for _ in range(3)])
         # self.ct_select = lylrp.IndexSelect()  # [bt, s+1, c] -> [bt, 1, c]
         #  squeeze [bt, 1, c] -> [bt, c]
         # rearrange [(bt), c] -> [b, t, c]
@@ -102,6 +102,8 @@ class FieldFlow(nn.Module):
         # trunc_normal_(self.pos_embed, std=.02)  # embeddings same as weights?
         trunc_normal_(self.channel_token, std=.02)
         trunc_normal_(self.temp_token, std=.02)
+        trunc_normal_(self.ch_embed, std=.02)
+        trunc_normal_(self.temp_embed, std=.02)
         self.apply(_init_weights)
 
         self.ct_select = lylrp.IndexSelect()

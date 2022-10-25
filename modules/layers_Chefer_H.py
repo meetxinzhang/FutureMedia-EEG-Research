@@ -85,8 +85,12 @@ class GELU(nn.GELU, RelProp):
     pass
 
 
-class Sigmoid(nn.Sigmoid, RelProp):
+class Softsign(nn.Softsign, RelProp):
     # TODO +- activation respectively
+    pass
+
+
+class Sigmoid(nn.Sigmoid, RelProp):
     pass
 
 
