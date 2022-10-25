@@ -15,7 +15,7 @@ from model.lrp_manager import ignite_relprop, generate_visualization
 
 summary = SummaryWriter(log_dir='./log/')
 gpu = torch.cuda.is_available()
-batch_size = 64
+batch_size = 32
 n_epoch = 10
 total_x = 400*100
 
