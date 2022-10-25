@@ -124,7 +124,7 @@ def add_cam_on_image(x, cam):
 
     img = cv2.cvtColor(np.array(np.uint8(255 * x)), cv2.COLOR_RGB2BGR)
 
-    vis = heatmap + np.float32(x)
+    vis = heatmap + np.float32(img) / 255
     vis = vis / np.max(vis)
     vis = cv2.cvtColor(np.array(np.uint8(255 * vis)), cv2.COLOR_RGB2BGR)
 

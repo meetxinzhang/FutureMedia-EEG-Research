@@ -84,7 +84,7 @@ if __name__ == '__main__':
                 summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
                 summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=global_step)
 
-            if step % 100 == 0:
+            if step % 50 == 0:
                 cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
                 generate_visualization(x[0].squeeze(), cam.squeeze(), save_name='S'+str(global_step)+'_C'+str(label[0].cpu().numpy()))
 
