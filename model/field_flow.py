@@ -47,7 +47,7 @@ class FieldFlow(nn.Module):
                                   dilation=1, bias=True)
         self.act_conv2 = lylrp.Softsign()
         self.max_pool2 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
-        self.norm2 = lylrp.LayerNorm(n_classes, eps=1e-6)
+        self.norm2 = lylrp.LayerNorm(n_signals, eps=1e-6)
 
         # [b, c=40, t=128, s=96]
         # self.freqs_residue = nnlrp.Add()
