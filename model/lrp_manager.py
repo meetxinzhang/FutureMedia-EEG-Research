@@ -95,14 +95,19 @@ def generate_visualization(x, cam, save_name=None):
     # permute: trans dimension at original image.permute(1, 2, 0)
     x = x.data.cpu().numpy()
     # image + attribution
-    img, vis = add_cam_on_image(x, cam)
+    img, heatmap, vis = add_cam_on_image(x, cam)
 
     if save_name is not None:
+        path = './log/image/' + save_name
+
         vis = Image.fromarray(vis)
-        vis.save('./log/image/' + save_name + '_cam.jpg')
+        vis.save(path + '_cam.jpg')
 
         img = Image.fromarray(img)
-        img.save('./log/image/' + save_name + '.jpg')
+        img.save(path + '.jpg')
+
+        heatmap = Image.fromarray(heatmap)
+        heatmap.save(path + '_heatmap.jpg')
 
         print('saved ' + save_name)
     else:
@@ -112,7 +117,6 @@ def generate_visualization(x, cam, save_name=None):
         axs[1].imshow(vis)
         axs[1].axis('off')
         plt.show()
-    return vis
 
 
 def add_cam_on_image(x, cam):
@@ -120,13 +124,12 @@ def add_cam_on_image(x, cam):
     cam = (cam - cam.min()) / (cam.max() - cam.min())
 
     heatmap = cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET)
-    heatmap = np.float32(heatmap) / 255
 
     img = cv2.cvtColor(np.array(np.uint8(255 * x)), cv2.COLOR_RGB2BGR)
 
-    vis = heatmap + np.float32(img) / 255
+    vis = np.float32(heatmap) / 255 + np.float32(img) / 255
     vis = vis / np.max(vis)
     vis = cv2.cvtColor(np.array(np.uint8(255 * vis)), cv2.COLOR_RGB2BGR)
 
-    del x, cam, heatmap
-    return img, vis
+    del x, cam
+    return img, heatmap, vis

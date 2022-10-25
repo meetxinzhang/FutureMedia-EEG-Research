@@ -157,8 +157,8 @@ class FieldFlow(nn.Module):
             x = blk2(x)  # [b, 1+t, n_classes]
 
         # [b, 1+t, c] -> [b, 1, c] -> [b, c]
-        logits = self.tt_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
-        y = self.softmax(logits)
+        y = self.tt_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
+        y = self.softmax(y)
         return y
 
     def relprop(self, cam=None, method="transformer_attribution", is_ablation=False, start_layer=0, **kwargs):
