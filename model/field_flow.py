@@ -55,6 +55,8 @@ class FieldFlow(nn.Module):
         # Spacial Tokenization
         # rearrange [b, c=40, t=128, s=96] -> [(b, t), s, c]
         self.channel_token = nn.Parameter(torch.zeros(1, 1, n_classes))  # [1, 1, c]
+        self.ch_embed = nn.Parameter(torch.zeros(1, n_signals + 1, n_classes))
+        self.add1 = lylrp.Add()
 
         self.s_blocks = nn.ModuleList([
             nnlrp.Block(
@@ -69,8 +71,10 @@ class FieldFlow(nn.Module):
 
         # Temporal Tokenization
         self.temp_token = nn.Parameter(torch.zeros(1, 1, n_classes))  # [1, 1, c]
+        self.temp_embed = nn.Parameter(torch.zeros(1, 1+128, n_classes))
+        self.add2 = lylrp.Add()
         # self.attn_proj = nnlrp.MultiHeadAttention(dim_in=n_signals, dim_out=n_classes * mlp_dilator, num_heads=8,
-        #                                           attn_drop=attn_drop_rate, proj_drop=drop_rate)  # [b, t, n_classes*mlp_ratio]
+        #                             attn_drop=attn_drop_rate, proj_drop=drop_rate)  # [b, t, n_classes*mlp_ratio]
         # self.fc_proj = nnlrp.Linear(in_features=n_classes * mlp_dilator, out_features=n_classes)
         # [b, t, n_classes]
 
@@ -130,6 +134,8 @@ class FieldFlow(nn.Module):
         x = einops.rearrange(x, 'b c t s -> (b t) s c', b=self.bs, t=self.t_h, s=self.s)
         channel_tokens = self.channel_token.expand(self.bs*self.t_h, -1, -1)  # [1, 1, c] -> [bt, 1, c], c of conv
         x = torch.cat((channel_tokens, x), dim=1)  # [(b, t), 1, c] + [(b, t), s, c]  -> [(b, t), 1+s, c]
+        ch_embed = self.ch_embed.expand(self.bs*self.t_h, -1, -1)
+        x = self.add1([x, ch_embed])
 
         x.register_hook(self.save_inp_grad)
 
@@ -137,13 +143,13 @@ class FieldFlow(nn.Module):
             x = blk(x)  # [(b, t), 1+s, c]
 
         #  [bt, 1+s, c] -> [bt, 1, c] -> [bt, c]
-        x = self.ct_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device))
-
-        x = x.squeeze(1)
+        x = self.ct_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
         x = einops.rearrange(x, '(b t) c -> b t c', b=self.bs, t=self.t_h, c=self.n_classes)
 
         temp_tokens = self.temp_token.expand(self.bs, -1, -1)  # [1, 1, c] -> [b, 1, c]
-        x = torch.cat((temp_tokens, x), dim=1)  # [b, 1, c], [b, 1+t, c]
+        x = torch.cat((temp_tokens, x), dim=1)  # [b, 1, c]+[b, t, c] -> [b, 1+t, c]
+        temp_embed = self.temp_embed.expand(self.bs, -1, -1)  # [b, 1+t, n_classes]
+        x = self.add2([x, temp_embed])  # [b, 1+t, n_classes]
 
         for blk2 in self.t_blocks:
             x = blk2(x)  # [b, 1+t, n_classes]
@@ -177,12 +183,13 @@ class FieldFlow(nn.Module):
             cam = cam.clamp(min=0).mean(dim=1)     # [b, _t, _t]
             cams.append(cam)          # [b, _t, _t]
         rollout = nnlrp.compute_rollout_attention(cams, start_layer=start_layer, true_bs=None)  # [b, _t, _t]
-        cam = rollout[:, 0, 1:]                     # [b, t]  temp taken added
-        # _cam = rollout[:, 0, 0]
-        print("conservation 0", rollout[:, 0, :].sum())
+        cam = rollout[:, 0, :]  # [b, _t]  temp taken added
         print("conservation 1", cam.sum())
-        cam = cam.unsqueeze(-1).expand(b, t, classes)  # [b, t] -> [b, t, 1] -> [b, t, classes]  cam=1*40
+        cam = cam.unsqueeze(-1).expand(-1, -1, classes)  # [b, _t] -> [b, _t, 1] -> [b, _t, classes]  cam=1*40
         cam = torch.div(cam, classes)  # attention in temporary-dim, so divide it equally among classes
+
+        (cam, _) = self.add2.relprop(cam, **kwargs)  # [b, _t, classes], [b, _t, classes]
+        cam = cam[:, 1:, :]  # concat [b, t, classes]
 
         # [(b, t), c] -> [b, t, c]
         cam = einops.rearrange(cam, 'b t c -> (b t) c', b=b, t=t, c=classes)
@@ -203,9 +210,13 @@ class FieldFlow(nn.Module):
             cam = cam.clamp(min=0).mean(dim=1)  # [bt, 1+s, 1+s]
             cams1.append(cam)  # [bt, 1+s, 1+s]
         rollout = nnlrp.compute_rollout_attention(cams1, start_layer=start_layer, true_bs=b)  # [bt, 1+s, 1+s]
-        cam = rollout[:, 0, 1:]  # [bt, s] temp taken added
-        cam = cam.unsqueeze(-1).expand(bt, self.s, classes)  # [bt, s] -> [bt, s, 1] -> [bt, s, classes]  cam=1*40
+        cam = rollout[:, 0, :]  # [bt, 1+s] temp taken added
+        cam = cam.unsqueeze(-1).expand(-1, -1, classes)  # [bt, 1+s]->[bt, 1+s, 1]->[bt, 1+s, classes] cam=1*40
         cam = torch.div(cam, classes)  # attention on signal-dim, so divide it equally among classes
+
+        (cam, _) = self.add1.relprop(cam, **kwargs)  # [bt, 1+s, classes], [bt, 1+s, classes]
+        cam = cam[:, 1:, :]  # concat [bt, s, classes]
+
         # [(b, t), s, c] -> [bs, c=40, 1_t=128, s=96]
         cam = einops.rearrange(cam, '(b t) s c -> b c t s', b=self.bs, t=self.t_h, s=self.s)
 
@@ -218,6 +229,6 @@ class FieldFlow(nn.Module):
         cam = self.max_pool1.relprop(cam, **kwargs)
         cam = self.act_conv1.relprop(cam, **kwargs)
         cam = self.conv1.relprop(cam, **kwargs)
-        # print("conservation end", cam.sum())
+        print("conservation end", cam.sum())
         # print("min", cam.min())
         return cam
