@@ -29,66 +29,68 @@ def _init_weights(m):
 
 class FieldFlow(nn.Module):
 
-    def __init__(self, num_heads=5, mlp_dilator=4, qkv_bias=False, drop_rate=0., attn_drop_rate=0.,
-                 n_signals=96, n_classes=40):
+    def __init__(self, dim=None, num_heads=5, mlp_dilator=4, qkv_bias=False, drop_rate=0., attn_drop_rate=0.,
+                 t=512, n_signals=96, n_classes=40):
         super().__init__()
         self.n_classes = n_classes
         self.bs = None
         self.s = n_signals
-        self.t_h = None
+        self.t_h = t//4
+        self.t = t
+        self.d = dim or n_classes
 
-        # [b, c=1, t=512, s=96]
+        # [b, d=1, t=512, s=96]
         self.conv1 = nnlrp.Conv2d(in_channels=1, out_channels=128, kernel_size=(5, 1), stride=(1, 1), padding='same',
                                   dilation=1, bias=True)
         self.act_conv1 = lylrp.Softsign()
         self.max_pool1 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm1 = lylrp.BatchNorm2d(128)
-        self.conv2 = nnlrp.Conv2d(in_channels=128, out_channels=n_classes, kernel_size=(5, 1), stride=(1, 1), padding='same',
+        self.conv2 = nnlrp.Conv2d(in_channels=128, out_channels=self.d, kernel_size=(5, 1), stride=(1, 1), padding='same',
                                   dilation=1, bias=True)
         self.act_conv2 = lylrp.Softsign()
         self.max_pool2 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm2 = lylrp.LayerNorm(n_signals, eps=1e-6)
 
-        # [b, c=40, t=128, s=96]
+        # [b, d=40, t=128, s=96]
         # self.freqs_residue = nnlrp.Add()
 
         # Spacial Tokenization
-        # rearrange [b, c=40, t=128, s=96] -> [(b, t), s, c]
-        self.channel_token = nn.Parameter(torch.zeros(1, 1, n_classes))  # [1, 1, c]
-        self.ch_embed = nn.Parameter(torch.zeros(1, n_signals + 1, n_classes))
+        # rearrange [b, d=40, t=128, s=96] -> [(b, t), s, d]
+        self.channel_token = nn.Parameter(torch.zeros(1, 1, self.d))  # [1, 1, d]
+        self.ch_embed = nn.Parameter(torch.zeros(1, n_signals + 1, self.d))
         self.add1 = lylrp.Add()
 
         self.s_blocks = nn.ModuleList([
             nnlrp.Block(
-                dim=n_classes, num_heads=num_heads, mlp_dilator=mlp_dilator, qkv_bias=qkv_bias,
+                dim=self.d, num_heads=num_heads, mlp_dilator=mlp_dilator, qkv_bias=qkv_bias,
                 drop=drop_rate, attn_drop=attn_drop_rate)
             for _ in range(3)])
-        # self.ct_select = lylrp.IndexSelect()  # [bt, s+1, c] -> [bt, 1, c]
-        #  squeeze [bt, 1, c] -> [bt, c]
-        # rearrange [(bt), c] -> [b, t, c]
-        # -------embedding  [b, t=128, s, c] -> [b, t, s, 1]
+        # self.ct_select = lylrp.IndexSelect()  # [bt, s+1, d] -> [bt, 1, d]
+        #  squeeze [bt, 1, d] -> [bt, d]
+        # rearrange [(bt), d] -> [b, t, d]
+        # -------embedding  [b, t=128, s, d] -> [b, t, s, 1]
         # -------self.gap = lylrp.AdaptiveAvgPool2d(output_size=(n_signals, 1))
 
         # Temporal Tokenization
-        self.temp_token = nn.Parameter(torch.zeros(1, 1, n_classes))  # [1, 1, c]
-        self.temp_embed = nn.Parameter(torch.zeros(1, 1+128, n_classes))
+        self.temp_token = nn.Parameter(torch.zeros(1, 1, self.d))  # [1, 1, d]
+        self.temp_embed = nn.Parameter(torch.zeros(1, 1+self.t_h, self.d))
         self.add2 = lylrp.Add()
-        # self.attn_proj = nnlrp.MultiHeadAttention(dim_in=n_signals, dim_out=n_classes * mlp_dilator, num_heads=8,
-        #                             attn_drop=attn_drop_rate, proj_drop=drop_rate)  # [b, t, n_classes*mlp_ratio]
-        # self.fc_proj = nnlrp.Linear(in_features=n_classes * mlp_dilator, out_features=n_classes)
-        # [b, t, n_classes]
+        # self.attn_proj = nnlrp.MultiHeadAttention(dim_in=n_signals, dim_out=d * mlp_dilator, num_heads=8,
+        #                             attn_drop=attn_drop_rate, proj_drop=drop_rate)  # [b, t, d*mlp_ratio]
+        # self.fc_proj = nnlrp.Linear(in_features=d * mlp_dilator, out_features=d)
+        # [b, t, d]
 
         self.t_blocks = nn.ModuleList([
             nnlrp.Block(
-                dim=n_classes, num_heads=num_heads, mlp_dilator=mlp_dilator, qkv_bias=qkv_bias,
+                dim=self.d, num_heads=num_heads, mlp_dilator=mlp_dilator, qkv_bias=qkv_bias,
                 drop=drop_rate, attn_drop=attn_drop_rate)
             for _ in range(3)])
-        # [b, t, n_classes]
+        # [b, t, d]
 
-        # [b, t, classes] -> [b, 1, classes]
+        # [b, t, d] -> [b, 1, d]
         # self.tt_select = lylrp.IndexSelect()
-        # self.gap_logits = lylrp.AdaptiveAvgPool2d(output_size=(1, n_classes))
-        # squeeze [b, t, classes] -> [b, classes]
+        # self.gap_logits = lylrp.AdaptiveAvgPool2d(output_size=(1, d))
+        # squeeze [b, t, d] -> [b, d]
 
         # if mlp_head:
         #     # paper diagram suggests 'MLP head', but results in 4M extra parameters vs paper
@@ -122,59 +124,58 @@ class FieldFlow(nn.Module):
 
         x = self.conv1(x)
         x = self.act_conv1(x)
-        x = self.max_pool1(x)  # [bs, c=128, t=256, s=96]
+        x = self.max_pool1(x)  # [bs, d=128, t=256, s=96]
         x = self.norm1(x)
 
         x = self.conv2(x)
         x = self.act_conv2(x)
-        x = self.max_pool2(x)  # [bs, c=40, t=128, s=96]
+        x = self.max_pool2(x)  # [bs, d=40, t=128, s=96]
         x = self.norm2(x)
-        self.t_h = x.shape[2]
+        assert self.t_h == x.shape[2]
         self.bs = x.shape[0]
 
-        # [bs, c=40, t=128, s=96] -> [(b, t), s, c]
-        x = einops.rearrange(x, 'b c t s -> (b t) s c', b=self.bs, t=self.t_h, s=self.s)
-        channel_tokens = self.channel_token.expand(self.bs*self.t_h, -1, -1)  # [1, 1, c] -> [bt, 1, c], c of conv
-        x = torch.cat((channel_tokens, x), dim=1)  # [(b, t), 1, c] + [(b, t), s, c]  -> [(b, t), 1+s, c]
+        # [bs, d=40, t=128, s=96] -> [(b, t), s, d]
+        x = einops.rearrange(x, 'b d t s -> (b t) s d', b=self.bs, t=self.t_h, s=self.s)
+        channel_tokens = self.channel_token.expand(self.bs*self.t_h, -1, -1)  # [1, 1, d] -> [bt, 1, d], d=c of conv
+        x = torch.cat((channel_tokens, x), dim=1)  # [(b, t), 1, d] + [(b, t), s, d]  -> [(b, t), 1+s, d]
         ch_embed = self.ch_embed.expand(self.bs*self.t_h, -1, -1)
         x = self.add1([x, ch_embed])
 
         x.register_hook(self.save_inp_grad)
 
         for blk in self.s_blocks:
-            x = blk(x)  # [(b, t), 1+s, c]
+            x = blk(x)  # [(b, t), 1+s, d]
 
-        #  [bt, 1+s, c] -> [bt, 1, c] -> [bt, c]
+        #  [bt, 1+s, d] -> [bt, 1, d] -> [bt, d]
         x = self.ct_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
-        x = einops.rearrange(x, '(b t) c -> b t c', b=self.bs, t=self.t_h, c=self.n_classes)
+        x = einops.rearrange(x, '(b t) d -> b t d', b=self.bs, t=self.t_h, d=self.d)
 
-        temp_tokens = self.temp_token.expand(self.bs, -1, -1)  # [1, 1, c] -> [b, 1, c]
-        x = torch.cat((temp_tokens, x), dim=1)  # [b, 1, c]+[b, t, c] -> [b, 1+t, c]
-        temp_embed = self.temp_embed.expand(self.bs, -1, -1)  # [b, 1+t, n_classes]
-        x = self.add2([x, temp_embed])  # [b, 1+t, n_classes]
+        temp_tokens = self.temp_token.expand(self.bs, -1, -1)  # [1, 1, d] -> [b, 1, d]
+        x = torch.cat((temp_tokens, x), dim=1)  # [b, 1, c]+[b, t, d] -> [b, 1+t, d]
+        temp_embed = self.temp_embed.expand(self.bs, -1, -1)  # [b, 1+t, d]
+        x = self.add2([x, temp_embed])  # [b, 1+t, d]
 
         for blk2 in self.t_blocks:
-            x = blk2(x)  # [b, 1+t, n_classes]
+            x = blk2(x)  # [b, 1+t, d]
 
-        # [b, 1+t, c] -> [b, 1, c] -> [b, c]
+        # [b, 1+t, d] -> [b, 1, d] -> [b, d]
         y = self.tt_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
         y = self.softmax(y)
         return y
 
     def relprop(self, cam=None, method="transformer_attribution", is_ablation=False, start_layer=0, **kwargs):
         # [1, classes]  b==1
-        print("conservation start", cam.sum())
+        print("conservation 0", cam.sum())
         cam = self.softmax.relprop(cam, **kwargs)
-        cam = cam.unsqueeze(1)  # [b, 1, classes]
-        # cam = self.gap_logits.relprop(cam, **kwargs)  # [b, _t, classes]
-        cam = self.tt_select.relprop(cam, **kwargs)  # [b, 1+t, c]
+        cam = cam.unsqueeze(1)  # [b, 1, d]
+        # cam = self.gap_logits.relprop(cam, **kwargs)  # [b, _t, d]
+        cam = self.tt_select.relprop(cam, **kwargs)  # [b, 1+t, d]
 
-        b, _t, classes = cam.shape
-        t = _t-1
+        b = cam.shape[0]
 
         cams = []
         for blk2 in reversed(self.t_blocks):
-            cam = blk2.relprop(cam, **kwargs)  # [b, _t, classes], note that _t = 1+t
+            cam = blk2.relprop(cam, **kwargs)  # [b, _t, d], note that _t = 1+t
 
         for blk2 in reversed(self.t_blocks):
             grad = blk2.attn.get_attn_gradients()  # [b, head, _t, _t]
@@ -185,23 +186,25 @@ class FieldFlow(nn.Module):
             cam = cam.clamp(min=0).mean(dim=1)     # [b, _t, _t]
             cams.append(cam)          # [b, _t, _t]
         rollout = nnlrp.compute_rollout_attention(cams, start_layer=start_layer, true_bs=None)  # [b, _t, _t]
-        cam = rollout[:, 0, :]  # [b, _t]  temp taken added
+        cam = rollout[:, 0, 1:]  # [b, t]  temp taken added
+        cam = torch.div(cam, cam.sum())
+
+        cam = cam.unsqueeze(-1).expand(-1, -1, self.d)  # [b, t] -> [b, t, 1] -> [b, t, d]  cam=1*40
+        cam = torch.div(cam, self.d)  # attention in temporary-dim, so divide it equally among d
+
+        # (cam, _) = self.add2.relprop(cam, **kwargs)  # [b, _t, d], [b, _t, d]
+        # cam = cam[:, 1:, :]  # concat [b, t, d]
         print("conservation 1", cam.sum())
-        cam = cam.unsqueeze(-1).expand(-1, -1, classes)  # [b, _t] -> [b, _t, 1] -> [b, _t, classes]  cam=1*40
-        cam = torch.div(cam, classes)  # attention in temporary-dim, so divide it equally among classes
 
-        (cam, _) = self.add2.relprop(cam, **kwargs)  # [b, _t, classes], [b, _t, classes]
-        cam = cam[:, 1:, :]  # concat [b, t, classes]
-
-        # [(b, t), c] -> [b, t, c]
-        cam = einops.rearrange(cam, 'b t c -> (b t) c', b=b, t=t, c=classes)
-        cam = cam.unsqueeze(1)   # [bt, 1, c]
-        cam = self.ct_select.relprop(cam, **kwargs)  # [bt, 1+s, c]
+        # [(b, t), d] -> [b, t, d]
+        cam = einops.rearrange(cam, 'b t d -> (b t) d', b=b, t=self.t_h, d=self.d)
+        cam = cam.unsqueeze(1)   # [bt, 1, d]
+        cam = self.ct_select.relprop(cam, **kwargs)  # [bt, 1+s, d]
 
         for blk in reversed(self.s_blocks):
-            cam = blk.relprop(cam, **kwargs)   # [(b, t), 1+s, c] [128, 1+96, 40]
+            cam = blk.relprop(cam, **kwargs)   # [(b, t), 1+s, d] [128, 1+96, 40]
 
-        bt = cam.shape[0]
+        bt = b*self.t_h
         cams1 = []
         for blk in reversed(self.s_blocks):
             grad = blk.attn.get_attn_gradients()  # [bt, head, 1+s, 1+s]
@@ -212,15 +215,16 @@ class FieldFlow(nn.Module):
             cam = cam.clamp(min=0).mean(dim=1)  # [bt, 1+s, 1+s]
             cams1.append(cam)  # [bt, 1+s, 1+s]
         rollout = nnlrp.compute_rollout_attention(cams1, start_layer=start_layer, true_bs=b)  # [bt, 1+s, 1+s]
-        cam = rollout[:, 0, :]  # [bt, 1+s] temp taken added
-        cam = cam.unsqueeze(-1).expand(-1, -1, classes)  # [bt, 1+s]->[bt, 1+s, 1]->[bt, 1+s, classes] cam=1*40
-        cam = torch.div(cam, classes)  # attention on signal-dim, so divide it equally among classes
+        cam = rollout[:, 0, 1:]  # [bt, s] temp taken added
+        cam = torch.div(cam, cam.sum())
 
-        (cam, _) = self.add1.relprop(cam, **kwargs)  # [bt, 1+s, classes], [bt, 1+s, classes]
-        cam = cam[:, 1:, :]  # concat [bt, s, classes]
+        cam = cam.unsqueeze(-1).expand(-1, -1, self.d)  # [bt, s]->[bt, s, 1]->[bt, s, d] cam=1*40
+        cam = torch.div(cam, self.d)  # attention on signal-dim, so divide it equally among d
 
-        # [(b, t), s, c] -> [bs, c=40, 1_t=128, s=96]
-        cam = einops.rearrange(cam, '(b t) s c -> b c t s', b=self.bs, t=self.t_h, s=self.s)
+        # (cam, _) = self.add1.relprop(cam, **kwargs)  # [bt, 1+s, d], [bt, 1+s, d]
+        # cam = cam[:, 1:, :]  # concat [bt, s, d]
+
+        cam = einops.rearrange(cam, '(b t) s d -> b d t s', b=b, t=self.t_h, s=self.s)
 
         print("conservation 2", cam.sum())
         cam = self.norm2.relprop(cam, **kwargs)
@@ -231,6 +235,6 @@ class FieldFlow(nn.Module):
         cam = self.max_pool1.relprop(cam, **kwargs)
         cam = self.act_conv1.relprop(cam, **kwargs)
         cam = self.conv1.relprop(cam, **kwargs)
-        print("conservation end", cam.sum())
+        print("conservation e", cam.sum())
         # print("min", cam.min())
         return cam

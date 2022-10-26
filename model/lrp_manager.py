@@ -111,11 +111,13 @@ def generate_visualization(x, cam, save_name=None):
 
         print('saved ' + save_name)
     else:
-        fig, axs = plt.subplots(1, 2)
+        fig, axs = plt.subplots(1, 3)
         axs[0].imshow(img)
         axs[0].axis('off')
-        axs[1].imshow(vis)
+        axs[1].imshow(heatmap)
         axs[1].axis('off')
+        axs[2].imshow(vis)
+        axs[2].axis('off')
         plt.show()
 
 

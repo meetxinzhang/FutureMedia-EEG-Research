@@ -20,7 +20,7 @@ def collate_(batch):
     return default_collate(batch)
 
 
-class BDFDataset(torch.utils.data.Dataset):
+class PurdueDataset(torch.utils.data.Dataset):
     def __init__(self, CVPR2021_02785_path, sample_rate=1024):
         self.sample_rate = sample_rate
         self.BDFs_path = CVPR2021_02785_path + '/data'
