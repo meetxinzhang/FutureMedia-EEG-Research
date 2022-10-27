@@ -165,7 +165,7 @@ class FieldFlow(nn.Module):
 
     def relprop(self, cam=None, method="transformer_attribution", is_ablation=False, start_layer=0, **kwargs):
         # [1, classes]  b==1
-        print("conservation 0", cam.sum())
+        # print("conservation 0", cam.sum())
         cam = self.softmax.relprop(cam, **kwargs)
         cam = cam.unsqueeze(1)  # [b, 1, d]
         # cam = self.gap_logits.relprop(cam, **kwargs)  # [b, _t, d]
@@ -194,7 +194,7 @@ class FieldFlow(nn.Module):
 
         # (cam, _) = self.add2.relprop(cam, **kwargs)  # [b, _t, d], [b, _t, d]
         # cam = cam[:, 1:, :]  # concat [b, t, d]
-        print("conservation 1", cam.sum())
+        # print("conservation 1", cam.sum())
 
         # [(b, t), d] -> [b, t, d]
         cam = einops.rearrange(cam, 'b t d -> (b t) d', b=b, t=self.t_h, d=self.d)
@@ -226,7 +226,7 @@ class FieldFlow(nn.Module):
 
         cam = einops.rearrange(cam, '(b t) s d -> b d t s', b=b, t=self.t_h, s=self.s)
 
-        print("conservation 2", cam.sum())
+        # print("conservation 2", cam.sum())
         cam = self.norm2.relprop(cam, **kwargs)
         cam = self.max_pool2.relprop(cam, **kwargs)
         cam = self.act_conv2.relprop(cam, **kwargs)
@@ -235,6 +235,6 @@ class FieldFlow(nn.Module):
         cam = self.max_pool1.relprop(cam, **kwargs)
         cam = self.act_conv1.relprop(cam, **kwargs)
         cam = self.conv1.relprop(cam, **kwargs)
-        print("conservation e", cam.sum())
+        # print("conservation e", cam.sum())
         # print("min", cam.min())
         return cam

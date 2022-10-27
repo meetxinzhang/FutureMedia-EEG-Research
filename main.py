@@ -9,20 +9,18 @@ import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 import time
-from data_pipeline.purdue_dataset import PurdueDataset, collate_
+from data_pipeline.dataset_purdue import PurdueDataset, collate_
 from model.field_flow import FieldFlow
 from model.lrp_manager import ignite_relprop, generate_visualization
 
 summary = SummaryWriter(log_dir='./log/')
 gpu = torch.cuda.is_available()
-batch_size = 64
+batch_size = 32
 n_epoch = 10
 total_x = 400*100
 
-
-# E:/Datasets/CVPR2021-02785
-dataset = PurdueDataset(CVPR2021_02785_path='../../Datasets/CVPR2021-02785', sample_rate=1024)
-loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=6)
+dataset = PurdueDataset(CVPR2021_02785_path='../../Datasets/CVPR2021-02785')
+loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=4)
 
 ff = FieldFlow(dim=None, num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0.2,
                n_signals=96, n_classes=40)

@@ -12,11 +12,15 @@ from utils.exception_message import ExceptionPassing
 mne.set_log_level(verbose='WARNING')
 
 
-class BDFReader(object):
-    def __init__(self, file_path=None, method='stim', resample=None):
-        self.selection = []
-        self.file_path = file_path
+class MNEReader(object):
+    def __init__(self, method='stim', resample=None, length=512, exclude=None, stim_channel='Status'):
+        self.file_path = None
         self.resample = resample
+        self.length = length
+        self.exclude = exclude
+        self.stim_channel = stim_channel
+        if stim_channel is None:
+            assert method == 'manual'
 
         if method == 'auto':
             self.method = self.read_auto
@@ -24,9 +28,11 @@ class BDFReader(object):
             self.method = self.read_by_stim
         elif method == 'manual':
             self.method = self.read_by_manual
-        self.set = self.method()
+        self.set = None
 
-    def get_set(self):
+    def get_set(self, file_path):
+        self.file_path = file_path
+        self.set = self.method
         return self.set
 
     def get_item(self, file_path, sample_idx):
@@ -39,43 +45,30 @@ class BDFReader(object):
             return self.set[sample_idx]
 
     def read_raw(self):
-        raw = mne.io.read_raw_bdf(self.file_path, preload=True,
-                                  exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'],
-                                  stim_channel='Status')
+        raw = mne.io.read_raw_bdf(self.file_path, preload=True, exclude=self.exclude,
+                                  stim_channel=self.stim_channel)
         # print(raw)
         # print(raw.info)
         # raw = raw.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
-        events = mne.find_events(raw, stim_channel='Status', initial_event=True, output='step')
-        if self.resample is not None:
-            raw, events = raw.resample(sfreq=self.resample, events=events)  # down sampling to 1024Hz
-        # print(np.shape(events))
+        if self.stim_channel is not None:
+            events = mne.find_events(raw, stim_channel=self.stim_channel, initial_event=True, output='step')
+            if self.resample is not None:
+                raw, events = raw.resample(sfreq=self.resample, events=events)  # down sampling to 1024Hz
+            return raw, events
+        else:
+            if self.resample is not None:
+                raw = raw.resample(sfreq=self.resample)  # down sampling to 1024Hz
+            return raw
         # print(events)
         # print(raw.ch_names)
         # raw.plot_psd(fmax=20)
         # raw.plot(duration=5, c_channels=96)
-        return raw, events
-
-    def read_auto(self):
-        raw, events = self.read_raw()
-        event_dict = {'stim': 65281, 'end': 0}
-
         # fig = mne.viz.plot_events(events, event_id=event_dict, sfreq=raw.info['sfreq'])
         # fig.subplots_adjust(right=0.7)
         # reject_criteria = dict()
-
         # mne.viz.plot_raw(raw=raw, events=events)
         # plt.show()
-
-        epochs = mne.Epochs(raw, events, event_id=event_dict, preload=True).drop_channels('Status')
-        epochs.equalize_event_counts(['stim'])
-        stim_epochs = epochs['stim']
         # stim_epochs.plot_image(picks='A12')
-
-        # for s in stim_epochs:
-        #     print(np.shape(s))
-
-        del raw, epochs, events
-        return stim_epochs.get_data().transpose(0, 2, 1)  # [b, c, t]
 
     def read_by_stim(self):
         raw, events = self.read_raw()
@@ -96,39 +89,47 @@ class BDFReader(object):
         for i in range(len(start_time)):
             start = start_time[i]
             # each sample lasting 2s, the 0.5s data from starting are selected in citation, 0.5*sample ratio
-            end = start + 512
-
+            end = start + self.length
             picks = mne.pick_types(raw.info, eeg=True, stim=False)
-            data, times = raw[picks, start:end]
-            # data = data[:, 0:8191:20]  # down sampling
-            # data = block_reduce(data, block_size=(1, 4), func=np.mean, cval=np.mean(data))
+            data, _ = raw[picks, start:end]
             set.append(data.T)  # [time, channels]
-            # EEG_times.append(times[0])
+        del raw, events, start_time
         return set  # [b, t, c]
 
-    def read_by_manual(self):
-        """
-        # divide bdf into 400 samples according to the describing in paper:
+    def read_by_manual(self,  stim_list):
+        """divide bdf into 400 samples according to the describing in paper:
         Each run started with 10 s of blanking, followed by 400 stimulus presentations, each lasting 2 s,
         with 1 s of blanking between adjacent stimulus presentations, followed by 10 s of blanking at the end
         of the run
         """
-        raw, events = self.read_raw()
+        raw = self.read_raw()
         picks = mne.pick_types(raw.info, eeg=True, stim=False)
         set = []
-        for i in range(400):
-            start = 3.0 * i
-            end = start + 2.0
-            t_idx = raw.time_as_index([10. + start, 10. + end])
+        for i in stim_list:
+            end = i + self.length
+            t_idx = raw.time_as_index([i, end])
             data, times = raw[picks, t_idx[0]:t_idx[1]]
-            # EEGs[times[0]] = data.T
             set.append(data.T)
-            # EEG_times.append(times[0])
+        # for i in range(400):
+        #     start = 3.0 * i
+        #     end = start + 2.0
+        #     t_idx = raw.time_as_index([10. + start, 10. + end])
+        #     data, times = raw[picks, t_idx[0]:t_idx[1]]
+        #     set.append(data.T)
         return set
+
+    def read_auto(self):
+        raw, events = self.read_raw()
+        event_dict = {'stim': 65281, 'end': 0}
+        epochs = mne.Epochs(raw, events, event_id=event_dict, preload=True).drop_channels('Status')
+        epochs.equalize_event_counts(['stim'])
+        stim_epochs = epochs['stim']
+        del raw, epochs, events
+        return stim_epochs.get_data().transpose(0, 2, 1)  # [b, c, t]
 
 
 if __name__ == '__main__':
-    b = BDFReader(method='stim', resample=1024)
+    b = MNEReader(method='stim', resample=1024)
     sample = b.get_set()[0]  # [b=1, c=96, t=2048]
 
     # Ws = mne.time_frequency.morlet(sfreq=1024, freqs=np.array([10, 20]), n_cycles=2)

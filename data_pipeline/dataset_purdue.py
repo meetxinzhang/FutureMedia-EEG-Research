@@ -6,7 +6,7 @@
 @desc:
 """
 import torch
-from data_pipeline.mne_reader import BDFReader
+from data_pipeline.mne_reader import MNEReader
 from data_pipeline.label_reader import LabelReader
 import glob
 import platform
@@ -21,8 +21,7 @@ def collate_(batch):
 
 
 class PurdueDataset(torch.utils.data.Dataset):
-    def __init__(self, CVPR2021_02785_path, sample_rate=1024):
-        self.sample_rate = sample_rate
+    def __init__(self, CVPR2021_02785_path):
         self.BDFs_path = CVPR2021_02785_path + '/data'
         self.labels_path = CVPR2021_02785_path + '/design'
         # self.image_path = CVPR2021_02785_path + '/stimuli'
@@ -30,8 +29,8 @@ class PurdueDataset(torch.utils.data.Dataset):
         self.bdf_filenames = self.file_filter(self.BDFs_path, endswith='.bdf')
         # self.label_filenames = self.file_filter(self.labels_path, endswith='.txt')
 
-        self.bdf_reader = BDFReader(file_path='../../Datasets/CVPR2021-02785/data/imagenet40-1000-1-00.bdf',
-                                    resample=self.sample_rate)
+        self.bdf_reader = MNEReader(resample=1024, length=512,
+                                    exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
         self.label_reader = LabelReader(file_path='../../Datasets/CVPR2021-02785/design/run-00.txt')
 
     def __len__(self):
@@ -41,14 +40,7 @@ class PurdueDataset(torch.utils.data.Dataset):
         file_idx = int(idx / 400)
         sample_idx = idx % 400
 
-        # if file_idx < 10:
-        #     file_idx_name = '0'+str(file_idx)  # 00 01 02 ... 09
-        # else:
-        #     file_idx_name = file_idx  # 10 11 12 ... 99
-
-        # print(file_idx, sample_idx)
         bdf_path = self.bdf_filenames[file_idx]
-        # label_path = self.label_filenames[file_idx]
         try:
             x = self.bdf_reader.get_item(bdf_path, sample_idx)  # [t=512, channels=96]
             number = bdf_path.split('-')[-1].split('.')[0]
