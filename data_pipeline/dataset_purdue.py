@@ -57,6 +57,6 @@ class PurdueDataset(torch.utils.data.Dataset):
         if platform.system().lower() == 'windows':
             files = [f.replace('\\', '/') for f in files]
         disallowed_file_endings = (".gitignore", ".DS_Store")
-        _input_files = files[:int(len(files) * self.sample_rate)]
+        _input_files = files[:int(len(files) * 1)]
         return list(filter(lambda x: not x.endswith(disallowed_file_endings) and x.endswith(endswith),
                            _input_files))

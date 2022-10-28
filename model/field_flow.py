@@ -42,12 +42,12 @@ class FieldFlow(nn.Module):
         # [b, d=1, t=512, s=96]
         self.conv1 = nnlrp.Conv2d(in_channels=1, out_channels=128, kernel_size=(5, 1), stride=(1, 1), padding='same',
                                   dilation=1, bias=True)
-        self.act_conv1 = lylrp.Softsign()
+        self.act_conv1 = lylrp.ReLU()
         self.max_pool1 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm1 = lylrp.BatchNorm2d(128)
         self.conv2 = nnlrp.Conv2d(in_channels=128, out_channels=self.d, kernel_size=(5, 1), stride=(1, 1), padding='same',
                                   dilation=1, bias=True)
-        self.act_conv2 = lylrp.Softsign()
+        self.act_conv2 = lylrp.ReLU()
         self.max_pool2 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm2 = lylrp.LayerNorm(n_signals, eps=1e-6)
 
