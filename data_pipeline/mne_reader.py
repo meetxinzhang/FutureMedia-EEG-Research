@@ -6,7 +6,6 @@
 @desc:
 """
 import mne
-import numpy as np
 from utils.exception_message import ExceptionPassing
 # from skimage.measure import block_reduce
 mne.set_log_level(verbose='WARNING')
@@ -96,7 +95,7 @@ class MNEReader(object):
         del raw, events, start_time
         return set  # [b, t, c]
 
-    def read_by_manual(self,  stim_list):
+    def read_by_manual(self, stim_list):
         """divide bdf into 400 samples according to the describing in paper:
         Each run started with 10 s of blanking, followed by 400 stimulus presentations, each lasting 2 s,
         with 1 s of blanking between adjacent stimulus presentations, followed by 10 s of blanking at the end
@@ -144,4 +143,27 @@ if __name__ == '__main__':
     # specs = cwt_on_sample(sample)  # [c, 2, 512]
 
 
-
+# def edf_reader(path='E:/Datasets/set1_2022.10.13/test1016_hzy_one_set-edf.edf'):
+#     raw = mne.io.read_raw_edf(path, preload=True)
+#     print(raw)
+#     print(raw.info)
+#     # raw = raw.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
+#     # events = mne.find_events(raw, stim_channel='Status', initial_event=True, output='step')
+#     # if self.resample is not None:
+#     #     raw, events = raw.resample(sfreq=self.resample, events=events)  # down sampling to 1024Hz
+#     # print(np.shape(events))
+#     # print(events)
+#     print(raw.ch_names)
+#     # raw.plot_psd(fmax=20)
+#     # raw.plot(duration=5, c_channels=96)
+#     pass
+#
+#
+# if __name__ == '__main__':
+#     pass
+#     # mkrs = mne.io.kit.read_mrk('E:/Datasets/set1_2022.10.13/test1016_hzy_one_set_Raw Data Inspection.txt')
+#     # raw = mne.io.read_raw_bdf('E:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-00.bdf', preload=True,
+#     #                           exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'],
+#     #                           stim_channel='Status')
+#     # print(raw)
+#     # print(raw.info)
