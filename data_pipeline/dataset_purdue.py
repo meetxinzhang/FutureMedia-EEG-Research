@@ -29,7 +29,7 @@ class PurdueDataset(torch.utils.data.Dataset):
         self.bdf_filenames = self.file_filter(self.BDFs_path, endswith='.bdf')
         # self.label_filenames = self.file_filter(self.labels_path, endswith='.txt')
 
-        self.bdf_reader = MNEReader(resample=1024, length=512,
+        self.bdf_reader = MNEReader(resample=1024, length=512, stim_channel='Status',
                                     exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
         self.label_reader = LabelReader()
 
@@ -44,7 +44,7 @@ class PurdueDataset(torch.utils.data.Dataset):
         try:
             x = self.bdf_reader.get_item(bdf_path, sample_idx)  # [t=512, channels=96]
             number = bdf_path.split('-')[-1].split('.')[0]  # ../imagenet40-1000-1-02.bdf
-            label = self.label_reader.get_item_one_hot(self.labels_path+'/'+'run-'+number+'.txt', sample_idx)
+            label = self.label_reader.get_item(self.labels_path + '/' + 'run-' + number + '.txt', sample_idx)
         except Exception as e:
             print(e)
             print(bdf_path)

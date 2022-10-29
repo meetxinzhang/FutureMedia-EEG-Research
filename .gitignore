@@ -133,3 +133,5 @@ dmypy.json
 *.jpg
 
 /log
+.idea
+.idea/sonarlint/issuestore/index.pb

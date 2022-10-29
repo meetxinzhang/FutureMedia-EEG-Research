@@ -57,22 +57,33 @@ def get_one_hot(idx):
 
 
 class LabelReader(object):
-    def __init__(self):
+    def __init__(self, one_hot=False):
         self.file_path = None  # '../../Datasets/CVPR2021-02785/design/run-00.txt'
-        self.lines = self.read()
+        self.one_hot = one_hot
+        self.lines = None
 
     def read(self):
         with open(self.file_path) as f:
             lines = f.readlines()
         return [line.split('_')[0] for line in lines]
 
-    def get_item_one_hot(self, file_path, sample_idx):
+    def get_set(self, file_path):
+        if self.file_path == file_path:
+            return [classes[e] for e in self.lines]
+        else:
+            self.file_path = file_path
+            self.lines = self.read()
+            return [classes[e] for e in self.lines]
+
+    def get_item(self, file_path, sample_idx):
         if self.file_path == file_path:
             idx = classes[self.lines[sample_idx]]
-            return idx
+
         else:
             self.file_path = file_path
             self.lines = self.read()
             idx = classes[self.lines[sample_idx]]
+        if self.one_hot:
+            return get_one_hot(idx)
+        else:
             return idx
-

@@ -12,8 +12,8 @@ __all__ = ['forward_hook', 'Clone', 'Add', 'Cat', 'ReLU', 'GELU', 'Dropout', 'Ba
 
 def safe_divide(a, b):
     den = b.clamp(min=1e-9) + b.clamp(max=1e-9)  # set the min bound, means get larger than 1e-9, the "stabilizer"
-    den = den + den.eq(0).type(den.type()) * 1e-9  # if den==0 then +1*1e-9
-    return a / den * b.ne(0).type(b.type())  # / !0 first then *0 if b==0
+    den = den + den.eq(0).ftype(den.ftype()) * 1e-9  # if den==0 then +1*1e-9
+    return a / den * b.ne(0).ftype(b.ftype())  # / !0 first then *0 if b==0
 
 
 def forward_hook(self, inputs, output):
@@ -78,6 +78,10 @@ class AddEye(RelPropSimple):
 
 
 class ReLU(nn.ReLU, RelProp):
+    pass
+
+
+class ELU(nn.ELU, RelProp):
     pass
 
 

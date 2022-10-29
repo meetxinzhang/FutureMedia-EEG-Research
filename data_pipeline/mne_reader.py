@@ -6,13 +6,14 @@
 @desc:
 """
 import mne
-from utils.exception_message import ExceptionPassing
+from utils.my_tools import ExceptionPassing
 # from skimage.measure import block_reduce
 mne.set_log_level(verbose='WARNING')
 
 
 class MNEReader(object):
-    def __init__(self, method='stim', resample=None, length=512, exclude=None, stim_channel='Status'):
+    def __init__(self, ftype='edf', method='stim', resample=None, length=512, exclude=(), stim_channel='auto'):
+        self.ftype = ftype
         self.file_path = None
         self.resample = resample
         self.length = length
@@ -29,35 +30,42 @@ class MNEReader(object):
             self.method = self.read_by_manual
         self.set = None
 
-    def get_set(self, file_path):
+    def get_set(self, file_path, stim_list=None):
         self.file_path = file_path
-        self.set = self.method
+        self.set = self.method(stim_list)
         return self.set
 
-    def get_item(self, file_path, sample_idx):
+    def get_item(self, file_path, sample_idx, stim_list=None):
         if self.file_path == file_path:
             return self.set[sample_idx]
         else:
             # print('un-hit', '\n', file_path, '\n', self.file_path)
             self.file_path = file_path
-            self.set = self.method()
+            self.set = self.method(stim_list)
             return self.set[sample_idx]
 
     def read_raw(self):
-        raw = mne.io.read_raw_bdf(self.file_path, preload=True, exclude=self.exclude,
-                                  stim_channel=self.stim_channel)
+        if self.ftype == 'bdf':
+            raw = mne.io.read_raw_bdf(self.file_path, preload=True, exclude=self.exclude,
+                                      stim_channel=self.stim_channel)
+        elif self.ftype == 'edf':
+            raw = mne.io.read_raw_edf(self.file_path, preload=True, exclude=self.exclude,
+                                      stim_channel=self.stim_channel)
+        else:
+            raise Exception('!!')
+
         # print(raw)
         # print(raw.info)
         # raw = raw.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
-        if self.stim_channel is not None:
+        if self.stim_channel == 'auto':
+            if self.resample is not None:
+                raw = raw.resample(sfreq=self.resample)  # down sampling to 1024Hz
+            return raw
+        else:
             events = mne.find_events(raw, stim_channel=self.stim_channel, initial_event=True, output='step')
             if self.resample is not None:
                 raw, events = raw.resample(sfreq=self.resample, events=events)  # down sampling to 1024Hz
             return raw, events
-        else:
-            if self.resample is not None:
-                raw = raw.resample(sfreq=self.resample)  # down sampling to 1024Hz
-            return raw
         # print(events)
         # print(raw.ch_names)
         # raw.plot_psd(fmax=20)
@@ -69,7 +77,7 @@ class MNEReader(object):
         # plt.show()
         # stim_epochs.plot_image(picks='A12')
 
-    def read_by_stim(self):
+    def read_by_stim(self, *args):
         raw, events = self.read_raw()
         start_time = []
         for event in events:
@@ -92,8 +100,8 @@ class MNEReader(object):
             picks = mne.pick_types(raw.info, eeg=True, stim=False)
             data, _ = raw[picks, start:end]
             set.append(data.T)  # [time, channels]
-        del raw, events, start_time
-        return set  # [b, t, c]
+        del raw, events
+        return set, start_time  # [b, t, c]
 
     def read_by_manual(self, stim_list):
         """divide bdf into 400 samples according to the describing in paper:
@@ -106,8 +114,8 @@ class MNEReader(object):
         set = []
         for i in stim_list:
             end = i + self.length
-            t_idx = raw.time_as_index([i, end])
-            data, times = raw[picks, t_idx[0]:t_idx[1]]
+            # if i is time then: idx = raw.time_as_index([i, end])
+            data, times = raw[picks, i:end]
             set.append(data.T)
         # for i in range(400):
         #     start = 3.0 * i
@@ -117,7 +125,7 @@ class MNEReader(object):
         #     set.append(data.T)
         return set
 
-    def read_auto(self):
+    def read_auto(self, *args):
         raw, events = self.read_raw()
         event_dict = {'stim': 65281, 'end': 0}
         epochs = mne.Epochs(raw, events, event_id=event_dict, preload=True).drop_channels('Status')
