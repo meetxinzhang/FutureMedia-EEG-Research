@@ -10,6 +10,8 @@
 import glob
 import platform
 import torch
+import collections
+from itertools import repeat
 
 
 def file_scanf(path, endswith, sub_ratio=1):
@@ -29,6 +31,22 @@ class ExceptionPassing(Exception):
         super(ExceptionPassing, self).__init__(message)
         self.expression = expression
         self.message = str.join('', [str(a) for a in message])
+
+
+# From PyTorch internals
+def _ntuple(n):
+    def parse(x):
+        if isinstance(x, collections.abc.Iterable):
+            return x
+        return tuple(repeat(x, n))
+    return parse
+
+
+to_1tuple = _ntuple(1)
+to_2tuple = _ntuple(2)
+to_3tuple = _ntuple(3)
+to_4tuple = _ntuple(4)
+to_ntuple = _ntuple
 
 
 class LabelSmoothing(torch.nn.Module):

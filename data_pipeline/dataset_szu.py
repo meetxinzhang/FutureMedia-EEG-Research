@@ -30,8 +30,9 @@ class SZUDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         filepath = self.filepaths[idx]
         with open(filepath, 'rb') as f:
-            x = pickle.load(f)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
-            # x = downsample(x, ratio=4)  # [::4, :]
-            y = int(pickle.load(f))  # int
-            assert 0 <= y <= 39  # purdue
+            x = pickle.load(f)       # SZU: [t=2000, channels=127], Purdue: [512, 96]
+            x = downsample(x, ratio=4)  # SZU, [::4, :] -> [500, 127]
+            y = int(pickle.load(f))
+            y = y-1                  # Ziyan He created EEG form
+            assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float).unsqueeze(0), torch.tensor(y, dtype=torch.long)

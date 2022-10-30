@@ -18,7 +18,8 @@ Liu Z, Lin Y, Cao Y, et al. Swin transformer: Hierarchical vision transformer us
 import torch
 import torch.nn as nn
 import torch.utils.checkpoint as checkpoint
-from timm.models.layers import DropPath, to_2tuple, trunc_normal_
+from utils.my_tools import to_2tuple
+from utils.weight_init import trunc_normal_
 
 
 class Mlp(nn.Module):

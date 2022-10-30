@@ -6,7 +6,7 @@ import torch.nn as nn
 from einops import rearrange
 from modules.layers_Chefer_H import *
 
-from utils.repeat import to_2tuple
+from utils.my_tools import to_2tuple
 
 
 # def _cfg(url='', **kwargs):
