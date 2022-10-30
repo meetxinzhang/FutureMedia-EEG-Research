@@ -35,21 +35,28 @@ class FieldFlow(nn.Module):
         self.n_classes = n_classes
         self.bs = None
         self.s = n_signals
-        self.t_h = t//4
+        self.t_h = t//8
         self.t = t
         self.d = dim or n_classes
 
         # [b, d=1, t=512, s=96]
-        self.conv1 = nnlrp.Conv2d(in_channels=1, out_channels=128, kernel_size=(15, 1), stride=(1, 1), padding='same',
+        self.conv1 = nnlrp.Conv2d(in_channels=1, out_channels=self.d, kernel_size=(15, 1), stride=(1, 1), padding='same',
                                   dilation=1, bias=True)
         self.act_conv1 = lylrp.ELU()
         self.max_pool1 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
-        self.norm1 = lylrp.BatchNorm2d(128)
-        self.conv2 = nnlrp.Conv2d(in_channels=128, out_channels=self.d, kernel_size=(5, 1), stride=(1, 1), padding='same',
-                                  dilation=1, bias=True)
+        self.norm1 = lylrp.BatchNorm2d(self.d)
+
+        self.conv2 = nnlrp.Conv2d(in_channels=self.d, out_channels=self.d, kernel_size=(15, 1), stride=(1, 1), padding='same',
+                                  groups=self.d, dilation=1, bias=True)
         self.act_conv2 = lylrp.ELU()
         self.max_pool2 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
-        self.norm2 = lylrp.LayerNorm(n_signals, eps=1e-6)
+        self.norm2 = lylrp.BatchNorm2d(self.d)
+
+        self.conv3 = nnlrp.Conv2d(in_channels=self.d, out_channels=self.d, kernel_size=(5, 1), stride=(1, 1), padding='same',
+                                  groups=self.d, dilation=1, bias=True)
+        self.act_conv3 = lylrp.ELU()
+        self.max_pool3 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
+        self.norm3 = lylrp.LayerNorm(n_signals, eps=1e-6)
 
         # [b, d=40, t=128, s=96]
         # self.freqs_residue = nnlrp.Add()
@@ -92,16 +99,6 @@ class FieldFlow(nn.Module):
         # self.gap_logits = lylrp.AdaptiveAvgPool2d(output_size=(1, d))
         # squeeze [b, t, d] -> [b, d]
 
-        # if mlp_head:
-        #     # paper diagram suggests 'MLP head', but results in 4M extra parameters vs paper
-        #     self.head = Mlp(embed_dim, int(embed_dim * mlp_ratio), num_classes)
-        # else:
-        #     # with a single Linear layer as head, the param count within rounding of paper
-        #     self.head = Linear(embed_dim, num_classes)
-        #
-        # # FIXME not quite sure what the proper weight init is supposed to be,
-        # # normal / trunc normal w/ std == .02 similar to vit Bert like transformers
-        # trunc_normal_(self.pos_embed, std=.02)  # embeddings same as weights?
         trunc_normal_(self.channel_token, std=.02)
         trunc_normal_(self.temp_token, std=.02)
         trunc_normal_(self.ch_embed, std=.02)
@@ -131,6 +128,11 @@ class FieldFlow(nn.Module):
         x = self.act_conv2(x)
         x = self.max_pool2(x)  # [bs, d=40, t=128, s=96]
         x = self.norm2(x)
+
+        x = self.conv3(x)
+        x = self.act_conv3(x)
+        x = self.max_pool3(x)  # [bs, d=40, t=128, s=96]
+        x = self.norm3(x)
         assert self.t_h == x.shape[2]
         self.bs = x.shape[0]
 
@@ -227,6 +229,10 @@ class FieldFlow(nn.Module):
         cam = einops.rearrange(cam, '(b t) s d -> b d t s', b=b, t=self.t_h, s=self.s)
 
         # print("conservation 2", cam.sum())
+        cam = self.norm3.relprop(cam, **kwargs)
+        cam = self.max_pool3.relprop(cam, **kwargs)
+        cam = self.act_conv3.relprop(cam, **kwargs)
+        cam = self.conv3.relprop(cam, **kwargs)
         cam = self.norm2.relprop(cam, **kwargs)
         cam = self.max_pool2.relprop(cam, **kwargs)
         cam = self.act_conv2.relprop(cam, **kwargs)

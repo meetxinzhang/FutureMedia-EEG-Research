@@ -10,7 +10,7 @@ import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 import time
-from data_pipeline.dataset_purdue import PurdueDataset, collate_
+from data_pipeline.other.dataset_purdue import PurdueDataset, collate_
 from model.field_flow import FieldFlow
 from model.lrp_manager import ignite_relprop, generate_visualization
 

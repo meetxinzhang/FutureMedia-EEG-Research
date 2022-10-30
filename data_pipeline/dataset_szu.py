@@ -10,9 +10,10 @@ import torch
 import pickle
 from utils.my_tools import file_scanf
 from torch.utils.data.dataloader import default_collate
+from data_pipeline.pre_processing.difference import downsample
 
 
-def collate_(batch):
+def collate_(batch):  # [b, 2], [x, y]
     batch = list(filter(lambda x: x[0] is not None, batch))
     if len(batch) == 0:
         return torch.Tensor()
@@ -28,8 +29,9 @@ class SZUDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         filepath = self.filepaths[idx]
-
-        x = pickle.load(filepath)  # SZU: [t=3000, channels=127], Purdue: [512, 96]
-        y = pickle.load(filepath)  # int
-
+        with open(filepath, 'rb') as f:
+            x = pickle.load(f)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
+            # x = downsample(x, ratio=4)  # [::4, :]
+            y = int(pickle.load(f))  # int
+            assert 0 <= y <= 39  # purdue
         return torch.tensor(x, dtype=torch.float).unsqueeze(0), torch.tensor(y, dtype=torch.long)

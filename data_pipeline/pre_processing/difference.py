@@ -17,3 +17,9 @@ def df(series, length):
     delta = a1-base
     del series, base, a1
     return delta
+
+
+def downsample(x, ratio):
+    re = x[::ratio, :]
+    del x
+    return re

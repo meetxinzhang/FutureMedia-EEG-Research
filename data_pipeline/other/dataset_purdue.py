@@ -7,7 +7,7 @@
 """
 import torch
 from data_pipeline.mne_reader import MNEReader
-from data_pipeline.labels_purdue import LabelReader
+from data_pipeline.serialize_purdue import LabelReader
 import glob
 import platform
 from torch.utils.data.dataloader import default_collate

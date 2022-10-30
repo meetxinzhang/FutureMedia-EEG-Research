@@ -86,7 +86,7 @@ from PIL import Image
 
 # from data_pipeline.mne_reader import
 # image = Image.fromarray(read_auto()[0])
-image = Image.open('data_pipeline/samples/catdog.png')
+image = Image.open('data_pipeline/other/catdog.png')
 dog_cat_image = transform(image)
 
 fig, axs = plt.subplots(1, 3)

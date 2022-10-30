@@ -12,8 +12,8 @@ __all__ = ['forward_hook', 'Clone', 'Add', 'Cat', 'ReLU', 'GELU', 'Dropout', 'Ba
 
 def safe_divide(a, b):
     den = b.clamp(min=1e-9) + b.clamp(max=1e-9)  # set the min bound, means get larger than 1e-9, the "stabilizer"
-    den = den + den.eq(0).ftype(den.ftype()) * 1e-9  # if den==0 then +1*1e-9
-    return a / den * b.ne(0).ftype(b.ftype())  # / !0 first then *0 if b==0
+    den = den + den.eq(0).type(den.type()) * 1e-9  # if den==0 then +1*1e-9
+    return a / den * b.ne(0).type(b.type())  # / !0 first then *0 if b==0
 
 
 def forward_hook(self, inputs, output):
@@ -314,9 +314,9 @@ class Conv2d(nn.Conv2d, RelProp):
             H = self.X * 0 + \
                 torch.max(torch.max(torch.max(self.X, dim=1, keepdim=True)[0], dim=2, keepdim=True)[0], dim=3,
                           keepdim=True)[0]
-            Za = torch.conv2d(X, self.weight, bias=None, stride=self.stride, padding=self.padding) - \
-                 torch.conv2d(L, pw, bias=None, stride=self.stride, padding=self.padding) - \
-                 torch.conv2d(H, nw, bias=None, stride=self.stride, padding=self.padding) + 1e-9
+            Za = torch.conv2d(X, self.weight, bias=None, stride=self.stride, padding=self.padding, groups=self.groups) - \
+                 torch.conv2d(L, pw, bias=None, stride=self.stride, padding=self.padding, groups=self.groups) - \
+                 torch.conv2d(H, nw, bias=None, stride=self.stride, padding=self.padding, groups=self.groups) + 1e-9
 
             S = R / Za
             C = X * self.gradprop2(S, self.weight) - L * self.gradprop2(S, pw) - H * self.gradprop2(S, nw)
@@ -329,8 +329,8 @@ class Conv2d(nn.Conv2d, RelProp):
             nx = torch.clamp(self.X, max=0)
 
             def f(w1, w2, x1, x2):
-                Z1 = F.conv2d(x1, w1, bias=None, stride=self.stride, padding=self.padding)
-                Z2 = F.conv2d(x2, w2, bias=None, stride=self.stride, padding=self.padding)
+                Z1 = F.conv2d(x1, w1, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
+                Z2 = F.conv2d(x2, w2, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
                 S1 = safe_divide(R, Z1)
                 S2 = safe_divide(R, Z2)
                 C1 = x1 * self.gradprop(Z1, x1, S1)[0]

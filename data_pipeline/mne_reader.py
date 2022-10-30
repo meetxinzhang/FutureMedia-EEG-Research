@@ -12,14 +12,14 @@ mne.set_log_level(verbose='WARNING')
 
 
 class MNEReader(object):
-    def __init__(self, ftype='edf', method='stim', resample=None, length=512, exclude=(), stim_channel='auto'):
-        self.ftype = ftype
+    def __init__(self, filetype='edf', method='stim', resample=None, length=512, exclude=(), stim_channel='auto'):
+        self.filetype = filetype
         self.file_path = None
         self.resample = resample
         self.length = length
         self.exclude = exclude
         self.stim_channel = stim_channel
-        if stim_channel is None:
+        if stim_channel is 'auto':
             assert method == 'manual'
 
         if method == 'auto':
@@ -45,10 +45,10 @@ class MNEReader(object):
             return self.set[sample_idx]
 
     def read_raw(self):
-        if self.ftype == 'bdf':
+        if self.filetype == 'bdf':
             raw = mne.io.read_raw_bdf(self.file_path, preload=True, exclude=self.exclude,
                                       stim_channel=self.stim_channel)
-        elif self.ftype == 'edf':
+        elif self.filetype == 'edf':
             raw = mne.io.read_raw_edf(self.file_path, preload=True, exclude=self.exclude,
                                       stim_channel=self.stim_channel)
         else:
@@ -114,7 +114,7 @@ class MNEReader(object):
         set = []
         for i in stim_list:
             end = i + self.length
-            # if i is time then: idx = raw.time_as_index([i, end])
+            # if i in time-unit then: idx = raw.time_as_index([i, end])
             data, times = raw[picks, i:end]
             set.append(data.T)
         # for i in range(400):
