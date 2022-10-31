@@ -14,7 +14,7 @@ import matplotlib.pyplot as plt
 from PIL import Image
 
 
-def ignite_relprop(model, x, index=None, method="transformer_attribution", is_ablation=False, start_layer=0):
+def ignite_relprop(model, x, index=None, method="transformer_attribution", start_layer=0):
     model.eval()
     logits = model(x)  # [b, c, h, w] -> [b, classes]
     kwargs = {"alpha": 1}
@@ -32,7 +32,7 @@ def ignite_relprop(model, x, index=None, method="transformer_attribution", is_ab
     one_hot.backward(retain_graph=True)  # generate partial-gradients
 
     # the input of model.relprop() is one_hot
-    return model.relprop(cam=torch.tensor(one_hot_vector).to(x.device), method=method, is_ablation=is_ablation,
+    return model.relprop(cam=torch.tensor(one_hot_vector).to(x.device), method=method,
                          start_layer=start_layer, **kwargs).detach()
 
 

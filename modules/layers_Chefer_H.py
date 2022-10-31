@@ -304,7 +304,7 @@ class Conv2d(nn.Conv2d, RelProp):
         return F.conv_transpose2d(DY, weight, stride=self.stride, padding=self.padding, output_padding=output_padding)
 
     def relprop(self, R, alpha):
-        if self.X.shape[1] == 3:
+        if self.X.shape[1] == 3:  # RGB
             pw = torch.clamp(self.weight, min=0)
             nw = torch.clamp(self.weight, max=0)
             X = self.X
@@ -322,7 +322,7 @@ class Conv2d(nn.Conv2d, RelProp):
             C = X * self.gradprop2(S, self.weight) - L * self.gradprop2(S, pw) - H * self.gradprop2(S, nw)
             R = C
         else:
-            beta = alpha - 1
+            beta = alpha - 1  # 0
             pw = torch.clamp(self.weight, min=0)
             nw = torch.clamp(self.weight, max=0)
             px = torch.clamp(self.X, min=0)
@@ -335,10 +335,12 @@ class Conv2d(nn.Conv2d, RelProp):
                 S2 = safe_divide(R, Z2)
                 C1 = x1 * self.gradprop(Z1, x1, S1)[0]
                 C2 = x2 * self.gradprop(Z2, x2, S2)[0]
-                return C1 + C2
+                # print(C1.sum(), C2.sum(), 'un-conservative op here')
+                re = C1 + C2
+                return safe_divide(re, re.sum())
 
-            activator_relevances = f(pw, nw, px, nx)
-            inhibitor_relevances = f(nw, pw, px, nx)
+            activator_relevances = f(pw, nw, px, nx)  # Z1+++, Z2--+
+            inhibitor_relevances = f(nw, pw, px, nx)  # Z1-+-, Z2+--
 
             R = alpha * activator_relevances - beta * inhibitor_relevances
         return R

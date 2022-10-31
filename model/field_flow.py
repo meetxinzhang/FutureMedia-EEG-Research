@@ -35,27 +35,27 @@ class FieldFlow(nn.Module):
         self.n_classes = n_classes
         self.bs = None
         self.s = n_signals
-        self.t_h = t//8
+        self.t_h = 56
         self.t = t
         self.d = dim or n_classes
 
         # [b, d=1, t=512, s=96]
-        self.conv1 = nnlrp.Conv2d(in_channels=1, out_channels=self.d, kernel_size=(15, 1), stride=(1, 1), padding='same',
+        self.conv1 = lylrp.Conv2d(in_channels=1, out_channels=self.d, kernel_size=(15, 1), stride=(1, 1),
                                   dilation=1, bias=True)
         self.act_conv1 = lylrp.ELU()
-        self.max_pool1 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
+        self.max_pool1 = lylrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm1 = lylrp.BatchNorm2d(self.d)
 
-        self.conv2 = nnlrp.Conv2d(in_channels=self.d, out_channels=self.d, kernel_size=(15, 1), stride=(1, 1), padding='same',
+        self.conv2 = lylrp.Conv2d(in_channels=self.d, out_channels=self.d, kernel_size=(15, 1), stride=(1, 1),
                                   groups=self.d, dilation=1, bias=True)
         self.act_conv2 = lylrp.ELU()
-        self.max_pool2 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
+        self.max_pool2 = lylrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm2 = lylrp.BatchNorm2d(self.d)
 
-        self.conv3 = nnlrp.Conv2d(in_channels=self.d, out_channels=self.d, kernel_size=(5, 1), stride=(1, 1), padding='same',
+        self.conv3 = lylrp.Conv2d(in_channels=self.d, out_channels=self.d, kernel_size=(5, 1), stride=(1, 1),
                                   groups=self.d, dilation=1, bias=True)
         self.act_conv3 = lylrp.ELU()
-        self.max_pool3 = nnlrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
+        self.max_pool3 = lylrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm3 = lylrp.LayerNorm(n_signals, eps=1e-6)
 
         # [b, d=40, t=128, s=96]
@@ -133,8 +133,11 @@ class FieldFlow(nn.Module):
         x = self.act_conv3(x)
         x = self.max_pool3(x)  # [bs, d=40, t=128, s=96]
         x = self.norm3(x)
+        # print(self.t_h, x.shape[2])
         assert self.t_h == x.shape[2]
         self.bs = x.shape[0]
+
+        x.register_hook(self.save_inp_grad)
 
         # [bs, d=40, t=128, s=96] -> [(b, t), s, d]
         x = einops.rearrange(x, 'b d t s -> (b t) s d', b=self.bs, t=self.t_h, s=self.s)
@@ -142,8 +145,6 @@ class FieldFlow(nn.Module):
         x = torch.cat((channel_tokens, x), dim=1)  # [(b, t), 1, d] + [(b, t), s, d]  -> [(b, t), 1+s, d]
         ch_embed = self.ch_embed.expand(self.bs*self.t_h, -1, -1)
         x = self.add1([x, ch_embed])
-
-        x.register_hook(self.save_inp_grad)
 
         for blk in self.s_blocks:
             x = blk(x)  # [(b, t), 1+s, d]
@@ -165,9 +166,9 @@ class FieldFlow(nn.Module):
         y = self.softmax(y)
         return y
 
-    def relprop(self, cam=None, method="transformer_attribution", is_ablation=False, start_layer=0, **kwargs):
+    def relprop(self, cam=None, method="transformer_attribution", start_layer=0, **kwargs):
         # [1, classes]  b==1
-        # print("conservation 0", cam.sum())
+        print("conservation 0", cam.sum())
         cam = self.softmax.relprop(cam, **kwargs)
         cam = cam.unsqueeze(1)  # [b, 1, d]
         # cam = self.gap_logits.relprop(cam, **kwargs)  # [b, _t, d]

@@ -5,30 +5,35 @@
 @time: 12/5/21 9:02 PM
 @desc:
 """
+import os
 import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 import time
-# from data_pipeline.dataset_purdue import PurdueDataset, collate_
 from data_pipeline.dataset_szu import SZUDataset, collate_
 from model.field_flow import FieldFlow
 from model.lrp_manager import ignite_relprop, generate_visualization
 
-summary = SummaryWriter(log_dir='./log/')
 gpu = torch.cuda.is_available()
-torch.cuda.set_device(6)
+# torch.cuda.set_device(6)
 batch_size = 32
 n_epoch = 1000
 total_x = 323  # 400 * 100
 
+id_experiment = '_1000e2l-s'
+t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+os.mkdir('./log/'+t_experiment+id_experiment+'/')
+summary = SummaryWriter(log_dir='./log/'+t_experiment+id_experiment+'/')
+
+# ../../Datasets/run00
 # ../../Datasets/run16/pkl
 # E:/Datasets/CVPR2021-02785/pkl
 # E:/Datasets/eegtest/run16/pkl
-dataset = SZUDataset(path='../../Datasets/run00')
+dataset = SZUDataset(path='../../Datasets/run16/pkl')
 loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=4, shuffle=True)
 
 ff = FieldFlow(dim=40, num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0.2,
-               t=512, n_signals=96, n_classes=40)
+               t=512, n_signals=127, n_classes=40)
 
 # ff.load_state_dict(torch.load('log/checkpoint/2022-10-28-17-26-04.pkl'))
 if gpu:
@@ -88,13 +93,13 @@ if __name__ == '__main__':
                 summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
                 summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=global_step)
 
-            if step % 5 == 0:
+            if step % 10 == 0:
                 cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
                 generate_visualization(x[0].squeeze(), cam.squeeze(),
                                        save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
 
         step = 0
-    current_info = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
-    torch.save(ff.state_dict(), 'log/checkpoint/'+current_info+'_1000e.pkl')
+    # torch.save(ff.state_dict(), 'log/checkpoint/' + t_experiment + id_experiment + '.pkl')
+    summary.flush()
     summary.close()
     print('done')

@@ -34,8 +34,8 @@ class SZUDataset(torch.utils.data.Dataset):
             y = int(pickle.load(f))
 
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
-            # x = x[:1000, :]               # SZU, [1000, 127]
-            # y = y-1                  # Ziyan He created EEG form
+            x = x[:512, :]               # SZU, [1000, 127]
+            y = y-1                  # Ziyan He created EEG form
 
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float).unsqueeze(0), torch.tensor(y, dtype=torch.long)
