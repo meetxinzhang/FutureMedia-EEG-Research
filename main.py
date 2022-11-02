@@ -20,7 +20,7 @@ batch_size = 32
 n_epoch = 1000
 total_x = 323  # 400 * 100
 
-id_experiment = '_1000e2l-s'
+id_experiment = '_1000e03l-test-df'
 t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 os.mkdir('./log/'+t_experiment+id_experiment+'/')
 summary = SummaryWriter(log_dir='./log/'+t_experiment+id_experiment+'/')
@@ -33,7 +33,8 @@ dataset = SZUDataset(path='../../Datasets/run16/pkl')
 loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=4, shuffle=True)
 
 ff = FieldFlow(dim=40, num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0.2,
-               t=512, n_signals=127, n_classes=40)
+               t=500, n_signals=127, n_classes=40)
+
 
 # ff.load_state_dict(torch.load('log/checkpoint/2022-10-28-17-26-04.pkl'))
 if gpu:
@@ -93,10 +94,10 @@ if __name__ == '__main__':
                 summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
                 summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=global_step)
 
-            if step % 10 == 0:
-                cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
-                generate_visualization(x[0].squeeze(), cam.squeeze(),
-                                       save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
+            # if step % 10 == 0:
+            #     cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
+            #     generate_visualization(x[0].squeeze(), cam.squeeze(),
+            #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
 
         step = 0
     # torch.save(ff.state_dict(), 'log/checkpoint/' + t_experiment + id_experiment + '.pkl')

@@ -35,7 +35,7 @@ class FieldFlow(nn.Module):
         self.n_classes = n_classes
         self.bs = None
         self.s = n_signals
-        self.t_h = 56
+        self.t_h = 55
         self.t = t
         self.d = dim or n_classes
 
