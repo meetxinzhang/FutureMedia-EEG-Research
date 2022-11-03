@@ -12,6 +12,7 @@ from tqdm import tqdm
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
 import numpy as np
+from pre_processing.difference import trial_average
 
 parallel_jobs = 6
 
@@ -49,6 +50,10 @@ def go_through(label_filenames, pkl_path):
         x = edf_reader.get_set(file_path=f.replace('.Markers', '.edf'), stim_list=stim)
         assert len(x) == len(y)
 
+        x = np.reshape(x, (len(x)*2000, 127))
+        x = trial_average(x, axis=0)
+        x = np.reshape(x, (-1, 2000, 127))
+
         name = f.split('/')[-1].replace('.Markers', '')
         Parallel(n_jobs=parallel_jobs)(
             delayed(thread_read_write)(x[i], y[i], pkl_path + name+'_' + str(i) + '_' + str(stim[i])+'_'+str(y[i]))
@@ -57,9 +62,9 @@ def go_through(label_filenames, pkl_path):
 
 if __name__ == "__main__":
     # path = 'E:/Datasets/eegtest/run16/'
-    path = '../../../Datasets/run16'
+    path = '../../../../Datasets/run16'
     label_filenames = file_scanf(path, endswith='-seg-rmartifact.Markers')
-    go_through(label_filenames, pkl_path=path+'/pkl/')
+    go_through(label_filenames, pkl_path=path+'/pkl_ave/')
 
 
 

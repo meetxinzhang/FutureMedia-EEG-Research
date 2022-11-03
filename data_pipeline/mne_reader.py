@@ -19,7 +19,7 @@ class MNEReader(object):
         self.length = length
         self.exclude = exclude
         self.stim_channel = stim_channel
-        if stim_channel is 'auto':
+        if stim_channel == 'auto':
             assert method == 'manual'
 
         if method == 'auto':

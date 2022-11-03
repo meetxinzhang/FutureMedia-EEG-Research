@@ -32,5 +32,5 @@ def trial_average(x, axis=0):
 
 
 if __name__ == "__main__":
-    x = np.random.random([1, 2])
-    print(trial_average(x, 0))
+    x = np.random.random([2, 3, 2])
+    print(trial_average(x, 1))

@@ -11,6 +11,7 @@ import torch.nn as nn
 from utils.weight_init import trunc_normal_
 import modules.nn_lrp as nnlrp
 import modules.layers_Chefer_H as lylrp
+from modules.arcface import ArcFace
 import einops
 
 
@@ -25,6 +26,8 @@ def _init_weights(m):
     elif isinstance(m, nn.Conv2d):
         nn.init.xavier_uniform_(m.weight)
         nn.init.constant_(m.bias, 0)
+    elif isinstance(m, ArcFace):
+        nn.init.xavier_uniform_(m.weight)
 
 
 class FieldFlow(nn.Module):
@@ -98,6 +101,7 @@ class FieldFlow(nn.Module):
         # self.tt_select = lylrp.IndexSelect()
         # self.gap_logits = lylrp.AdaptiveAvgPool2d(output_size=(1, d))
         # squeeze [b, t, d] -> [b, d]
+        self.arc_margin = ArcFace(dim=self.d, num_classes=self.n_classes)
 
         trunc_normal_(self.channel_token, std=.02)
         trunc_normal_(self.temp_token, std=.02)
@@ -116,7 +120,7 @@ class FieldFlow(nn.Module):
     def get_inp_grad(self):
         return self.inp_grad
 
-    def forward(self, x):
+    def forward(self, x, label):
         # [b, 1, t=512, s=96] if shenzhenface: [b, 1, 500, 128]
 
         x = self.conv1(x)
@@ -162,14 +166,14 @@ class FieldFlow(nn.Module):
             x = blk2(x)  # [b, 1+t, d]
 
         # [b, 1+t, d] -> [b, 1, d] -> [b, d]
-        y = self.tt_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
-        y = self.softmax(y)
-        return y
+        x = self.tt_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
+        logits = self.arc_margin(x, label)  # [b, d] -> [b, c]
+        logits = self.softmax(logits)
+        return logits
 
     def relprop(self, cam=None, method="transformer_attribution", start_layer=0, **kwargs):
         # [1, classes]  b==1
         print("conservation 0", cam.sum())
-        cam = self.softmax.relprop(cam, **kwargs)
         cam = cam.unsqueeze(1)  # [b, 1, d]
         # cam = self.gap_logits.relprop(cam, **kwargs)  # [b, _t, d]
         cam = self.tt_select.relprop(cam, **kwargs)  # [b, 1+t, d]

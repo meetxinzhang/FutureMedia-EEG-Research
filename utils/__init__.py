@@ -8,6 +8,16 @@
     This file is a testing place, and can be deleted.
 """
 # import torch
+#
+# phi = torch.rand(2, 2, 3)
+# label = [0]
+# output = phi * 1.0
+# print(output)
+# batch_size = len(output)
+# output[range(batch_size), label] = phi[range(batch_size), label]
+#
+# print(output)
+
 
 
 #
@@ -115,4 +125,6 @@
 # b = torch.Tensor([0])
 #
 # print(safe_divide(a, b))
+
+
 
