@@ -26,8 +26,8 @@ def _init_weights(m):
     elif isinstance(m, nn.Conv2d):
         nn.init.xavier_uniform_(m.weight)
         nn.init.constant_(m.bias, 0)
-    elif isinstance(m, ArcFace):
-        nn.init.xavier_uniform_(m.weight)
+    # elif isinstance(m, ArcFace):
+    #     nn.init.xavier_uniform_(m.weight)
 
 
 class FieldFlow(nn.Module):

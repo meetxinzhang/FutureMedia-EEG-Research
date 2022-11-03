@@ -33,7 +33,7 @@ class ArcFace(nn.Module):
     def forward(self, x, y):
         # [b, d]
         cosine = F.linear(F.normalize(x, dim=1), F.normalize(self.weight))
-        sine = ((1.0 - cosine.pow(2)).clamp(0, 1)).sqrt()
+        sine = torch.sqrt((1.0 - torch.pow(cosine, 2)).clamp(0, 1))
         phi = cosine * self.cos_m - sine * self.sin_m  # cos(θ+m) = cos θ cos m − sin θ sin m
 
         if self.easy_margin:
@@ -43,9 +43,10 @@ class ArcFace(nn.Module):
             # classification.
             phi = torch.where(cosine > self.th, phi, cosine - self.mm)
 
+        output = cosine * 1.0  # make backward works
         one_hot = torch.zeros(cosine.size()).to(x.device)
         one_hot.scatter_(1, y.view(-1, 1).long(), 1)
-        output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
+        output = (one_hot * phi) + ((1.0 - one_hot) * output)  # torch.where(out_i = {x_i if condition_i else y_i)
         output *= self.s
 
         return output

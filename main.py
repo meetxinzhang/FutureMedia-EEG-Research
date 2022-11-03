@@ -38,7 +38,7 @@ ff = FieldFlow(dim=40, num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2
 if gpu:
     ff.cuda()
 
-optimizer = torch.optim.Adam(ff.parameters(), lr=0.002, betas=(0.9, 0.98), eps=1e-9)
+optimizer = torch.optim.Adam(ff.parameters(), lr=0.02, betas=(0.9, 0.98), eps=1e-9)
 # optimizer = NoamOpt(model_size=40, factor=1, warmup=8000,
 #                     optimizer=torch.optim.Adam(ff.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
 
