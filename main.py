@@ -17,10 +17,10 @@ from model.field_flow import FieldFlow
 gpu = torch.cuda.is_available()
 torch.cuda.set_device(6)
 batch_size = 32
-n_epoch = 1000
+n_epoch = 2000
 total_x = 323  # 400 * 100
 
-id_experiment = '_1000e03l-test-arc'
+id_experiment = '_1000e03l-pre+mlp+arc'
 t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # ../../Datasets/run00
@@ -28,17 +28,15 @@ t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 # E:/Datasets/CVPR2021-02785/pkl
 # E:/Datasets/eegtest/run16/pkl_ave
 dataset = SZUDataset(path='../../Datasets/run16/pkl_ave')
-loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=4, shuffle=True)
+loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=collate_, num_workers=6, shuffle=True)
 
 ff = FieldFlow(dim=40, num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0.2,
                t=500, n_signals=127, n_classes=40)
-
-
-# ff.load_state_dict(torch.load('log/checkpoint/2022-10-28-17-26-04.pkl'))
+# ff.load_state_dict(torch.load('log/checkpoint/2022-11-04-15-59-42_1000e03l-pre.pkl'))
 if gpu:
     ff.cuda()
 
-optimizer = torch.optim.Adam(ff.parameters(), lr=0.02, betas=(0.9, 0.98), eps=1e-9)
+optimizer = torch.optim.AdamW(ff.parameters(), lr=0.002, betas=(0.9, 0.98), eps=1e-9)
 # optimizer = NoamOpt(model_size=40, factor=1, warmup=8000,
 #                     optimizer=torch.optim.Adam(ff.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
 
@@ -97,7 +95,7 @@ if __name__ == '__main__':
             #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
 
         step = 0
-    # torch.save(ff.state_dict(), 'log/checkpoint/' + t_experiment + id_experiment + '.pkl')
+    torch.save(ff.state_dict(), 'log/checkpoint/' + t_experiment + id_experiment + '.pkl')
     summary.flush()
     summary.close()
     print('done')

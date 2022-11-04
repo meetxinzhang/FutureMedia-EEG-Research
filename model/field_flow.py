@@ -26,8 +26,6 @@ def _init_weights(m):
     elif isinstance(m, nn.Conv2d):
         nn.init.xavier_uniform_(m.weight)
         nn.init.constant_(m.bias, 0)
-    # elif isinstance(m, ArcFace):
-    #     nn.init.xavier_uniform_(m.weight)
 
 
 class FieldFlow(nn.Module):
@@ -101,7 +99,8 @@ class FieldFlow(nn.Module):
         # self.tt_select = lylrp.IndexSelect()
         # self.gap_logits = lylrp.AdaptiveAvgPool2d(output_size=(1, d))
         # squeeze [b, t, d] -> [b, d]
-        self.arc_margin = ArcFace(dim=self.d, num_classes=self.n_classes)
+        self.mlp_head = nnlrp.Mlp(in_features=self.d, hidden_features=self.d*mlp_dilator, out_features=self.d)
+        self.arc_margin = ArcFace(dim=self.d, num_classes=self.n_classes, requires_grad=True)
 
         trunc_normal_(self.channel_token, std=.02)
         trunc_normal_(self.temp_token, std=.02)
@@ -166,8 +165,9 @@ class FieldFlow(nn.Module):
             x = blk2(x)  # [b, 1+t, d]
 
         # [b, 1+t, d] -> [b, 1, d] -> [b, d]
-        x = self.tt_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
-        logits = self.arc_margin(x, label)  # [b, d] -> [b, c]
+        logits = self.tt_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
+        logits = self.mlp_head(logits)
+        logits = self.arc_margin(logits, label)  # [b, d] -> [b, c]
         logits = self.softmax(logits)
         return logits
 

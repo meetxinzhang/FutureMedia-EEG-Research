@@ -206,8 +206,6 @@ class IndexSelect(nn.Module):
         return C
 
 
-
-
 class Clone(RelProp):
     def forward(self, input, num):
         self.__setattr__('num', num)

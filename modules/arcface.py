@@ -14,7 +14,7 @@ import torch.nn.functional as F
 
 class ArcFace(nn.Module):
     """Implement of ArcFace (https://arxiv.org/pdf/1801.07698v1.pdf):"""
-    def __init__(self, dim, num_classes, margin=0.3, scale=30, easy_margin=False):
+    def __init__(self, dim, num_classes, margin=0.3, scale=64, easy_margin=False, requires_grad=True):
         super().__init__()
         self.d = dim
         self.c = num_classes
@@ -22,7 +22,7 @@ class ArcFace(nn.Module):
         self.s = scale
         self.easy_margin = easy_margin
 
-        self.weight = nn.Parameter(torch.FloatTensor(self.c, self.d))
+        self.weight = nn.Parameter(torch.FloatTensor(self.c, self.d), requires_grad=requires_grad)
         nn.init.xavier_uniform_(self.weight)
 
         self.cos_m = torch.cos(self.m)
@@ -32,7 +32,7 @@ class ArcFace(nn.Module):
 
     def forward(self, x, y):
         # [b, d]
-        cosine = F.linear(F.normalize(x, dim=1), F.normalize(self.weight))
+        cosine = F.linear(F.normalize(x), F.normalize(self.weight))
         sine = torch.sqrt((1.0 - torch.pow(cosine, 2)).clamp(0, 1))
         phi = cosine * self.cos_m - sine * self.sin_m  # cos(θ+m) = cos θ cos m − sin θ sin m
 
@@ -43,12 +43,11 @@ class ArcFace(nn.Module):
             # classification.
             phi = torch.where(cosine > self.th, phi, cosine - self.mm)
 
-        output = cosine * 1.0  # make backward works
+        # output = cosine * 1.0  # make backward works
         one_hot = torch.zeros(cosine.size()).to(x.device)
         one_hot.scatter_(1, y.view(-1, 1).long(), 1)
-        output = (one_hot * phi) + ((1.0 - one_hot) * output)  # torch.where(out_i = {x_i if condition_i else y_i)
+        output = (one_hot * phi) + ((1.0 - one_hot) * cosine)  # torch.where(out_i = {x_i if condition_i else y_i)
         output *= self.s
-
         return output
         # output = cosine * 1.0  # make backward works
         # batch_size = len(output)
