@@ -1,6 +1,20 @@
 import torch
 import math
 import warnings
+from collections import OrderedDict
+
+
+def get_state_dict(filename='log/checkpoint/2022-11-04-15-59-42_1000e03l-pre.pkl', map_location='cuda:0', exclude=()):
+    state_dict = torch.load(filename, map_location=map_location)
+    for e in exclude:
+        state_dict.pop(e)
+    return state_dict
+    # new_state_dict = OrderedDict()
+    # for k, v in state_dict.items():
+    #     if k == 'arc_margin.weight':
+    #         continue
+    #     # name = k[7:]  # remove `module.`，表面从第7个key值字符取到最后一个字符，正好去掉了module.
+    #     new_state_dict[k] = v  # 新字典的key值对应的value为一一对应的值。
 
 
 def _no_grad_trunc_normal_(tensor, mean, std, a, b):

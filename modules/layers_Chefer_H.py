@@ -49,7 +49,17 @@ class RelProp(nn.Module):  # Deep TayLor Decomposition
         self.register_forward_hook(forward_hook)
 
     def gradprop(self, Z, X, S):
+        """torch.autograd.grad(outputs, inputs, grad_outputs=None, retain_graph=None)
+        Computes and returns the sum of gradients of outputs with respect to the inputs.
+        Z.shape = S.shape like [b, t, d]
+        C.shape = X.shape like [b, t, d] or list([b, t, d], ) if belongs torch some op like addition/multiple
+        """
         C = torch.autograd.grad(Z, X, S, retain_graph=True)
+        print('Z', Z.shape)
+        print('S', S.shape)
+        print('C', len(C), C[0].shape)
+        print('X', len(X), X[0].shape)
+        assert False
         return C
 
     def relprop(self, R, alpha):

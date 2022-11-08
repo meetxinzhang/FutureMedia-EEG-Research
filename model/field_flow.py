@@ -99,8 +99,8 @@ class FieldFlow(nn.Module):
         # self.tt_select = lylrp.IndexSelect()
         # self.gap_logits = lylrp.AdaptiveAvgPool2d(output_size=(1, d))
         # squeeze [b, t, d] -> [b, d]
-        self.mlp_head = nnlrp.Mlp(in_features=self.d, hidden_features=self.d*mlp_dilator, out_features=self.d)
-        self.arc_margin = ArcFace(dim=self.d, num_classes=self.n_classes, requires_grad=True)
+        # self.mlp_head = nnlrp.Mlp(in_features=self.d, hidden_features=self.d*mlp_dilator, out_features=self.d)
+        # self.arc_margin = ArcFace(dim=self.d, num_classes=self.n_classes, requires_grad=True)
 
         trunc_normal_(self.channel_token, std=.02)
         trunc_normal_(self.temp_token, std=.02)
@@ -119,7 +119,7 @@ class FieldFlow(nn.Module):
     def get_inp_grad(self):
         return self.inp_grad
 
-    def forward(self, x, label):
+    def forward(self, x, label=None):
         # [b, 1, t=512, s=96] if shenzhenface: [b, 1, 500, 128]
 
         x = self.conv1(x)
@@ -166,8 +166,8 @@ class FieldFlow(nn.Module):
 
         # [b, 1+t, d] -> [b, 1, d] -> [b, d]
         logits = self.tt_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
-        logits = self.mlp_head(logits)
-        logits = self.arc_margin(logits, label)  # [b, d] -> [b, c]
+        # logits = self.mlp_head(logits)
+        # logits = self.arc_margin(logits, label)  # [b, d] -> [b, c]
         logits = self.softmax(logits)
         return logits
 

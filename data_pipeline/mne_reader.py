@@ -13,6 +13,10 @@ mne.set_log_level(verbose='WARNING')
 
 class MNEReader(object):
     def __init__(self, filetype='edf', method='stim', resample=None, length=512, exclude=(), stim_channel='auto'):
+        """
+        @method: auto, stim, manual, default=stim
+        @stim_channel: str. default=auto, in default case the stim_list is needed, and method=manual.
+        """
         self.filetype = filetype
         self.file_path = None
         self.resample = resample
