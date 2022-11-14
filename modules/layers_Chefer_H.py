@@ -341,6 +341,8 @@ class Conv2d(nn.Conv2d, RelProp):
                 Z2 = F.conv2d(x2, w2, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
                 S1 = safe_divide(R, Z1)
                 S2 = safe_divide(R, Z2)
+                # This may break the relevance conservation due to: "almost all relevance is
+                # absorbed by the non-redistributed zero-order term."
                 C1 = x1 * self.gradprop(Z1, x1, S1)[0]
                 C2 = x2 * self.gradprop(Z2, x2, S2)[0]
                 # print(C1.sum(), C2.sum(), 'un-conservative op here')
