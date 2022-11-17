@@ -13,7 +13,7 @@ __all__ = ['forward_hook', 'Clone', 'Add', 'Cat', 'ReLU', 'GELU', 'Dropout', 'Ba
 def safe_divide(a, b):
     den = b.clamp(min=1e-9) + b.clamp(max=1e-9)  # set the min bound, means get larger than 1e-9, the "stabilizer"
     den = den + den.eq(0).type(den.type()) * 1e-9  # if den==0 then +1*1e-9
-    return a / den * b.ne(0).type(b.type())  # / !0 first then *0 if b==0
+    return a / den * b.ne(0).type(b.type())  # do / if b=!0 or *0
 
 
 def forward_hook(self, inputs, output):
@@ -55,11 +55,10 @@ class RelProp(nn.Module):  # Deep TayLor Decomposition
         C.shape = X.shape like [b, t, d] or list([b, t, d], ) if belongs torch some op like addition/multiple
         """
         C = torch.autograd.grad(Z, X, S, retain_graph=True)
-        print('Z', Z.shape)
-        print('S', S.shape)
-        print('C', len(C), C[0].shape)
-        print('X', len(X), X[0].shape)
-        assert False
+        # print('Z', Z.shape)  [1, 56, 40]
+        # print('S', S.shape)  [1, 56, 40]
+        # print('C', len(C), C[0].shape)  [1, 56, 40]
+        # print('X', len(X), X[0].shape)  [1, 56, 40]
         return C
 
     def relprop(self, R, alpha):
@@ -337,17 +336,30 @@ class Conv2d(nn.Conv2d, RelProp):
             nx = torch.clamp(self.X, max=0)
 
             def f(w1, w2, x1, x2):
-                Z1 = F.conv2d(x1, w1, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
-                Z2 = F.conv2d(x2, w2, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
-                S1 = safe_divide(R, Z1)
-                S2 = safe_divide(R, Z2)
+                Za = F.conv2d(x1, w1, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
+                Zb = F.conv2d(x2, w2, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
+                # S1 = safe_divide(R, Z1)
+                # S2 = safe_divide(R, Z2)
+                # print(R.sum())  # =1
                 # This may break the relevance conservation due to: "almost all relevance is
                 # absorbed by the non-redistributed zero-order term."
-                C1 = x1 * self.gradprop(Z1, x1, S1)[0]
-                C2 = x2 * self.gradprop(Z2, x2, S2)[0]
-                # print(C1.sum(), C2.sum(), 'un-conservative op here')
-                re = C1 + C2
-                return safe_divide(re, re.sum())
+                Ca = x1 * self.gradprop(Za, x1, torch.ones_like(R))[0]
+                Cb = x2 * self.gradprop(Zb, x2, torch.ones_like(R))[0]
+
+                # Ca2 = torch.autograd.grad(Ca, x1, torch.ones_like(x1), retain_graph=True)[0]
+                # Cb2 = torch.autograd.grad(Cb, x2, torch.ones_like(x2), retain_graph=True)[0]
+                #
+                # Ca3 = torch.autograd.grad(Ca2, x1, torch.ones_like(Ca2))[0]
+                # Cb3 = torch.autograd.grad(Cb2, x2, torch.ones_like(Cb2))[0]
+
+                rate1 = safe_divide(Ca, Za)
+                rate2 = safe_divide(Cb, Zb)
+
+                Ra = safe_divide(Ca, rate1*Za)*R
+                Rb = safe_divide(Cb, rate2*Zb)*R
+
+                print('sum: ', Ra.sum(), Rb.sum())
+                return Ra+Rb
 
             activator_relevances = f(pw, nw, px, nx)  # Z1+++, Z2--+
             inhibitor_relevances = f(nw, pw, px, nx)  # Z1-+-, Z2+--

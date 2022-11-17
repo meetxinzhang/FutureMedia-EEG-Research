@@ -20,7 +20,7 @@ batch_size = 1
 n_epoch = 2000
 total_x = 323  # 400 * 100
 
-id_experiment = '_1000e2l-fs'
+id_experiment = '_1000e2l-pad-conv-R=1'
 t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # ../../Datasets/run00
@@ -32,8 +32,8 @@ loader = torch.utils.data.DataLoader(dataset, batch_size=batch_size, collate_fn=
 
 ff = FieldFlow(dim=40, num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0.2,
                t=500, n_signals=127, n_classes=40).cuda()
-ff.load_state_dict(get_state_dict('log/checkpoint/2022-11-04-15-59-42_1000e03l-pre.pkl',
-                                  map_location='cuda:0', exclude=['arc_margin.weight']))
+# ff.load_state_dict(get_state_dict('log/checkpoint/2022-11-04-15-59-42_1000e03l-pre.pkl',
+#                                   map_location='cuda:0', exclude=['arc_margin.weight']))
 optimizer = torch.optim.AdamW(ff.parameters(), lr=0.002, betas=(0.9, 0.98), eps=1e-9)
 # optimizer = NoamOpt(model_size=40, factor=1, warmup=8000,
 #                     optimizer=torch.optim.Adam(ff.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
