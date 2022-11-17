@@ -20,7 +20,7 @@ batch_size = 1
 n_epoch = 2000
 total_x = 323  # 400 * 100
 
-id_experiment = '_1000e2l-pad-conv-R=1'
+id_experiment = '_1000e03l-delta2'
 t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # ../../Datasets/run00
@@ -51,7 +51,7 @@ optimizer = torch.optim.AdamW(ff.parameters(), lr=0.002, betas=(0.9, 0.98), eps=
 # generate_visualization(_x[0].squeeze(), _cam.squeeze())
 # ----- Testing code end-----------------------------------------------------------
 
-# summary = SummaryWriter(log_dir='./log/'+t_experiment+id_experiment+'/')
+summary = SummaryWriter(log_dir='./log/'+t_experiment+id_experiment+'/')
 if __name__ == '__main__':
     step = 0
     global_step = 0
@@ -77,22 +77,22 @@ if __name__ == '__main__':
 
             step += 1
             global_step += 1
-            # if step % 1 == 0:
-            #     corrects = (torch.argmax(y, dim=1).data == label.data)
-            #     accuracy = corrects.cpu().int().sum().numpy() / batch_size
-            #     print('epoch:{}/{} step:{}/{} global_step:{} '
-            #           'loss={:.5f} acc={:.3f} lr={}'.format(epoch, n_epoch, step, int(total_x / batch_size), global_step,
-            #                                                 loss, accuracy, lr))
-            #     summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
-            #     summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=global_step)
+            if step % 1 == 0:
+                corrects = (torch.argmax(y, dim=1).data == label.data)
+                accuracy = corrects.cpu().int().sum().numpy() / batch_size
+                print('epoch:{}/{} step:{}/{} global_step:{} '
+                      'loss={:.5f} acc={:.3f} lr={}'.format(epoch, n_epoch, step, int(total_x / batch_size), global_step,
+                                                            loss, accuracy, lr))
+                summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
+                summary.add_scalar(tag='TrainAcc', scalar_value=accuracy, global_step=global_step)
 
-            if step % 10 == 0:
-                cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
-                generate_visualization(x[0].squeeze(), cam.squeeze(),
-                                       save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
+            # if step % 10 == 0:
+            #     cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
+            #     generate_visualization(x[0].squeeze(), cam.squeeze(),
+            #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
 
         step = 0
     # torch.save(ff.state_dict(), 'log/checkpoint/' + t_experiment + id_experiment + '.pkl')
-    # summary.flush()
-    # summary.close()
+    summary.flush()
+    summary.close()
     print('done')

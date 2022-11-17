@@ -13,10 +13,10 @@ def difference(series, fold):
     # time-series [t, d]
     length = int(len(series) // fold)
     base = series[0:length - 1, :]
-    a1 = series[length:(length * 2) - 1, :]
-    assert np.shape(base)[0] == np.shape(a1)[0]
-    delta = a1 - base
-    del series, base, a1
+    a2 = series[2*length:(length * 3) - 1, :]
+    assert np.shape(base)[0] == np.shape(a2)[0]
+    delta = a2 - base
+    del series, base, a2
     return delta
 
 
