@@ -25,7 +25,7 @@ def _init_weights(m):
         nn.init.constant_(m.weight, 1.0)
     elif isinstance(m, nn.Conv2d):
         nn.init.xavier_uniform_(m.weight)
-        nn.init.constant_(m.bias, 0)
+        # nn.init.constant_(m.bias, 0)
 
 
 class FieldFlow(nn.Module):
@@ -42,19 +42,19 @@ class FieldFlow(nn.Module):
 
         # [b, d=1, t=512, s=96]
         self.conv1 = lylrp.Conv2d(in_channels=1, out_channels=self.d, kernel_size=(15, 1), stride=(1, 1),
-                                  dilation=1, bias=True)
+                                  dilation=1, bias=False)
         self.act_conv1 = lylrp.ELU()
         self.max_pool1 = lylrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm1 = lylrp.BatchNorm2d(self.d)
 
         self.conv2 = lylrp.Conv2d(in_channels=self.d, out_channels=self.d, kernel_size=(15, 1), stride=(1, 1),
-                                  groups=self.d, dilation=1, bias=True)
+                                  groups=self.d, dilation=1, bias=False)
         self.act_conv2 = lylrp.ELU()
         self.max_pool2 = lylrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm2 = lylrp.BatchNorm2d(self.d)
 
         self.conv3 = lylrp.Conv2d(in_channels=self.d, out_channels=self.d, kernel_size=(5, 1), stride=(1, 1),
-                                  groups=self.d, dilation=1, bias=True)
+                                  groups=self.d, dilation=1, bias=False)
         self.act_conv3 = lylrp.ELU()
         self.max_pool3 = lylrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm3 = lylrp.LayerNorm(n_signals, eps=1e-6)
@@ -99,7 +99,7 @@ class FieldFlow(nn.Module):
         # self.tt_select = lylrp.IndexSelect()
         # self.gap_logits = lylrp.AdaptiveAvgPool2d(output_size=(1, d))
         # squeeze [b, t, d] -> [b, d]
-        # self.mlp_head = nnlrp.Mlp(in_features=self.d, hidden_features=self.d*mlp_dilator, out_features=self.d)
+        self.mlp_head = nnlrp.Mlp(in_features=self.d, hidden_features=self.d*mlp_dilator, out_features=self.n_classes)
         # self.arc_margin = ArcFace(dim=self.d, num_classes=self.n_classes, requires_grad=True)
 
         trunc_normal_(self.channel_token, std=.02)
@@ -166,7 +166,7 @@ class FieldFlow(nn.Module):
 
         # [b, 1+t, d] -> [b, 1, d] -> [b, d]
         logits = self.tt_select(inputs=x, dim=1, indices=torch.tensor(0, device=x.device)).squeeze(1)
-        # logits = self.mlp_head(logits)
+        logits = self.mlp_head(logits)
         # logits = self.arc_margin(logits, label)  # [b, d] -> [b, c]
         logits = self.softmax(logits)
         return logits

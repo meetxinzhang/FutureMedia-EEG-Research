@@ -15,11 +15,11 @@ from model.field_flow import FieldFlow
 from model.lrp_manager import ignite_relprop, generate_visualization
 from utils.weight_init import get_state_dict
 
-torch.cuda.set_device(6)
-batch_size = 64
-n_epoch = 500
+# torch.cuda.set_device(6)
+batch_size = 32
+n_epoch = 2000
 
-id_experiment = '_1000e1l-set1-4'
+id_experiment = '_2000e1l-set1-4-96dim'
 t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # ../../Datasets/run00
@@ -32,11 +32,11 @@ print(total_x, ' !!!!!!')
 loader = torch.utils.data.DataLoader(dataset, collate_fn=collate_, batch_size=batch_size, num_workers=4,
                                      prefetch_factor=2, shuffle=True)
 
-ff = FieldFlow(dim=40, num_heads=5, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0.2,
+ff = FieldFlow(dim=96, num_heads=6, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0.2,
                t=500, n_signals=127, n_classes=40).cuda()
 # ff.load_state_dict(get_state_dict('log/checkpoint/2022-11-04-15-59-42_1000e03l-pre.pkl',
 #                                   map_location='cuda:0', exclude=['arc_margin.weight']))
-optimizer = torch.optim.AdamW(ff.parameters(), lr=0.01, betas=(0.9, 0.98), eps=1e-9)
+optimizer = torch.optim.AdamW(ff.parameters(), lr=0.0003, betas=(0.9, 0.98), eps=1e-9)
 # optimizer = NoamOpt(model_size=40, factor=1, warmup=8000,
 #                     optimizer=torch.optim.Adam(ff.parameters(), lr=0, betas=(0.9, 0.98), eps=1e-9))
 
