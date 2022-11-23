@@ -20,13 +20,13 @@ from model.eeg_net import EEGNet
 batch_size = 32
 n_epoch = 2000
 
-id_experiment = '_2000e03l-set1-4-EEGNet'
+id_experiment = '_2000e03l-set1-10-EEGNet'
 t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # ../../Datasets/pkl_ave
 # E:/Datasets/CVPR2021-02785/pkl
 # E:/Datasets/SZFace2/EEG/pkl_ave
-dataset = SZUDataset(path='../../Datasets/pkl_ave', contains='subject1', endswith='.pkl')
+dataset = SZUDataset(path='../../Datasets/pkl_ave', contains='_', endswith='.pkl')
 total_x = dataset.__len__()
 print(total_x, ' link start !!!!!!')
 loader = torch.utils.data.DataLoader(dataset, collate_fn=collate_, batch_size=batch_size, num_workers=4,
