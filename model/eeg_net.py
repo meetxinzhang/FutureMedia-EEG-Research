@@ -1,6 +1,6 @@
 # encoding: utf-8
 """
-Forked from https://github.com/aliasvishnu/EEGNet/blob/master/EEGNet-PyTorch.ipynb
+Forked from https://github.com/HANYIIK/EEGNet-pytorch/blob/master/model.py
 """
 import torch.nn as nn
 import torch.nn.functional as F
