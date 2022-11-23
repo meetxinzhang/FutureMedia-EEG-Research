@@ -14,13 +14,13 @@ import collections
 from itertools import repeat
 
 
-def file_scanf(path, endswith, sub_ratio=1):
+def file_scanf(path, contains, endswith, sub_ratio=1):
     files = glob.glob(path + '/*')
     if platform.system().lower() == 'windows':
         files = [f.replace('\\', '/') for f in files]
     disallowed_file_endings = (".gitignore", ".DS_Store")
     _input_files = files[:int(len(files) * sub_ratio)]
-    return list(filter(lambda x: not x.endswith(disallowed_file_endings) and x.endswith(endswith), _input_files))
+    return list(filter(lambda x: contains in x and x.endswith(endswith), _input_files))
 
 
 class ExceptionPassing(Exception):

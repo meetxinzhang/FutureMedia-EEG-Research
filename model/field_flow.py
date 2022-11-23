@@ -36,25 +36,25 @@ class FieldFlow(nn.Module):
         self.n_classes = n_classes
         self.bs = None
         self.s = n_signals
-        self.t_h = 62
+        self.t_h = 55
         self.t = t
         self.d = dim or n_classes
 
         # [b, d=1, t=512, s=96]
         self.conv1 = lylrp.Conv2d(in_channels=1, out_channels=self.d, kernel_size=(15, 1), stride=(1, 1),
-                                  dilation=1, bias=True, padding='same')
+                                  dilation=1, bias=True)
         self.act_conv1 = lylrp.ELU()
         self.max_pool1 = lylrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm1 = lylrp.BatchNorm2d(self.d)
 
         self.conv2 = lylrp.Conv2d(in_channels=self.d, out_channels=self.d, kernel_size=(15, 1), stride=(1, 1),
-                                  groups=self.d, dilation=1, bias=True, padding='same')
+                                  groups=self.d, dilation=1, bias=True)
         self.act_conv2 = lylrp.ELU()
         self.max_pool2 = lylrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm2 = lylrp.BatchNorm2d(self.d)
 
         self.conv3 = lylrp.Conv2d(in_channels=self.d, out_channels=self.d, kernel_size=(5, 1), stride=(1, 1),
-                                  groups=self.d, dilation=1, bias=True, padding='same')
+                                  groups=self.d, dilation=1, bias=True)
         self.act_conv3 = lylrp.ELU()
         self.max_pool3 = lylrp.MaxPool2d(kernel_size=(2, 1), stride=(2, 1), padding=0, dilation=1)
         self.norm3 = lylrp.LayerNorm(n_signals, eps=1e-6)

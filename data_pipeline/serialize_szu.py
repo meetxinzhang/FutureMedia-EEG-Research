@@ -49,6 +49,7 @@ def go_through(label_filenames, pkl_path):
         stim, y = ziyan_read(f)  # [frame_point], [class]
         x = edf_reader.get_set(file_path=f.replace('.Markers', '.edf'), stim_list=stim)
         assert len(x) == len(y)
+        assert np.shape(x[0]) == (2000, 127)
 
         x = np.reshape(x, (len(x)*2000, 127))
         x = trial_average(x, axis=0)
@@ -61,9 +62,9 @@ def go_through(label_filenames, pkl_path):
 
 
 if __name__ == "__main__":
-    # path = 'E:/Datasets/eegtest/run16/'
-    path = '../../../../Datasets/run16'
-    label_filenames = file_scanf(path, endswith='-seg-rmartifact.Markers')
+    path = 'E:/Datasets/SZFace2/EEG'
+    # path = '../../../../Datasets/SZFace2/EEG'
+    label_filenames = file_scanf(path, endswith='.Markers')
     go_through(label_filenames, pkl_path=path+'/pkl_ave/')
 
 

@@ -21,8 +21,8 @@ def collate_(batch):  # [b, 2], [x, y]
 
 
 class SZUDataset(torch.utils.data.Dataset):
-    def __init__(self, path):
-        self.filepaths = file_scanf(path, endswith='.pkl')
+    def __init__(self, path, contains='run_', endswith='.pkl'):
+        self.filepaths = file_scanf(path, contains=contains, endswith=endswith)
 
     def __len__(self):  # called by torch.utils.data.DataLoader
         return len(self.filepaths)
@@ -34,8 +34,8 @@ class SZUDataset(torch.utils.data.Dataset):
             y = int(pickle.load(f))
 
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
-            # x = x[:500, :]               # SZU, [1000, 127]
-            x = difference(x, fold=4)     # SZU, [500, 127]
+            x = x[:500, :]               # SZU, [1000, 127]
+            # x = difference(x, fold=4)     # SZU, [500, 127]
             y = y-1                  # Ziyan He created EEG form
 
             assert 0 <= y <= 39

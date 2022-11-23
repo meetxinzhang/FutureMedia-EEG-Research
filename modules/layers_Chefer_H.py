@@ -338,13 +338,13 @@ class Conv2d(nn.Conv2d, RelProp):
             def f(w1, w2, x1, x2):
                 Za = F.conv2d(x1, w1, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
                 Zb = F.conv2d(x2, w2, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
-                # S1 = safe_divide(R, Z1)
-                # S2 = safe_divide(R, Z2)
+                S1 = safe_divide(R, Za)
+                S2 = safe_divide(R, Zb)
                 # print(R.sum())  # =1
                 # This may break the relevance conservation due to: "almost all relevance is
                 # absorbed by the non-redistributed zero-order term."
-                Ca = x1 * self.gradprop(Za, x1, torch.ones_like(R))[0]
-                Cb = x2 * self.gradprop(Zb, x2, torch.ones_like(R))[0]
+                Ca = x1 * self.gradprop(Za, x1, S1)[0]
+                Cb = x2 * self.gradprop(Zb, x2, S2)[0]
 
                 # Ca2 = torch.autograd.grad(Ca, x1, torch.ones_like(x1), retain_graph=True)[0]
                 # Cb2 = torch.autograd.grad(Cb, x2, torch.ones_like(x2), retain_graph=True)[0]
@@ -352,14 +352,14 @@ class Conv2d(nn.Conv2d, RelProp):
                 # Ca3 = torch.autograd.grad(Ca2, x1, torch.ones_like(Ca2))[0]
                 # Cb3 = torch.autograd.grad(Cb2, x2, torch.ones_like(Cb2))[0]
 
-                rate1 = safe_divide(Ca, Za)
-                rate2 = safe_divide(Cb, Zb)
+                # rate1 = safe_divide(Ca, Za)
+                # rate2 = safe_divide(Cb, Zb)
+                #
+                # Ra = safe_divide(Ca, rate1*Za)*R
+                # Rb = safe_divide(Cb, rate2*Zb)*R
 
-                Ra = safe_divide(Ca, rate1*Za)*R
-                Rb = safe_divide(Cb, rate2*Zb)*R
-
-                print('sum: ', Ra.sum(), Rb.sum())
-                return Ra+Rb
+                # print('sum: ', Ra.sum(), Rb.sum())
+                return Ca + Cb
 
             activator_relevances = f(pw, nw, px, nx)  # Z1+++, Z2--+
             inhibitor_relevances = f(nw, pw, px, nx)  # Z1-+-, Z2+--
