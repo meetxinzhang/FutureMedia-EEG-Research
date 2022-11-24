@@ -5,7 +5,6 @@
 @time: 12/5/21 9:02 PM
 @desc:
 """
-import os
 import torch
 from train_test import train, test
 from torch.utils.tensorboard import SummaryWriter
@@ -65,8 +64,7 @@ if __name__ == '__main__':
                 # global_step += 1
                 continue
 
-            loss, acc = train(ff, x, label, optimizer, acc=True)
-            acc = acc/batch_size
+            loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
             # lr = optimizer.param_groups[0]['lr']
             summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
             summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
@@ -75,8 +73,7 @@ if __name__ == '__main__':
             global_step += 1
             if step % 10 == 0:
                 x_test, label_test = val_iterable.next()
-                loss_test, acc_b_test = test(model=ff, x=x_test, label=label_test)
-                acc_test = acc_b_test / batch_size
+                loss_test, acc_test = test(model=ff, x=x_test, label=label_test, batch_size=batch_size)
                 print('epoch:{}/{} step:{}/{} global_step:{} loss={:.5f} acc={:.3f} test_loss={} test_acc={}'.format(
                     epoch, n_epoch, step, int(total_train/batch_size), global_step, loss, acc, loss_test, acc_test))
                 summary.add_scalar(tag='TestLoss', scalar_value=loss_test, global_step=global_step)

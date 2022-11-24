@@ -23,7 +23,7 @@ import torch.nn.functional as F
 # generate_visualization(_x[0].squeeze(), _cam.squeeze())
 # ----- Testing code end-----------------------------------------------------------
 
-def train(model, x, label, optimizer, acc=False):
+def train(model, x, label, optimizer, batch_size, cal_acc=False):
     x = x.cuda()
     label = label.cuda()
 
@@ -35,15 +35,15 @@ def train(model, x, label, optimizer, acc=False):
     loss.backward()
     optimizer.step()
 
-    accuracy_batch = None
-    if acc:
+    accuracy = None
+    if cal_acc:
         corrects = (torch.argmax(y, dim=1).data == label.data)
-        accuracy_batch = corrects.cpu().int().sum().numpy()
+        accuracy = corrects.cpu().int().sum().numpy()
 
-    return loss, accuracy_batch
+    return loss, accuracy/batch_size
 
 
-def test(model, x, label):
+def test(model, x, label, batch_size):
     x = x.cuda()
     label = label.cuda()
 
@@ -52,6 +52,7 @@ def test(model, x, label):
     loss = F.cross_entropy(y, label)
 
     corrects = (torch.argmax(y, dim=1).data == label.data)
-    accuracy_batch = corrects.cpu().int().sum().numpy()
+    accuracy = corrects.cpu().int().sum().numpy()
 
-    return loss, accuracy_batch
+    return loss, accuracy/batch_size
+
