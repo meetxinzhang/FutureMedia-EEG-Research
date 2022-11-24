@@ -23,6 +23,20 @@ def file_scanf(path, contains, endswith, sub_ratio=1):
     return list(filter(lambda x: contains in x and x.endswith(endswith), _input_files))
 
 
+class IterForever:
+    def __init__(self, dataload):
+        self.dataload = dataload
+        self.it = iter(self.dataload)
+
+    def next(self):
+        try:
+            return next(self.it)
+        except StopIteration:
+            del self.it
+            self.it = iter(self.dataload)
+            return next(self.it)
+
+
 class ExceptionPassing(Exception):
     """
     继承自基类 Exception
