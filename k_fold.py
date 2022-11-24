@@ -44,7 +44,7 @@ from utils.my_tools import IterForever
 
 torch.cuda.set_device(6)
 batch_size = 32
-n_epoch = 200
+n_epoch = 250
 k = 6
 kfold = KFold(n_splits=k, shuffle=True)
 
