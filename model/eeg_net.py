@@ -7,6 +7,17 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 
+def _init_weights(m):
+    if isinstance(m, nn.LayerNorm):
+        nn.init.constant_(m.bias, 0)
+        nn.init.constant_(m.weight, 1.0)
+    elif isinstance(m, nn.Conv2d):
+        nn.init.kaiming_uniform_(m.weight)
+        # nn.init.constant_(m.bias, 0)
+    elif isinstance(m, nn.Linear):
+        nn.init.kaiming_normal_(m.weight)
+
+
 class EEGNet(nn.Module):
     def __init__(self, classes_num, channels=127, drop_out=0.25):
         super(EEGNet, self).__init__()
@@ -95,6 +106,7 @@ class EEGNet(nn.Module):
         )
 
         self.out = nn.Linear((16 * 15), classes_num)
+        self.apply(_init_weights)
 
     def forward(self, x):
         x = x.transpose(2, 3)
