@@ -9,12 +9,12 @@
 import random
 from utils.my_tools import file_scanf
 from torch.utils.data import DataLoader, SubsetRandomSampler
-from sklearn.model_selection import KFold
+# from sklearn.model_selection import KFold
 import torch
 from train_test import train, test
 from torch.utils.tensorboard import SummaryWriter
 import time
-from data_pipeline.dataset_szu import ListDataset, collate_
+from data_pipeline.dataset_szu import ListDataset
 from model.eeg_net import EEGNet
 from utils.my_tools import IterForever
 # random.seed = 2022
@@ -23,11 +23,15 @@ from utils.my_tools import IterForever
 
 
 def kfold_loader(path, k):
-    database = []
-    for i in range(2, 5):
-        files_list = file_scanf(path, contains='run_'+str(i)+'_subject1', endswith='.pkl')
-        random.shuffle(files_list)  # shuffle the set by random
-        database.append(files_list)
+    a = file_scanf(path, contains='run_1_test', endswith='.pkl')
+    b = file_scanf(path, contains='test1016', endswith='.pkl')
+    # random.shuffle(a)
+    # random.shuffle(b)
+    database = [a, b]
+    # for i in range(2, 5):
+    #     files_list = file_scanf(path, contains='test', endswith='.pkl')
+    #     random.shuffle(files_list)  # shuffle the set by random
+    #     database.append(files_list)
 
     p = 0
     while p < k:
@@ -35,29 +39,33 @@ def kfold_loader(path, k):
         test_set = []
         for inset in database:
             klen = len(inset)//k
-            test_part = [inset.pop(i) for i in range(p*klen, (p+1)*klen)]
-            test_set += test_part
+            for i in range(p * klen, (p + 1) * klen):
+                try:
+                    e = inset.pop(i)
+                except IndexError: continue
+                test_set.append(e)
+            # test_part = [inset.pop(i) for i in range(p*klen, (p+1)*klen)]
+            # test_set += test_part
             train_set += inset
         yield p, train_set, test_set
         p += 1
 
 
 torch.cuda.set_device(6)
-batch_size = 32
-n_epoch = 250
-k = 6
+batch_size = 64
+n_epoch = 1000
+k = 5
+lr = 0.0003
 
-id_exp = '_2000e03l-set14-6fold-3nd'
-time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+id_exp = '_bs64l03-hzy-5fold-NEEG'
 path = '../../Datasets/pkl_ave'
-
+time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # kfold = KFold(n_splits=k, shuffle=True)
 # filepaths = file_scanf(path='E:/Datasets/SZFace2/EEG/pkl_ave', contains='_subject1', endswith='.pkl')
 # filepaths = file_scanf(path='../../Datasets/pkl_ave', contains='_subject1', endswith='.pkl')
 # dataset = ListDataset(filepaths)
 # num = len(filepaths)
-# print(num)
 # assert num % k == 0
 # train_num = num * 0.8
 
@@ -75,11 +83,12 @@ if __name__ == '__main__':
         val_iterable = IterForever(valid_loader)
         train_num = len(train_files)
 
-        ff = EEGNet(classes_num=40, drop_out=0.25).cuda()
-        optimizer = torch.optim.Adam(ff.parameters(), lr=0.0003, betas=(0.9, 0.98), eps=1e-9)
+        # ff = ComplexEEGNet(classes_num=40, drop_out=0.2).cuda()
+        ff = EEGNet(classes_num=40, drop_out=0.2).cuda()
+        optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
 
         print(f'FOLD {fold}')
-        print('--------------------------------')
+        print(len(train_files), len(test_files), '--------------------------------')
         summary = SummaryWriter(log_dir='./log/' + time_exp + id_exp + '/' + str(fold) + '_fold/')
 
         global_step = 0

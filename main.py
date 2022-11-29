@@ -10,7 +10,7 @@ from train_test import train, test
 from torch.utils.tensorboard import SummaryWriter
 import time
 from data_pipeline.dataset_szu import SZUDataset, collate_
-from model.eeg_net import EEGNet
+from model.eeg_net import ComplexEEGNet
 from utils.my_tools import IterForever
 
 # from model.field_flow import FieldFlow
@@ -45,7 +45,7 @@ val_iterable = IterForever(val_loader)
 #                t=500, n_signals=127, n_classes=40).cuda()
 # ff.load_state_dict(get_state_dict('log/checkpoint/2022-11-04-15-59-42_1000e03l-pre.pkl',
 #                                   map_location='cuda:0', exclude=['arc_margin.weight']))
-ff = EEGNet(classes_num=40, drop_out=0.25).cuda()
+ff = ComplexEEGNet(classes_num=40, drop_out=0.25).cuda()
 
 optimizer = torch.optim.AdamW(ff.parameters(), lr=0.0003, betas=(0.9, 0.98), eps=1e-9)
 # optimizer = NoamOpt(model_size=40, factor=1, warmup=8000,
