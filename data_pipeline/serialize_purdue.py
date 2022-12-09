@@ -125,11 +125,12 @@ def go_through(bdf_filenames, label_dir, pkl_path):
 
 
 if __name__ == "__main__":
-    path = 'E:/Datasets/CVPR2021-02785'
+    path = '../../../Datasets/CVPR2021-02785'
     bdf_dir = path + '/data'
     label_dir = path + '/design'
     # self.image_path = path + '/stimuli'
 
-    bdf_filenames = file_scanf(bdf_dir, endswith='.bdf')
-    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl/')
+    bdf_filenames = file_scanf(bdf_dir, contains='1000-1-0', endswith='.bdf')
+    print(len(bdf_filenames))
+    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_00-09/')
 

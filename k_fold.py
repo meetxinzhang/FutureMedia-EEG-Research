@@ -6,16 +6,16 @@
  @name: 
  @desc:
 """
-import random
+# import random
 from utils.my_tools import file_scanf
 from torch.utils.data import DataLoader, SubsetRandomSampler
-# from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold
 import torch
 from train_test import train, test
 from torch.utils.tensorboard import SummaryWriter
 import time
 from data_pipeline.dataset_szu import ListDataset
-from model.eeg_net import EEGNet
+from model.eeg_net import EEGNet  #, ComplexEEGNet
 from utils.my_tools import IterForever
 # random.seed = 2022
 # torch.manual_seed(2022)
@@ -39,14 +39,9 @@ def kfold_loader(path, k):
         test_set = []
         for inset in database:
             klen = len(inset)//k
-            for i in range(p * klen, (p + 1) * klen):
-                try:
-                    e = inset.pop(i)
-                except IndexError: continue
-                test_set.append(e)
-            # test_part = [inset.pop(i) for i in range(p*klen, (p+1)*klen)]
-            # test_set += test_part
-            train_set += inset
+            test_set += inset[p*klen:(p+1)*klen]
+            train_set += inset[:p*klen] + inset[(p+1)*klen:]
+            assert len(test_set) > 0
         yield p, train_set, test_set
         p += 1
 
@@ -57,38 +52,34 @@ n_epoch = 1000
 k = 5
 lr = 0.0003
 
-id_exp = '_bs64l03-hzy-5fold-NEEG'
-path = '../../Datasets/pkl_ave'
+id_exp = '_bs64l03-pd00-09-5fold-cplx'
+path = '../../Datasets/CVPR2021-02785/pkl_00-09'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
-# kfold = KFold(n_splits=k, shuffle=True)
-# filepaths = file_scanf(path='E:/Datasets/SZFace2/EEG/pkl_ave', contains='_subject1', endswith='.pkl')
-# filepaths = file_scanf(path='../../Datasets/pkl_ave', contains='_subject1', endswith='.pkl')
-# dataset = ListDataset(filepaths)
-# num = len(filepaths)
-# assert num % k == 0
-# train_num = num * 0.8
+k_fold = KFold(n_splits=k, shuffle=True)
+filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
+dataset = ListDataset(filepaths)
 
 if __name__ == '__main__':
-    # for fold, (train_ids, valid_ids) in enumerate(kfold.split(dataset)):
-    #     train_sampler = SubsetRandomSampler(train_ids)
-    #     valid_sampler = SubsetRandomSampler(valid_ids)
-    #     train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=3,
-    #                               prefetch_factor=2)
-    #     valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
-    #                               prefetch_factor=1)
-    for (fold, train_files, test_files) in kfold_loader(path, k):
-        train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=4, shuffle=True)
-        valid_loader = DataLoader(ListDataset(test_files), batch_size=batch_size, num_workers=2, shuffle=True)
+    for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
+        train_sampler = SubsetRandomSampler(train_ids)
+        valid_sampler = SubsetRandomSampler(valid_ids)
+        train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=3,
+                                  prefetch_factor=2)
+        valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
+                                  prefetch_factor=1)
+    # for (fold, train_files, test_files) in kfold_loader(path, k):
+    #     train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=4, shuffle=True)
+    #     valid_loader = DataLoader(ListDataset(test_files), batch_size=batch_size, num_workers=2, shuffle=True)
         val_iterable = IterForever(valid_loader)
-        train_num = len(train_files)
+        train_num = len(train_ids)
 
-        # ff = ComplexEEGNet(classes_num=40, drop_out=0.2).cuda()
-        ff = EEGNet(classes_num=40, drop_out=0.2).cuda()
+        ff = EEGNet(classes_num=40, channels=96, drop_out=0.2).cuda()
+        # ff = EEGNet(classes_num=40, drop_out=0.2).cuda()
         optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
 
         print(f'FOLD {fold}')
-        print(len(train_files), len(test_files), '--------------------------------')
+        print(train_num, len(valid_ids), '--------------------------------')
         summary = SummaryWriter(log_dir='./log/' + time_exp + id_exp + '/' + str(fold) + '_fold/')
 
         global_step = 0

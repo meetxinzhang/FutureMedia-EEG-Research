@@ -19,7 +19,6 @@
 # print(output)
 
 
-
 #
 # """
 # import mne
@@ -127,4 +126,24 @@
 # print(safe_divide(a, b))
 
 
-
+# database = [[1, 2, 2, 34, 5, 6, 7, 8, 9, 7]] * 5
+#
+#
+# def a(k):
+#     p = 0
+#     while p < k:
+#         train_set = []
+#         test_set = []
+#         for inset in database:
+#             klen = len(inset) // k
+#             test_set += inset[p * klen:(p + 1) * klen]
+#             train_set += inset[:p * klen] + inset[(p + 1) * klen:]
+#         yield p, train_set, test_set
+#         p += 1
+#
+#
+# for p, a, e in a(k=5):
+#     print(p, a, e)
+#
+# c = [1, 2, 2, 34]
+# print(c[4:])
