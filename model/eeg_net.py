@@ -140,7 +140,7 @@ class EEGNet(nn.Module):
                 out_channels=8,  # num_filters
                 kernel_size=(1, 64),  # filter size
                 bias=False
-            ),  # output shape (8, C, T)
+            ),  # output shape (b, 8, C, T)
             nn.BatchNorm2d(8)  # output shape (8, C, T)
         )
 
@@ -186,8 +186,11 @@ class EEGNet(nn.Module):
         x = x.transpose(2, 3)
 
         x = self.block_1(x)
+        # print('11111111', x.shape)
         x = self.block_2(x)
+        # print('22222222', x.shape)
         x = self.block_3(x)
+        # print('sssssssss', x.shape)
 
         x = x.view(x.size(0), -1)
         x = self.out(x)

@@ -6,7 +6,7 @@
  @name: 
  @desc:
 """
-# import random
+import random
 from utils.my_tools import file_scanf
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from sklearn.model_selection import KFold
@@ -23,15 +23,15 @@ from utils.my_tools import IterForever
 
 
 def kfold_loader(path, k):
-    a = file_scanf(path, contains='run_1_test', endswith='.pkl')
-    b = file_scanf(path, contains='test1016', endswith='.pkl')
-    # random.shuffle(a)
+    a = file_scanf(path, contains='test1016', endswith='.pkl')
+    # b = file_scanf(path, contains='test1016', endswith='.pkl')
+    random.shuffle(a)
     # random.shuffle(b)
-    database = [a, b]
-    # for i in range(2, 5):
-    #     files_list = file_scanf(path, contains='test', endswith='.pkl')
-    #     random.shuffle(files_list)  # shuffle the set by random
-    #     database.append(files_list)
+    database = [a]
+    for i in range(1, 18):
+        files_list = file_scanf(path, contains='run_'+str(i)+'_', endswith='.pkl')
+        random.shuffle(files_list)  # shuffle the set by random
+        database.append(files_list)
 
     p = 0
     while p < k:
@@ -48,38 +48,38 @@ def kfold_loader(path, k):
 
 torch.cuda.set_device(6)
 batch_size = 64
-n_epoch = 1000
+n_epoch = 700
 k = 5
 lr = 0.0003
 
-id_exp = '_bs64l03-pd00-09-5fold-cplx'
-path = '../../Datasets/CVPR2021-02785/pkl_00-09'
+id_exp = '_bs64l03-1016-run17-5fold-cplx'
+path = '../../Datasets/pkl_ave'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
-k_fold = KFold(n_splits=k, shuffle=True)
-filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
-dataset = ListDataset(filepaths)
+# k_fold = KFold(n_splits=k, shuffle=True)
+# filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
+# dataset = ListDataset(filepaths)
 
 if __name__ == '__main__':
-    for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
-        train_sampler = SubsetRandomSampler(train_ids)
-        valid_sampler = SubsetRandomSampler(valid_ids)
-        train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=3,
-                                  prefetch_factor=2)
-        valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
-                                  prefetch_factor=1)
-    # for (fold, train_files, test_files) in kfold_loader(path, k):
-    #     train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=4, shuffle=True)
-    #     valid_loader = DataLoader(ListDataset(test_files), batch_size=batch_size, num_workers=2, shuffle=True)
+    # for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
+    #     train_sampler = SubsetRandomSampler(train_ids)
+    #     valid_sampler = SubsetRandomSampler(valid_ids)
+    #     train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=3,
+    #                               prefetch_factor=2)
+    #     valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
+    #                               prefetch_factor=1)
+    for (fold, train_files, test_files) in kfold_loader(path, k):
+        train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=4, shuffle=True)
+        valid_loader = DataLoader(ListDataset(test_files), batch_size=batch_size, num_workers=2, shuffle=True)
         val_iterable = IterForever(valid_loader)
-        train_num = len(train_ids)
+        train_num = len(train_files)
 
-        ff = EEGNet(classes_num=40, channels=96, drop_out=0.2).cuda()
+        ff = EEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
         # ff = EEGNet(classes_num=40, drop_out=0.2).cuda()
         optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
 
         print(f'FOLD {fold}')
-        print(train_num, len(valid_ids), '--------------------------------')
+        print(train_num, len(test_files), '--------------------------------')
         summary = SummaryWriter(log_dir='./log/' + time_exp + id_exp + '/' + str(fold) + '_fold/')
 
         global_step = 0

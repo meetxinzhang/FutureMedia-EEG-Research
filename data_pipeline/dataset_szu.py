@@ -36,7 +36,7 @@ class SZUDataset(torch.utils.data.Dataset):
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
             x = x[:500, :]               # SZU, [1000, 127]
             # x = difference(x, fold=4)     # SZU, [500, 127]
-            # y = y-1                  # Ziyan He created EEG form
+            y = y-1                  # Ziyan He created EEG form
 
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float).unsqueeze(0), torch.tensor(y, dtype=torch.long)
@@ -58,7 +58,7 @@ class ListDataset(torch.utils.data.Dataset):
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
             x = x[:500, :]               # SZU, [1000, 127]
             # x = difference(x, fold=4)     # SZU, [500, 127]
-            # y = y-1                  # Ziyan He created EEG form
+            y = y-1                  # Ziyan He created EEG form
 
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float).unsqueeze(0), torch.tensor(y, dtype=torch.long)
