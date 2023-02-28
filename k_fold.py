@@ -25,12 +25,12 @@ from utils.my_tools import IterForever
 def kfold_loader(path, k):
     a = file_scanf(path, contains='test1016', endswith='.pkl')
     # b = file_scanf(path, contains='test1016', endswith='.pkl')
-    random.shuffle(a)
+    # random.shuffle(a)
     # random.shuffle(b)
     database = [a]
     for i in range(1, 18):
         files_list = file_scanf(path, contains='run_'+str(i)+'_', endswith='.pkl')
-        random.shuffle(files_list)  # shuffle the set by random
+        # random.shuffle(files_list)  # shuffle the set by random
         database.append(files_list)
 
     p = 0
@@ -48,11 +48,11 @@ def kfold_loader(path, k):
 
 torch.cuda.set_device(6)
 batch_size = 64
-n_epoch = 700
+n_epoch = 600
 k = 5
 lr = 0.0003
 
-id_exp = '_bs64l03-1016-run17-5fold-cplx'
+id_exp = '_bs64l03-1016-run17-5fold'
 path = '../../Datasets/pkl_ave'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
