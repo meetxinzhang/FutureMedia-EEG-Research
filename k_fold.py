@@ -15,7 +15,8 @@ from train_test import train, test
 from torch.utils.tensorboard import SummaryWriter
 import time
 from data_pipeline.dataset_szu import ListDataset
-from model.eeg_net import EEGNet  #, ComplexEEGNet
+# from model.eeg_net import EEGNet
+from model.eeg_net import ComplexEEGNet
 from utils.my_tools import IterForever
 # random.seed = 2022
 # torch.manual_seed(2022)
@@ -46,13 +47,13 @@ def kfold_loader(path, k):
         p += 1
 
 
-torch.cuda.set_device(6)
+torch.cuda.set_device(7)
 batch_size = 64
 n_epoch = 600
 k = 5
 lr = 0.0003
 
-id_exp = '_bs64l03-1016-run17-5fold'
+id_exp = '_bs64l03-1016-run17-5fold-complex'
 path = '../../Datasets/pkl_ave'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
@@ -74,7 +75,7 @@ if __name__ == '__main__':
         val_iterable = IterForever(valid_loader)
         train_num = len(train_files)
 
-        ff = EEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
+        ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
         # ff = EEGNet(classes_num=40, drop_out=0.2).cuda()
         optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
 
