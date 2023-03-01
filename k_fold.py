@@ -15,8 +15,8 @@ from train_test import train, test
 from torch.utils.tensorboard import SummaryWriter
 import time
 from data_pipeline.dataset_szu import ListDataset
-# from model.eeg_net import EEGNet
-from model.eeg_net import ComplexEEGNet
+from model.eeg_net import EEGNet
+# from model.eeg_net import ComplexEEGNet
 from utils.my_tools import IterForever
 # random.seed = 2022
 # torch.manual_seed(2022)
@@ -49,11 +49,11 @@ def kfold_loader(path, k):
 
 torch.cuda.set_device(7)
 batch_size = 64
-n_epoch = 600
-k = 5
-lr = 0.0003
+n_epoch = 200
+k = 7
+lr = 0.001
 
-id_exp = '_bs64l03-1016-run17-5fold-complex'
+id_exp = '_bs64lr11d03-1016-run17-7fold'
 path = '../../Datasets/pkl_ave'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
@@ -75,9 +75,10 @@ if __name__ == '__main__':
         val_iterable = IterForever(valid_loader)
         train_num = len(train_files)
 
-        ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
-        # ff = EEGNet(classes_num=40, drop_out=0.2).cuda()
+        # ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
+        ff = EEGNet(classes_num=40, channels=127, drop_out=0.3).cuda()
         optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}')
         print(train_num, len(test_files), '--------------------------------')
@@ -90,6 +91,7 @@ if __name__ == '__main__':
                     continue
 
                 loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
+                scheduler.step()  # 更新学习率
                 summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
                 summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
 
