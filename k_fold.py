@@ -91,7 +91,6 @@ if __name__ == '__main__':
                     continue
 
                 loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
-                scheduler.step()  # 更新学习率
                 summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
                 summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
 
@@ -111,6 +110,7 @@ if __name__ == '__main__':
                 #     cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
                 #     generate_visualization(x[0].squeeze(), cam.squeeze(),
                 #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
+            scheduler.step()  # 更新学习率
         summary.flush()
         summary.close()
     print('done')
