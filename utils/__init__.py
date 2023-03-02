@@ -21,15 +21,19 @@
 
 #
 # """
-# import mne
+import mne
 # import numpy as np
+import matplotlib.pyplot as plt
 
-# bdf = mne.io.read_raw_bdf('E:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-09.bdf',
-#                           preload=True, infer_types=True)
+# bdf = mne.io.read_raw_bdf('G:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-09.bdf',
+#                           preload=True, infer_types=True, exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
+bdf = mne.io.read_raw_edf('G:/Datasets/SZFace2/EEG/run_1_test_hzy.edf',
+                          preload=True, infer_types=True)
+
 # # dbf = bdf.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
 #
 # print(bdf.info, '\n')
-# print('channels: ', len(bdf.ch_names), bdf.ch_names, '\n')
+print('channels: ', len(bdf.ch_names), bdf.ch_names, '\n')
 # print('times: ', bdf.n_times, bdf.times, '\n')
 #
 # events1 = mne.find_events(bdf, stim_channel='Status', initial_event=True, output='step')
@@ -68,7 +72,7 @@
 #
 #  see https://mne.tools/dev/generated/mne.find_events.html#mne.find_events for more details
 # """
-# picks = mne.pick_types(new_bdf.info, eeg=True, stim=False,
+# picks = mne.pick_types(bdf.info, eeg=True, stim=False,
 #                        exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8', 'Status'])
 # start_time = []
 # for event in new_events:
@@ -147,3 +151,32 @@
 #
 # c = [1, 2, 2, 34]
 # print(c[4:])
+
+# mne.channels.read_montage('GSN-HydroCel-128')
+# mne.viz.plot_sensors
+kind = mne.channels.get_builtin_montages()
+print(kind)
+
+montage = mne.channels.make_standard_montage(kind='brainproducts-RNP-BA-128', head_size='auto')
+print(montage.get_positions())
+# fig = montage.plot()
+# fig.savefig('a.jpg')
+
+# map = {
+#     'EXG1': 'eeg',
+#     'EXG2': 'eeg',
+#     'EXG3': 'eeg',
+#     'EXG4': 'eeg',
+#     'EXG5': 'eeg',
+#     'EXG6': 'eeg',
+#     'EXG7': 'eeg',
+#     'EXG8': 'eeg'
+# }
+# bdf.set_channel_types(mapping=map)
+bdf.set_montage(montage, match_alias=True, on_missing='warn')
+
+# raw.set_montage(mon) ## !!
+# ### look at channels
+# mne.viz.plot_sensors(raw.info, show_names=True)
+# raw.plot_sensors(show_names=True)
+# raw.plot_sensors('3d')

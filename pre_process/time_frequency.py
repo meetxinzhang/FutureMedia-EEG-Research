@@ -113,7 +113,7 @@ def cwt_on_sample(sample):
 #     plt.show()
 
 
-# from pre_processing.time_frequency import  *
+# from pre_process.time_frequency import  *
 # N = np.shape(signal)[0]
 # t0 = 0
 # dt = 0.25

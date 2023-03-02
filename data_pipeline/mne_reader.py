@@ -11,6 +11,11 @@ from utils.my_tools import ExceptionPassing
 mne.set_log_level(verbose='WARNING')
 
 
+def get_electrode_pos(kind='brainproducts-RNP-BA-128'):
+    montage = mne.channels.make_standard_montage(kind=kind, head_size='auto')
+    pos_map = montage.get_positions()['ch_pos']
+
+
 class MNEReader(object):
     def __init__(self, filetype='edf', method='stim', resample=None, length=512, exclude=(), stim_channel='auto'):
         """
@@ -146,8 +151,8 @@ if __name__ == '__main__':
     # Ws = mne.time_frequency.morlet(sfreq=1024, freqs=np.array([10, 20]), n_cycles=2)
     # tfr = mne.time_frequency.tfr.cwt(X=sample, Ws=Ws, decim=1)
 
-    from data_pipeline.pre_processing.time_frequency import signal2spectrum_cwt, signal2spectrum_pywt_cwt, cwt_on_sample
-    from matplotlib import pyplot as plt
+    from pre_process.time_frequency import signal2spectrum_pywt_cwt
+
     signal = sample[0, :]  # [t,]
     # spec = signal2spectrum(signal)
     spec = signal2spectrum_pywt_cwt(signal=signal)  # [f, t]

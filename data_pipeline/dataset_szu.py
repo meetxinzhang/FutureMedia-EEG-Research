@@ -10,7 +10,7 @@ import torch
 import pickle
 from utils.my_tools import file_scanf
 from torch.utils.data.dataloader import default_collate
-from data_pipeline.pre_processing.difference import downsample, trial_average, difference
+from pre_process.difference import downsample
 
 
 def collate_(batch):  # [b, 2], [x, y]

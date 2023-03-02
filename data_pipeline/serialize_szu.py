@@ -12,7 +12,8 @@ from tqdm import tqdm
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
 import numpy as np
-from pre_processing.difference import trial_average
+from pre_process.difference import trial_average
+from pre_process.aep import gen_images
 
 parallel_jobs = 6
 
@@ -37,6 +38,9 @@ def thread_read_write(x, y, pkl_filename):
     [time, channels=127], y
     """
     assert np.shape(x) == (2000, 127)
+    # AEP
+    imgs = gen_images()
+
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
         pickle.dump(y, file)
