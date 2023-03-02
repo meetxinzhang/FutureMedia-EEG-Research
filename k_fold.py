@@ -26,12 +26,12 @@ from utils.my_tools import IterForever
 def kfold_loader(path, k):
     a = file_scanf(path, contains='test1016', endswith='.pkl')
     # b = file_scanf(path, contains='test1016', endswith='.pkl')
-    # random.shuffle(a)
+    random.shuffle(a)
     # random.shuffle(b)
     database = [a]
     for i in range(1, 18):
         files_list = file_scanf(path, contains='run_'+str(i)+'_', endswith='.pkl')
-        # random.shuffle(files_list)  # shuffle the set by random
+        random.shuffle(files_list)  # shuffle the set by random
         database.append(files_list)
 
     p = 0
@@ -49,11 +49,11 @@ def kfold_loader(path, k):
 
 torch.cuda.set_device(7)
 batch_size = 64
-n_epoch = 200
+n_epoch = 600
 k = 7
-lr = 0.001
+lr = 0.0001
 
-id_exp = '_bs64lr11d03-1016-run17-7fold'
+id_exp = '_bs64lr_d03-1016-run17-7fold'
 path = '../../Datasets/pkl_ave'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
@@ -76,9 +76,9 @@ if __name__ == '__main__':
         train_num = len(train_files)
 
         # ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
-        ff = EEGNet(classes_num=40, channels=127, drop_out=0.3).cuda()
+        ff = EEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
         optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=4, gamma=0.1)  # 设定优优化器更新的时刻表
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.5)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}')
         print(train_num, len(test_files), '--------------------------------')
