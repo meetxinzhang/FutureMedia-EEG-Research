@@ -69,8 +69,8 @@ def go_through(label_filenames, pkl_path):
 
 
 if __name__ == "__main__":
-    path = 'G:/Datasets/SZFace2/EEG/10-17'
-    # path = '../../../../Datasets/SZFace2/EEG'
+    # path = 'G:/Datasets/SZFace2/EEG/10-17'
+    path = '../../../Datasets/sz_eeg'
     label_filenames = file_scanf(path, contains='run', endswith='.Markers')
     go_through(label_filenames, pkl_path=path+'/pkl_ave_img/')
 

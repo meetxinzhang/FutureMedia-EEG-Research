@@ -15,8 +15,9 @@ from train_test import train, test
 from torch.utils.tensorboard import SummaryWriter
 import time
 from data_pipeline.dataset_szu import ListDataset
-from model.eeg_net import EEGNet
+# from model.eeg_net import EEGNet
 # from model.eeg_net import ComplexEEGNet
+from model.conv_transformer import ConvTransformer
 from utils.my_tools import IterForever
 # random.seed = 2022
 # torch.manual_seed(2022)
@@ -49,12 +50,13 @@ def kfold_loader(path, k):
 
 torch.cuda.set_device(7)
 batch_size = 64
-n_epoch = 600
+n_epoch = 500
 k = 7
-lr = 0.0001
+lr = 0.001
 
-id_exp = '_bs64lr_d03-1016-run17-7fold'
-path = '../../Datasets/pkl_ave'
+id_exp = 'ct_bs64lr_d03-7fold'
+# path = '../../Datasets/pkl_ave'
+path = '../../Datasets/sz_eeg/pkl_ave_img'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # k_fold = KFold(n_splits=k, shuffle=True)
@@ -76,7 +78,8 @@ if __name__ == '__main__':
         train_num = len(train_files)
 
         # ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
-        ff = EEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
+        # ff = EEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
+        ff = ConvTransformer(num_classes=40, channels=8, num_heads=2, E=16, F=256, T=250, depth=2).cuda()
         optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=100, gamma=0.5)  # 设定优优化器更新的时刻表
 
@@ -89,7 +92,6 @@ if __name__ == '__main__':
             for step, (x, label) in enumerate(train_loader):  # [b, 1, 500, 127], [b]
                 if x is None and label is None:
                     continue
-
                 loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
                 summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
                 summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
