@@ -21,19 +21,19 @@
 
 #
 # """
-import mne
+# import mne
 # import numpy as np
-import matplotlib.pyplot as plt
-
-# bdf = mne.io.read_raw_bdf('G:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-09.bdf',
-#                           preload=True, infer_types=True, exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
-bdf = mne.io.read_raw_edf('G:/Datasets/SZFace2/EEG/run_1_test_hzy.edf',
-                          preload=True, infer_types=True)
-
-# # dbf = bdf.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
+# import matplotlib.pyplot as plt
 #
-# print(bdf.info, '\n')
-print('channels: ', len(bdf.ch_names), bdf.ch_names, '\n')
+# # bdf = mne.io.read_raw_bdf('G:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-09.bdf',
+# #                           preload=True, infer_types=True, exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
+# bdf = mne.io.read_raw_edf('G:/Datasets/SZFace2/EEG/run_1_test_hzy.edf',
+#                           preload=True, infer_types=True)
+#
+# # # dbf = bdf.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
+# #
+# # print(bdf.info, '\n')
+# print('channels: ', len(bdf.ch_names), bdf.ch_names, '\n')
 # print('times: ', bdf.n_times, bdf.times, '\n')
 #
 # events1 = mne.find_events(bdf, stim_channel='Status', initial_event=True, output='step')
@@ -154,11 +154,11 @@ print('channels: ', len(bdf.ch_names), bdf.ch_names, '\n')
 
 # mne.channels.read_montage('GSN-HydroCel-128')
 # mne.viz.plot_sensors
-kind = mne.channels.get_builtin_montages()
-print(kind)
+# kind = mne.channels.get_builtin_montages()
+# print(kind)
 
-montage = mne.channels.make_standard_montage(kind='brainproducts-RNP-BA-128', head_size='auto')
-print(montage.get_positions())
+# montage = mne.channels.make_standard_montage(kind='brainproducts-RNP-BA-128', head_size='auto')
+# print(montage.get_positions())
 # fig = montage.plot()
 # fig.savefig('a.jpg')
 
@@ -173,8 +173,12 @@ print(montage.get_positions())
 #     'EXG8': 'eeg'
 # }
 # bdf.set_channel_types(mapping=map)
-bdf.set_montage(montage, match_alias=True, on_missing='warn')
-
+# bdf.set_montage('brainproducts-RNP-BA-128', match_alias=True, on_missing='warn')
+# m = bdf.get_montage()
+# orderedDict = m.get_positions()['ch_pos']
+# print(orderedDict)
+# print(list(orderedDict.keys()))
+# print(np.array(list(orderedDict.values())))
 # raw.set_montage(mon) ## !!
 # ### look at channels
 # mne.viz.plot_sensors(raw.info, show_names=True)

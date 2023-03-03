@@ -6,14 +6,19 @@
 @desc:
 """
 import mne
+import numpy as np
 from utils.my_tools import ExceptionPassing
 # from skimage.measure import block_reduce
 mne.set_log_level(verbose='WARNING')
 
 
-def get_electrode_pos(kind='brainproducts-RNP-BA-128'):
-    montage = mne.channels.make_standard_montage(kind=kind, head_size='auto')
-    pos_map = montage.get_positions()['ch_pos']
+def get_electrode_pos(raw, kind='brainproducts-RNP-BA-128'):
+    # montage = mne.channels.make_standard_montage(kind=kind, head_size='auto')
+    raw.set_montage('brainproducts-RNP-BA-128', match_alias=True, on_missing='warn')
+    montage = raw.get_montage()
+    pos_map = montage.get_positions()['ch_pos']  # ordered dict
+    pos = np.array(list(pos_map.values()))
+    return pos
 
 
 class MNEReader(object):
@@ -38,11 +43,16 @@ class MNEReader(object):
         elif method == 'manual':
             self.method = self.read_by_manual
         self.set = None
+        self.pos = None
 
     def get_set(self, file_path, stim_list=None):
         self.file_path = file_path
         self.set = self.method(stim_list)
         return self.set
+
+    def get_pos(self):
+        assert self.set is not None
+        return self.pos
 
     def get_item(self, file_path, sample_idx, stim_list=None):
         if self.file_path == file_path:
@@ -66,6 +76,7 @@ class MNEReader(object):
         # print(raw)
         # print(raw.info)
         # raw = raw.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
+        self.pos = get_electrode_pos(raw=raw)
         if self.stim_channel == 'auto':
             if self.resample is not None:
                 raw = raw.resample(sfreq=self.resample)  # down sampling to 1024Hz
