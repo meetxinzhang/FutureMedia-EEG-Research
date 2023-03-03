@@ -105,7 +105,7 @@ class CTBlock(nn.Module):
 
 
 class ConvTransformer(nn.Module):
-    def __init__(self, num_classes, channels=8, num_heads=2, E=16, F=256, size=32, T=32, depth=2):
+    def __init__(self, num_classes, channels=8, num_heads=2, E=16, F=256, size=32, T=32, depth=2, drop=0.2):
         super().__init__()
         self.lfe = LocFeaExtractor(channels=channels)
         self.blocks = nn.ModuleList([
@@ -123,6 +123,8 @@ class ConvTransformer(nn.Module):
         self.l1 = nn.Linear(in_features=F*T, out_features=500)
         self.l2 = nn.Linear(in_features=500, out_features=100)
         self.l3 = nn.Linear(in_features=100, out_features=num_classes)
+        self.d1 = nn.Dropout(p=drop)
+        self.d2 = nn.Dropout(p=drop)
 
     def forward(self, x):
         # [b, 1,  M, M, T]
@@ -135,6 +137,7 @@ class ConvTransformer(nn.Module):
         x = self.bn(x.unsqueeze(1)).squeeze()
         x = self.elu(x)
         x = self.fla(x)  # [b, F*T]
-
-        x = self.l3(self.l2(self.l1(x)))  # [b, classes]
+        x = self.d1(self.l1(x))
+        x = self.d2(self.l2(x))
+        x = self.l3(x)  # [b, classes]
         return x

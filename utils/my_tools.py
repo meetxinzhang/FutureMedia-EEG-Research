@@ -24,16 +24,16 @@ def file_scanf(path, contains, endswith, sub_ratio=1):
 
 
 class IterForever:
-    def __init__(self, dataload):
-        self.dataload = dataload
-        self.it = iter(self.dataload)
+    def __init__(self, dataloader):
+        self.dataloader = dataloader
+        self.it = iter(self.dataloader)
 
     def next(self):
         try:
             return next(self.it)
         except StopIteration:
             del self.it
-            self.it = iter(self.dataload)
+            self.it = iter(self.dataloader)
             return next(self.it)
 
 
