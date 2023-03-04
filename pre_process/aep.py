@@ -15,7 +15,7 @@ import math as m
 import numpy as np
 np.random.seed(123)
 # import scipy.io
-# from sklearn.decomposition import PCA
+from sklearn.decomposition import PCA
 
 
 def azim_proj(pos):
@@ -57,6 +57,31 @@ def pol2cart(theta, rho):
     return rho * m.cos(theta), rho * m.sin(theta)
 
 
+def augment_EEG(data, stdMult, pca=False, n_components=2):
+    """
+    Augment data by adding normal noise to each feature.
+    :param data: EEG feature data as a matrix (n_samples x n_features)
+    :param stdMult: Multiplier for std of added noise
+    :param pca: if True will perform PCA on data and add noise proportional to PCA components.
+    :param n_components: Number of components to consider when using PCA.
+    :return: Augmented data as a matrix (n_samples x n_features)
+    """
+    augData = np.zeros(data.shape)
+    if pca:
+        pca = PCA(n_components=n_components)
+        pca.fit(data)
+        components = pca.components_
+        variances = pca.explained_variance_ratio_
+        coeffs = np.random.normal(scale=stdMult, size=pca.n_components) * variances
+        for s, sample in enumerate(data):
+            augData[s, :] = sample + (components * coeffs.reshape((n_components, -1))).sum(axis=0)
+    else:
+        # Add Gaussian noise with std determined by weighted std of each feature
+        for f, feat in enumerate(data.transpose()):
+            augData[:, f] = feat + np.random.normal(scale=stdMult*np.std(feat), size=feat.size)
+    return augData
+
+
 def gen_images(locs, features, n_gridpoints, normalize=True,
                augment=False, pca=False, std_mult=0.1, n_components=2, edgeless=False):
     """
@@ -87,13 +112,13 @@ def gen_images(locs, features, n_gridpoints, normalize=True,
     for c in range(n_colors):
         feat_array_temp.append(features[:,
                                c * nElectrodes: nElectrodes * (c + 1)])
-    # if augment:
-    #     if pca:
-    #         for c in range(n_colors):
-    #             feat_array_temp[c] = augment_EEG(feat_array_temp[c], std_mult, pca=True, n_components=n_components)
-    #     else:
-    #         for c in range(n_colors):
-    #             feat_array_temp[c] = augment_EEG(feat_array_temp[c], std_mult, pca=False, n_components=n_components)
+    if augment:
+        if pca:
+            for c in range(n_colors):
+                feat_array_temp[c] = augment_EEG(feat_array_temp[c], std_mult, pca=True, n_components=n_components)
+        else:
+            for c in range(n_colors):
+                feat_array_temp[c] = augment_EEG(feat_array_temp[c], std_mult, pca=False, n_components=n_components)
     n_samples = features.shape[0]
 
     # Interpolate the values
@@ -118,7 +143,7 @@ def gen_images(locs, features, n_gridpoints, normalize=True,
         for c in range(n_colors):
             temp_interp[c][i, :, :] = griddata(locs, feat_array_temp[c][i, :], (grid_x, grid_y),
                                                method='cubic', fill_value=np.nan)
-        print('Interpolating {0}/{1}\r'.format(i + 1, n_samples), end='\r')
+        # print('Interpolating {0}/{1}\r'.format(i + 1, n_samples), end='\r')
 
     # Normalizing
     for c in range(n_colors):

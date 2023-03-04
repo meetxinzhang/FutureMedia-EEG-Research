@@ -49,13 +49,13 @@ def kfold_loader(path, k):
 
 torch.cuda.set_device(7)
 batch_size = 64
-n_epoch = 100
+n_epoch = 30
 k = 7
 lr = 0.001
 
 id_exp = 'ct_bs64lr_d03-7fold'
 # path = '../../Datasets/pkl_ave'
-path = '../../Datasets/sz_eeg/pkl_ave_img'
+path = '../../Datasets/sz_eeg/pkl_img32'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # k_fold = KFold(n_splits=k, shuffle=True)
@@ -78,9 +78,10 @@ if __name__ == '__main__':
 
         # ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
         # ff = EEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
-        ff = ConvTransformer(num_classes=40, channels=8, num_heads=2, E=16, F=64, T=250, depth=2).cuda()
-        optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # 设定优优化器更新的时刻表
+        ff = ConvTransformer(num_classes=40, channels=8, num_heads=2, E=16, F=32,
+                             size=32, T=1024, depth=1, drop=0.1).cuda()
+        optimizer = torch.optim.SGD(ff.parameters(), lr=lr, momentum=0.9, weight_decay=0.001)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}')
         print(train_num, len(test_files), '--------------------------------')
@@ -111,7 +112,7 @@ if __name__ == '__main__':
                 #     cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
                 #     generate_visualization(x[0].squeeze(), cam.squeeze(),
                 #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
-            scheduler.step()  # 更新学习率
+            lr_scheduler.step()  # 更新学习率
         summary.flush()
         summary.close()
     print('done')

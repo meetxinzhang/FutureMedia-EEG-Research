@@ -15,7 +15,7 @@ import numpy as np
 from pre_process.difference import trial_average
 from pre_process.aep import azim_proj, gen_images
 
-parallel_jobs = 6
+parallel_jobs = 8
 
 
 def ziyan_read(file_path):
@@ -58,9 +58,9 @@ def go_through(label_filenames, pkl_path):
         assert len(x) == len(y)
         assert np.shape(x[0]) == (2000, 127)
 
-        x = np.reshape(x, (len(x)*2000, 127))
-        x = trial_average(x, axis=0)
-        x = np.reshape(x, (-1, 2000, 127))
+        # x = np.reshape(x, (len(x)*2000, 127))
+        # x = trial_average(x, axis=0)
+        # x = np.reshape(x, (-1, 2000, 127))
 
         name = f.split('/')[-1].replace('.Markers', '')
         Parallel(n_jobs=parallel_jobs)(
@@ -72,7 +72,7 @@ if __name__ == "__main__":
     # path = 'G:/Datasets/SZFace2/EEG/10-17'
     path = '../../../Datasets/sz_eeg'
     label_filenames = file_scanf(path, contains='run', endswith='.Markers')
-    go_through(label_filenames, pkl_path=path+'/pkl_ave_img/')
+    go_through(label_filenames, pkl_path=path+'/pkl_img32/')
 
 
 

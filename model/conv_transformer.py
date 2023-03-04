@@ -22,10 +22,9 @@ class LocFeaExtractor(nn.Module):
 
         self.bn = nn.BatchNorm3d(num_features=channels)
         self.elu = nn.ELU()
+        self.pool = nn.MaxPool3d(kernel_size=(1, 1, 2), stride=(1, 1, 2), padding=0)
 
     def forward(self, x):
-        [b, _, _, _, t] = x.shape
-
         # [b, 1,  M, M, T]
         x_3 = self.conv3d_3(x)  # [b, c/2, m, m, T]
         x_5 = self.conv3d_5(x)  # [b, c/2, m, m, T]
@@ -33,7 +32,9 @@ class LocFeaExtractor(nn.Module):
 
         x = self.bn(x)
         x = self.elu(x)
-        x = torch.reshape(x, [b, self.c, -1, t])  # [b, c, m*m, T]
+        x = self.pool(x)  # [b, c, m, m, T/2]
+        [b, _, _, _, t] = x.shape
+        x = torch.reshape(x, [b, self.c, -1, t])  # [b, c, m*m, T/2]
         return x
 
 
@@ -105,7 +106,7 @@ class CTBlock(nn.Module):
 
 
 class ConvTransformer(nn.Module):
-    def __init__(self, num_classes, channels=8, num_heads=2, E=16, F=256, size=32, T=32, depth=2, drop=0.2):
+    def __init__(self, num_classes, channels=8, num_heads=2, E=16, F=64, size=32, T=500, depth=2, drop=0.2):
         super().__init__()
         self.lfe = LocFeaExtractor(channels=channels)
         self.blocks = nn.ModuleList([
@@ -113,31 +114,32 @@ class ConvTransformer(nn.Module):
             for _ in range(depth)])
 
         p = ((size-8+2*0)//4 + 1)**2
+        t = T//4
         self.conv1 = nn.Conv2d(in_channels=channels, out_channels=F//2,
                                kernel_size=(p, 3), stride=(p, 1), padding=(0, 1))
         self.conv2 = nn.Conv2d(in_channels=channels, out_channels=F//2,
                                kernel_size=(p, 5), stride=(p, 1), padding=(0, 2))
         self.bn = nn.BatchNorm3d(num_features=1)
         self.elu = nn.ELU()
+        self.pool = nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2), padding=0)
         self.fla = nn.Flatten(start_dim=1, end_dim=-1)
-        self.l1 = nn.Linear(in_features=F*T, out_features=500)
-        self.l2 = nn.Linear(in_features=500, out_features=100)
-        self.l3 = nn.Linear(in_features=100, out_features=num_classes)
+        self.l1 = nn.Linear(in_features=F*t, out_features=128)
+        self.l2 = nn.Linear(in_features=128, out_features=num_classes)
         self.d1 = nn.Dropout(p=drop)
         self.d2 = nn.Dropout(p=drop)
 
     def forward(self, x):
         # [b, 1,  M, M, T]
-        x = self.lfe(x)  # [b, c, p=m*m, T]
+        x = self.lfe(x)  # [b, c, p=m*m, T/2]
         for blk in self.blocks:
-            x = blk(x)  # [b, c, p, T]
-        x1 = self.conv1(x)  # [b, F/2, 1, T]
-        x2 = self.conv2(x)  # [b, F/2, 1, T]
-        x = torch.cat((x1, x2), dim=1)  # [b, F, 1, T]
-        x = self.bn(x.unsqueeze(1)).squeeze()
+            x = blk(x)  # [b, c, p, T/2]
+        x1 = self.conv1(x)  # [b, F/2, 1, T/2]
+        x2 = self.conv2(x)  # [b, F/2, 1, T/2]
+        x = torch.cat((x1, x2), dim=1)  # [b, F, 1, T/2]
+        x = self.bn(x.unsqueeze(1)).squeeze()  # [b, F, T/2]
         x = self.elu(x)
-        x = self.fla(x)  # [b, F*T]
-        x = self.d1(self.l1(x))
-        x = self.d2(self.l2(x))
-        x = self.l3(x)  # [b, classes]
+        x = self.pool(x)  # [b, F, t]
+        x = self.fla(x)  # [b, F*t]
+        x = self.l1(self.d1(x))
+        x = self.l2(self.d2(x))  # [b, classes]
         return x
