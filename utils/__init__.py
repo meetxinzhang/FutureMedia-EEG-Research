@@ -21,7 +21,7 @@
 
 #
 # """
-# import mne
+import mne
 # import numpy as np
 # import matplotlib.pyplot as plt
 #
@@ -184,3 +184,42 @@
 # mne.viz.plot_sensors(raw.info, show_names=True)
 # raw.plot_sensors(show_names=True)
 # raw.plot_sensors('3d')
+
+import pywt
+import PIL.Image as Image
+import matplotlib.pyplot as plt
+
+
+def signal2spectrum_pywt_cwt(signal, totalscal=20, wavelet='cmor4.0-20.0'):
+    """
+    scale = 4 是对信号进行小波变换时所用尺度序列的长度(通常需要预先设定好)
+    """
+    fc = pywt.central_frequency(wavelet)  # 计算小波函数的中心频率
+    cparam = 2 * fc * totalscal  # 常数c
+    # 可以用 *f = scale2frequency(wavelet, scale)/sampling_period 来确定物理频率大小。f的单位是赫兹，采样周期的单位为秒。
+    scales = cparam / np.arange(totalscal+1, 1, -1)  # 为使转换后的频率序列是一等差序列，尺度序列必须取为这一形式（也即小波尺度）
+    cwtmatr, freqs = pywt.cwt(data=signal, scales=scales, wavelet=wavelet, sampling_period=1/1000)
+    return cwtmatr, freqs
+
+
+import pickle
+import numpy as np
+print(pywt.wavelist(family=None, kind='continuous'))
+# filepath = 'G:/Datasets/SZFace2/EEG/pkl_ave/run_1_test_hzy_1_3501_4.pkl'
+filepath = 'G:/Datasets/SZFace2/EEG/pkl_ave/run_1_test_hzy_258_771501_4.pkl'
+t = np.arange(0, 2, 1.0/1000)
+with open(filepath, 'rb') as f:
+    x = pickle.load(f)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
+    y = int(pickle.load(f))
+
+    cwtmatr, freqs = signal2spectrum_pywt_cwt(x[:, 0])
+    print(np.shape(cwtmatr))
+    print(np.shape(freqs))
+    print(np.real(cwtmatr))
+
+    # image = Image.fromarray(np.uint8(cwtmatr))
+    # plt.imshow(image)
+    # plt.imshow(cwtmatr, extent=[1, 2000, 1, 256], cmap='PRGn', aspect='auto',
+    #            vmax=abs(cwtmatr).max(), vmin=-abs(cwtmatr).max())
+    plt.contourf(t, freqs, abs(np.real(cwtmatr)))
+    plt.show()

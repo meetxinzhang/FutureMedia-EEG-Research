@@ -5,55 +5,80 @@
  @time: 2022/10/16 10:47
  @desc:
 """
-import scipy.signal as scisgn
 import pywt
 import numpy as np
 import matplotlib.pyplot as plt
-import mne
+import einops
+import torch
 
 
-def signal2spectrum_cwt(signal, time=None, width=None):
-    # continues wavelet transform
-    if time is None:
-        time = np.linspace(0, 1, 500, endpoint=False)
-    if width is None:
-        widths = np.arange(12, 28)
-
-    cwtmatr = scisgn.cwt(data=np.squeeze(signal), wavelet=scisgn.ricker, widths=widths)
-    # plt.imshow(cwtmatr, extent=[1, 512, 12, 28], cmap='PRGn', aspect='auto',
-    #            vmax=abs(cwtmatr).max(), vmin=-abs(cwtmatr).max())
-    # plt.show()
-    return cwtmatr
+def signal2spectrum_stft(signal, n_fft=40, hop_length=20):
+    signal = torch.tensor(signal, dtype=torch.float)
+    y = torch.stft(signal, n_fft=n_fft, hop_length=hop_length, window=torch.hann_window(40),
+                   center=True, return_complex=True)
+    y_real = torch.view_as_real(y)[:, :, 0]
+    return y_real  # [f, t]
 
 
-def signal2spectrum_pywt_cwt(signal, scales=np.arange(13, 28)):
-    cwtmatr, freqs = pywt.cwt(data=signal, scales=scales, wavelet='mexh')
-    # image = Image.fromarray(np.uint8(cwtmatr))
-    # plt.imshow(image)
-    # plt.imshow(cwtmatr, extent=[1, 512, 1, 13], cmap='PRGn', aspect='auto',
-    #            vmax=abs(cwtmatr).max(), vmin=-abs(cwtmatr).max())
-    # plt.show()
-    return cwtmatr
+def signal2spectrum_pywt_cwt(signal, totalscal=20, wavelet='cmor1.0-41.0'):
+    """
+    scale = 4 是对信号进行小波变换时所用尺度序列的长度(通常需要预先设定好)
+    """
+    # fc = pywt.central_frequency(wavelet)  # 计算小波函数的中心频率
+    # cparam = 2 * fc * totalscal  # 常数c
+    # # 可以用 *f = scale2frequency(wavelet, scale)/sampling_period 来确定物理频率大小。f的单位是赫兹，采样周期的单位为秒。
+    # scales = cparam / np.arange(totalscal+1, 1, -1)  # 为使转换后的频率序列是一等差序列，尺度序列必须取为这一形式（也即小波尺度）
+
+    dt = 0.001  # 1000Hz
+    fs = 1 / dt
+    interested = np.array(range(41, 1, -1))
+    frequencies = interested / fs  # normalize
+    scale = pywt.frequency2scale(wavelet, frequencies)
+
+    print(scale)
+
+    cwtmatr, freqs = pywt.cwt(data=signal, scales=scale, wavelet=wavelet, sampling_period=0.001)
+    return cwtmatr, freqs  # [f, t]  [f]
 
 
-# def cwt_on_sample_thread(sample):
+# def cwt_on_sample(sample):
 #     # [c=96, t=512]
+#     Ws = mne.time_frequency.tfr.morlet(sfreq=1024, freqs=np.arange(12, 28, 1), n_cycles=5)  # 1/lowest*n = time
+#     tfr = mne.time_frequency.tfr.cwt(X=sample, Ws=Ws, use_fft=True)
 #
-#
+#     cwtmatrs = np.real(tfr)
+#     print(np.shape(cwtmatrs))
+#     plt.imshow(np.real(cwtmatrs[0]), extent=[1, 1024, 1, 97], cmap='PRGn', aspect='auto',
+#                vmax=abs(cwtmatrs[0]).max(), vmin=-abs(cwtmatrs[0]).max())
+#     plt.show()
 #     return cwtmatrs
 
 
-def cwt_on_sample(sample):
-    # [c=96, t=512]
-    Ws = mne.time_frequency.tfr.morlet(sfreq=1024, freqs=np.arange(12, 28, 1), n_cycles=5)  # 1/lowest*n = time
-    tfr = mne.time_frequency.tfr.cwt(X=sample, Ws=Ws, use_fft=True)
+import pickle
+import numpy as np
+import PIL.Image as Image
+print(pywt.wavelist(family=None, kind='continuous'))
+# filepath = 'G:/Datasets/SZFace2/EEG/pkl_ave/run_1_test_hzy_2_6501_38.pkl'
+filepath = 'G:/Datasets/SZFace2/EEG/pkl_ave/run_1_test_hzy_66_195501_38.pkl'
+t = np.arange(0, 2, 1.0/1000)
+with open(filepath, 'rb') as f:
+    x = pickle.load(f)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
+    print('xxxx', np.shape(x))
+    y = int(pickle.load(f))
 
-    cwtmatrs = np.real(tfr)
-    print(np.shape(cwtmatrs))
-    plt.imshow(np.real(cwtmatrs[0]), extent=[1, 1024, 1, 97], cmap='PRGn', aspect='auto',
-               vmax=abs(cwtmatrs[0]).max(), vmin=-abs(cwtmatrs[0]).max())
+    cwtmatr, freqs = signal2spectrum_pywt_cwt(x[:, 0], totalscal=40, wavelet='cmor4.0-20.0')
+    cwtmatr = np.real(cwtmatr)
+    print(freqs)
+    print(cwtmatr)
+
+    plt.contourf(t, np.arange(41, 1, -1), abs(cwtmatr))
+
+    # cwtmatr = signal2spectrum_stft(x[:, 0])
+    # image = Image.fromarray(np.uint8(abs(cwtmatr)))
+    # plt.imshow(image)
+
     plt.show()
-    return cwtmatrs
+
 
 
 # def pywt_dwt(signal):
@@ -112,16 +137,6 @@ def cwt_on_sample(sample):
 #     fig.colorbar(im, cax=cbar_ax, orientation="vertical")
 #     plt.show()
 
-
-# from pre_process.time_frequency import  *
-# N = np.shape(signal)[0]
-# t0 = 0
-# dt = 0.25
-# time = np.arange(0, N)
-# scales = np.arange(0, 96)
-# plot_signal_plus_average(time, signal)
-# # plot_fft_plus_power(time, signal)
-# plot_wavelet(time, signal, scales)
 
 # def get_ave_values(xvalues, yvalues, n = 5):
 #     signal_length = len(xvalues)
