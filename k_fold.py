@@ -51,7 +51,7 @@ torch.cuda.set_device(7)
 batch_size = 64
 n_epoch = 30
 k = 7
-lr = 0.001
+lr = 0.1
 
 id_exp = 'stft_bs64lr_d03-7fold'
 # path = '../../Datasets/pkl_ave'

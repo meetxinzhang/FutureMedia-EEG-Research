@@ -12,9 +12,11 @@ from tqdm import tqdm
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
 import numpy as np
-from pre_process.difference import trial_average
-from pre_process.aep import azim_proj, gen_images
-from pre_process.time_frequency import signal2spectrum_stft
+from pre_process.difference import downsample
+# from pre_process.aep import azim_proj, gen_images
+from pre_process.time_frequency import signal2spectrum_pywt_cwt
+import torch
+from pre_process.cwt_torch import CWT
 
 parallel_jobs = 8
 
@@ -44,11 +46,18 @@ def thread_read_write(x, y, pos, pkl_filename):
     # locs_2d = np.array([azim_proj(e) for e in pos])
     # imgs = gen_images(locs=locs_2d, features=x, n_gridpoints=32, normalize=True).squeeze()  # [time, colors=1, W, H]
 
-    # wavelet
-    specs = []  # [127, f=40, t=101]
-    for i in range(0, 127):
-        spectrum = signal2spectrum_stft(x[:, i])  # [f=40, t=101]
-        specs.append(spectrum)
+    # time-spectrum
+    # x = downsample(x, ratio=4)
+    # specs = []  # [127, f=40, t=101]
+    # for i in range(0, 127):
+    #     # spectrum = signal2spectrum_stft(x[:, i])  # [f=40, t=101]
+    #     spectrum = signal2spectrum_pywt_cwt(x[:, i])  # [40, 2000]
+    #     specs.append(spectrum)
+
+    pycwt = CWT(dj=0.0625, dt=1/1000, fmin=1, fmax=40, output_format="Magnitude")
+    x = torch.tensor(x, dtype=torch.float32).permute(1, 0).unsqueeze(0)  # [1, c=127, t=2000]
+    specs = pycwt(x)  # [1, 127, f=80, 2000]
+    specs = specs.squeeze().numpy()  # [127, 80, 2000]
     # end
 
     with open(pkl_filename + '.pkl', 'wb') as file:
@@ -80,7 +89,7 @@ if __name__ == "__main__":
     # path = 'G:/Datasets/SZFace2/EEG/10-17'
     path = '../../../Datasets/sz_eeg'
     label_filenames = file_scanf(path, contains='run', endswith='.Markers')
-    go_through(label_filenames, pkl_path=path+'/pkl_stft/')
+    go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
 
 
 
