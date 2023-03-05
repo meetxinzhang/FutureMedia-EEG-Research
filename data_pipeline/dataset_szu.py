@@ -11,6 +11,7 @@ import pickle
 from utils.my_tools import file_scanf
 from torch.utils.data.dataloader import default_collate
 from pre_process.difference import downsample
+import numpy as np
 
 
 def collate_(batch):  # [b, 2], [x, y]
@@ -55,11 +56,14 @@ class ListDataset(torch.utils.data.Dataset):
             x = pickle.load(f)       # SZU: [t=2000, channels=127], Purdue: [512, 96]
             y = int(pickle.load(f))
 
+            # stft
+            x = np.array(x)  # [127, 40, 101]
+
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
-            x = x[:1024, :]               # SZU, [1000, 127]
+            # x = x[:1024, :]               # SZU, [1000, 127]
             # x = difference(x, fold=4)     # SZU, [500, 127]
             y = y-1                  # Ziyan He created EEG form
 
             assert 0 <= y <= 39
-        # return torch.tensor(x, dtype=torch.float).unsqueeze(0), torch.tensor(y, dtype=torch.long)
-        return torch.tensor(x, dtype=torch.float).permute(1, 2, 0).unsqueeze(0), torch.tensor(y, dtype=torch.long)
+        return torch.tensor(x, dtype=torch.float).unsqueeze(0), torch.tensor(y, dtype=torch.long)
+        # return torch.tensor(x, dtype=torch.float).permute(1, 2, 0).unsqueeze(0), torch.tensor(y, dtype=torch.long)

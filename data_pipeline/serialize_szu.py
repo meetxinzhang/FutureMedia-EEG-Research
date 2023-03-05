@@ -14,6 +14,7 @@ from utils.my_tools import file_scanf
 import numpy as np
 from pre_process.difference import trial_average
 from pre_process.aep import azim_proj, gen_images
+from pre_process.time_frequency import signal2spectrum_stft
 
 parallel_jobs = 8
 
@@ -38,13 +39,20 @@ def thread_read_write(x, y, pos, pkl_filename):
     [time, channels=127], y
     """
     assert np.shape(x) == (2000, 127)
+
     # AEP
-    # x = np.asarray(x)
-    locs_2d = np.array([azim_proj(e) for e in pos])
-    imgs = gen_images(locs=locs_2d, features=x, n_gridpoints=32, normalize=True).squeeze()  # [time, colors=1, W, H]
+    # locs_2d = np.array([azim_proj(e) for e in pos])
+    # imgs = gen_images(locs=locs_2d, features=x, n_gridpoints=32, normalize=True).squeeze()  # [time, colors=1, W, H]
+
+    # wavelet
+    specs = []  # [127, f=40, t=101]
+    for i in range(0, 127):
+        spectrum = signal2spectrum_stft(x[:, i])  # [f=40, t=101]
+        specs.append(spectrum)
     # end
+
     with open(pkl_filename + '.pkl', 'wb') as file:
-        pickle.dump(imgs, file)
+        pickle.dump(specs, file)
         pickle.dump(y, file)
 
 
@@ -72,7 +80,7 @@ if __name__ == "__main__":
     # path = 'G:/Datasets/SZFace2/EEG/10-17'
     path = '../../../Datasets/sz_eeg'
     label_filenames = file_scanf(path, contains='run', endswith='.Markers')
-    go_through(label_filenames, pkl_path=path+'/pkl_img32/')
+    go_through(label_filenames, pkl_path=path+'/pkl_stft/')
 
 
 

@@ -12,18 +12,15 @@ import einops
 import torch
 
 
-def signal2spectrum_stft(signal, n_fft=40, hop_length=20):
+def signal2spectrum_stft(signal, n_fft=78, hop_length=20):
     signal = torch.tensor(signal, dtype=torch.float)
-    y = torch.stft(signal, n_fft=n_fft, hop_length=hop_length, window=torch.hann_window(40),
+    y = torch.stft(signal, n_fft=n_fft, hop_length=hop_length, window=torch.hann_window(n_fft),
                    center=True, return_complex=True)
     y_real = torch.view_as_real(y)[:, :, 0]
-    return y_real  # [f, t]
+    return y_real.numpy()  # [f, t]
 
 
-def signal2spectrum_pywt_cwt(signal, totalscal=20, wavelet='cmor1.0-41.0'):
-    """
-    scale = 4 是对信号进行小波变换时所用尺度序列的长度(通常需要预先设定好)
-    """
+def signal2spectrum_pywt_cwt(signal, wavelet='morl'):
     # fc = pywt.central_frequency(wavelet)  # 计算小波函数的中心频率
     # cparam = 2 * fc * totalscal  # 常数c
     # # 可以用 *f = scale2frequency(wavelet, scale)/sampling_period 来确定物理频率大小。f的单位是赫兹，采样周期的单位为秒。
@@ -31,14 +28,11 @@ def signal2spectrum_pywt_cwt(signal, totalscal=20, wavelet='cmor1.0-41.0'):
 
     dt = 0.001  # 1000Hz
     fs = 1 / dt
-    interested = np.array(range(41, 1, -1))
+    interested = np.array(range(40, 0, -1))
     frequencies = interested / fs  # normalize
-    scale = pywt.frequency2scale(wavelet, frequencies)
-
-    print(scale)
-
-    cwtmatr, freqs = pywt.cwt(data=signal, scales=scale, wavelet=wavelet, sampling_period=0.001)
-    return cwtmatr, freqs  # [f, t]  [f]
+    scale = pywt.frequency2scale(wavelet=wavelet, freq=frequencies)
+    cwtmatr, _ = pywt.cwt(data=signal, scales=scale, wavelet=wavelet, sampling_period=0.001)
+    return np.real(cwtmatr)  # [f, t]
 
 
 # def cwt_on_sample(sample):
@@ -54,30 +48,29 @@ def signal2spectrum_pywt_cwt(signal, totalscal=20, wavelet='cmor1.0-41.0'):
 #     return cwtmatrs
 
 
-import pickle
-import numpy as np
-import PIL.Image as Image
-print(pywt.wavelist(family=None, kind='continuous'))
-# filepath = 'G:/Datasets/SZFace2/EEG/pkl_ave/run_1_test_hzy_2_6501_38.pkl'
-filepath = 'G:/Datasets/SZFace2/EEG/pkl_ave/run_1_test_hzy_66_195501_38.pkl'
-t = np.arange(0, 2, 1.0/1000)
-with open(filepath, 'rb') as f:
-    x = pickle.load(f)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
-    print('xxxx', np.shape(x))
-    y = int(pickle.load(f))
+if __name__ == "__main__":
+    import pickle
+    import numpy as np
+    import PIL.Image as Image
 
-    cwtmatr, freqs = signal2spectrum_pywt_cwt(x[:, 0], totalscal=40, wavelet='cmor4.0-20.0')
-    cwtmatr = np.real(cwtmatr)
-    print(freqs)
-    print(cwtmatr)
+    print(pywt.wavelist(family=None, kind='continuous'))
+    # filepath = 'G:/Datasets/SZFace2/EEG/pkl_ave/run_1_test_hzy_2_6501_38.pkl'
+    filepath = 'G:/Datasets/SZFace2/EEG/pkl_ave/run_1_test_hzy_66_195501_38.pkl'
+    t = np.arange(0, 2, 1.0 / 1000)
+    with open(filepath, 'rb') as f:
+        x = pickle.load(f)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
+        print('xxxx', np.shape(x))
+        y = int(pickle.load(f))
 
-    plt.contourf(t, np.arange(41, 1, -1), abs(cwtmatr))
+        # cwtmatr = signal2spectrum_pywt_cwt(x[:, 0])
+        # plt.contourf(t, np.arange(40, 0, -1), cwtmatr)
 
-    # cwtmatr = signal2spectrum_stft(x[:, 0])
-    # image = Image.fromarray(np.uint8(abs(cwtmatr)))
-    # plt.imshow(image)
+        cwtmatr = signal2spectrum_stft(x[:, 0])
+        image = Image.fromarray(np.uint8(abs(cwtmatr)))
+        plt.imshow(image)
 
-    plt.show()
+        print(np.shape(cwtmatr))
+        plt.show()
 
 
 

@@ -53,9 +53,9 @@ n_epoch = 30
 k = 7
 lr = 0.001
 
-id_exp = 'ct_bs64lr_d03-7fold'
+id_exp = 'stft_bs64lr_d03-7fold'
 # path = '../../Datasets/pkl_ave'
-path = '../../Datasets/sz_eeg/pkl_img32'
+path = '../../Datasets/sz_eeg/pkl_stft'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # k_fold = KFold(n_splits=k, shuffle=True)
@@ -78,8 +78,10 @@ if __name__ == '__main__':
 
         # ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
         # ff = EEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
-        ff = ConvTransformer(num_classes=40, channels=8, num_heads=2, E=16, F=32,
-                             size=32, T=1024, depth=1, drop=0.1).cuda()
+        # ff = ConvTransformer(num_classes=40, channels=8, num_heads=2, E=16, F=32,  # aep
+        #                      size=32, T=1024, depth=1, drop=0.1).cuda()
+        ff = ConvTransformer(num_classes=40, channels=12, num_heads=3, E=16, F=32,  # aep
+                             size=32, T=101, depth=2, drop=0.2).cuda()
         optimizer = torch.optim.SGD(ff.parameters(), lr=lr, momentum=0.9, weight_decay=0.001)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # 设定优优化器更新的时刻表
 
