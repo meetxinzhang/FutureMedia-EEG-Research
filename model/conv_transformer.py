@@ -77,7 +77,7 @@ class MHA(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.drop = nn.Dropout(drop)
 
-        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=271, dim_head=200, heads=None)
+        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=601, dim_head=1000, heads=None)  # print q for size
 
     def forward(self, x):
         # [b, c, p, t]
@@ -87,6 +87,7 @@ class MHA(nn.Module):
         k = rearrange(k, 'b h d p t -> b h (d t) p')
         v = rearrange(v, 'b h d p t -> b h p (d t)')
 
+        # print(q.size())  # print q for rel_pos_emb size
         dots = torch.matmul(q, k)  # [b, h, p, p]
         relative_position_bias = self.rel_pos_emb(q)  # [b, h, p, p],  q need [b, h, tokens, dim]
         dots += relative_position_bias
@@ -138,7 +139,7 @@ class ConvTransformer(nn.Module):
         self.elu = nn.ELU()
         self.pool = nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2), padding=0)
         self.fla = nn.Flatten(start_dim=1, end_dim=-1)
-        self.l1 = nn.Linear(in_features=4000, out_features=128)
+        self.l1 = nn.Linear(in_features=48000, out_features=128)
         self.l2 = nn.Linear(in_features=128, out_features=num_classes)
         self.d1 = nn.Dropout(p=drop)
         self.d2 = nn.Dropout(p=drop)

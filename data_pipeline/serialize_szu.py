@@ -54,10 +54,11 @@ def thread_read_write(x, y, pos, pkl_filename):
     #     spectrum = signal2spectrum_pywt_cwt(x[:, i])  # [40, 2000]
     #     specs.append(spectrum)
 
+    # cwt-torch
     pycwt = CWT(dj=0.0625, dt=1/1000, fmin=1, fmax=40, output_format="Magnitude")
     x = torch.tensor(x, dtype=torch.float32).permute(1, 0).unsqueeze(0)  # [1, c=127, t=2000]
-    specs = pycwt(x)  # [1, 127, f=80, 2000]
-    specs = specs.squeeze().numpy()  # [127, 80, 2000]
+    specs = pycwt(x)  # [1, 127, f=85, 2000]
+    specs = specs.squeeze().numpy()  # [127, 85, 2000]
     # end
 
     with open(pkl_filename + '.pkl', 'wb') as file:

@@ -29,7 +29,7 @@ def kfold_loader(path, k):
     # b = file_scanf(path, contains='test1016', endswith='.pkl')
     # random.shuffle(b)
     database = []
-    for i in range(0, 18):
+    for i in range(0, 9):
         files_list = file_scanf(path, contains='run_'+str(i)+'_', endswith='.pkl')
         # random.shuffle(files_list)  # shuffle the set by random
         database.append(files_list)
@@ -51,11 +51,11 @@ torch.cuda.set_device(7)
 batch_size = 64
 n_epoch = 30
 k = 7
-lr = 0.1
+lr = 0.01
 
-id_exp = 'stft_bs64lr_d03-7fold'
+id_exp = 'cwt_bs64lr_d03-7fold'
 # path = '../../Datasets/pkl_ave'
-path = '../../Datasets/sz_eeg/pkl_stft'
+path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # k_fold = KFold(n_splits=k, shuffle=True)
@@ -81,7 +81,7 @@ if __name__ == '__main__':
         # ff = ConvTransformer(num_classes=40, channels=8, num_heads=2, E=16, F=32,  # aep
         #                      size=32, T=1024, depth=1, drop=0.1).cuda()
         ff = ConvTransformer(num_classes=40, channels=12, num_heads=3, E=16, F=32,  # aep
-                             size=32, T=101, depth=2, drop=0.2).cuda()
+                             size=32, T=500, depth=2, drop=0.3).cuda()
         optimizer = torch.optim.SGD(ff.parameters(), lr=lr, momentum=0.9, weight_decay=0.001)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # 设定优优化器更新的时刻表
 
@@ -94,6 +94,7 @@ if __name__ == '__main__':
             for step, (x, label) in enumerate(train_loader):  # [b, 1, 500, 127], [b]
                 if x is None and label is None:
                     continue
+
                 loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
                 summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
                 summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
