@@ -6,13 +6,10 @@
 @desc:
 """
 import torch
-from train_test import train, test
-from torch.utils.tensorboard import SummaryWriter
 from torch.utils.data import DataLoader
 import time
-from data_pipeline.dataset_szu import SZUDataset, collate_
-from utils.my_tools import IterForever
-from model.field_flow_2 import LinearConv2DLayer
+from data_pipeline.dataset_szu import SZUDataset
+from modules.linear_conv2d import LinearConv2DLayer
 
 # from model.lrp_manager import ignite_relprop, generate_visualization
 # from utils.weight_init import get_state_dict
@@ -66,7 +63,7 @@ if __name__ == '__main__':
             x = x.cuda()
             ff.train()
             y = ff(x)  # [bs, 40]
-            print(y.size())
+            print('yyy', y.size())
 
             # loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
             # # lr = optimizer.param_groups[0]['lr']
