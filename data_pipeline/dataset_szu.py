@@ -34,9 +34,8 @@ class SZUDataset(torch.utils.data.Dataset):
             x = pickle.load(f)       # SZU: [t=2000, channels=127], Purdue: [512, 96]
             y = int(pickle.load(f))
 
-            # x = downsample(x, ratio=4)  # SZU, [500, 127]
             x = x[:, :, :1000]  # [127, 85, 1000]
-            x = x[:, :, ::4]  # [127, 85, 500]
+            x = x[:, :, ::2]  # [127, 85, 500]
             # x = difference(x, fold=4)     # SZU, [500, 127]
             y = y-1                  # Ziyan He created EEG form
 

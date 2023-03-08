@@ -145,7 +145,7 @@ class ConvTransformer(nn.Module):
         self.d2 = nn.Dropout(p=drop)
 
     def forward(self, x):
-        # [b, 1,  M, M, T]
+        # [b, 1, M, M, T]
         x = self.lfe(x)  # [b, c, p=m*m, T/2]
         ct = self.channel_token.expand(x.size()[0], -1, -1, -1).to(x.device)  # [b, c, 1, T/2]
         x = torch.cat((ct, x), dim=2)  # [b, c, 1+p, T/2]

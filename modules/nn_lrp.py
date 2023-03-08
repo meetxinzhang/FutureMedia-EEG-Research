@@ -61,7 +61,6 @@ class MultiHeadAttention(nn.Module):
         self.num_heads = num_heads
         dim_out = dim_out or dim_in
         head_dim = dim_out // num_heads
-        # NOTE scale factor was wrong in my original version, can set manually to be compat with prev weights
         self.scale = head_dim ** -0.5
 
         # A = Q*K^T

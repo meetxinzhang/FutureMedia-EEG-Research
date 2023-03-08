@@ -4,8 +4,8 @@
  @contact: 2250271011@email.szu.edu.cn
  @time: 2023/3/6 13:06
  @desc:
-   forked from https://github.com/MeetXinZhang/Spectrogram_frame-linear-network/blob/master/SFLN/linear_3d_layer.py
-   https://doi.org/10.1016/j.ecoinf.2019.101009
+   forked from https://github.com/MeetXinZhang/Spectrogram_frame-linear-network/blob/master/SFLN/linear_conv3d_layer.py
+   It was first proposed in my research https://doi.org/10.1016/j.ecoinf.2019.101009
 """
 
 import torch
@@ -13,7 +13,7 @@ import torch.nn as nn
 import einops
 
 
-class LinearConv2DLayer(nn.Module):
+class LinearConv2D(nn.Module):
     """
     see https://doi.org/10.1016/j.ecoinf.2019.101009 for the details
     """
@@ -49,7 +49,7 @@ class LinearConv2DLayer(nn.Module):
         nn.init.constant_(self.conv2d.weight, 1)
         self.relu = nn.LeakyReLU()
 
-    def _linear_conv_broadcasting(self, x, w, b=None):
+    def _linear_mul_broadcasting(self, x, w, b=None):
         x = x.unsqueeze(-4).expand(-1, -1, -1, self.n, -1, -1, -1)  # [b t g 1->n d f w]
         if not self.bias:
             return torch.mul(x, w)  # [b t g n d f w] ele-wise* [g n d f w] with broadcast of low memory cost
@@ -74,14 +74,14 @@ class LinearConv2DLayer(nn.Module):
             the_bias = einops.rearrange(self.add_bias, '(g n) d f w -> g n d f w', g=self.g, n=self.n)
 
         try:
-            y = self._linear_conv_broadcasting(x, w, b=the_bias)
+            y = self._linear_mul_broadcasting(x, w, b=the_bias)
             del x
 
         except MemoryError:
             print(' Out of memory, For loop replaced.')
-            y = self._linear_conv_broadcasting(x[0].unsqueeze(0), w, b=the_bias)
+            y = self._linear_mul_broadcasting(x[0].unsqueeze(0), w, b=the_bias)
             for i in range(1, b):  # one or multi x depends on the memory
-                temp = self._linear_conv_broadcasting(x[i].unsqueeze(0), w, b=the_bias)
+                temp = self._linear_mul_broadcasting(x[i].unsqueeze(0), w, b=the_bias)
                 y = torch.cat((y, temp), dim=0)  # [1++ t g n d f w]
                 del temp, x
 
