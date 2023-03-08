@@ -88,10 +88,14 @@ def rel_pos_emb_1d(q, rel_emb, shared_heads):
        rel_emb: a 2D or 3D tensor
        of shape [ 2*tokens-1 , dim] or [ heads, 2*tokens-1 , dim]
    """
-    if shared_heads:
-        emb = torch.einsum('b h t d, r d -> b h t r', q, rel_emb)
-    else:
-        emb = torch.einsum('b h t d, h r d -> b h t r', q, rel_emb)
+    try:
+        if shared_heads:
+            emb = torch.einsum('b h t d, r d -> b h t r', q, rel_emb)
+        else:
+            emb = torch.einsum('b h t d, h r d -> b h t r', q, rel_emb)
+    except RuntimeError as e:
+        print('!!!\n   Please check the tokens and dim_head in RelPosEmb1DAISummer class object')
+        emb = None
     return rel_to_abs(emb)
 
 

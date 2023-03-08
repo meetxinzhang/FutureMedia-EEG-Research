@@ -22,8 +22,8 @@ def collate_(batch):  # [b, 2], [x, y]
 
 
 class SZUDataset(torch.utils.data.Dataset):
-    def __init__(self, path, contains='run_', endswith='.pkl'):
-        self.filepaths = file_scanf(path, contains=contains, endswith=endswith)
+    def __init__(self, path, condition='run_', endswith='.pkl'):
+        self.filepaths = file_scanf(path, contains=condition, endswith=endswith)
 
     def __len__(self):  # called by torch.utils.data.DataLoader
         return len(self.filepaths)
@@ -58,6 +58,7 @@ class ListDataset(torch.utils.data.Dataset):
 
             # stft  [127, 40, 101]
             # x = np.array(x)  # [127, 40, 101]
+
             # cwt # [127, 85, 2000]
             x = x[:, :, :1000]  # [127, 85, 1000]
             x = x[:, :, ::2]  # [127, 85, 500]
@@ -68,5 +69,5 @@ class ListDataset(torch.utils.data.Dataset):
             y = y-1                  # Ziyan He created EEG form
 
             assert 0 <= y <= 39
-        return torch.tensor(x, dtype=torch.float).unsqueeze(0), torch.tensor(y, dtype=torch.long)
+        return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
         # return torch.tensor(x, dtype=torch.float).permute(1, 2, 0).unsqueeze(0), torch.tensor(y, dtype=torch.long)

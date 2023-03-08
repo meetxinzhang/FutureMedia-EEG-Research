@@ -17,7 +17,8 @@ import time
 from data_pipeline.dataset_szu import ListDataset
 # from model.eeg_net import EEGNet
 # from model.eeg_net import ComplexEEGNet
-from model.conv_transformer import ConvTransformer
+# from model.conv_transformer import ConvTransformer
+from model.field_flow_2 import FieldFlow2
 from utils.my_tools import IterForever
 # random.seed = 2022
 # torch.manual_seed(2022)
@@ -48,12 +49,12 @@ def kfold_loader(path, k):
 
 
 torch.cuda.set_device(7)
-batch_size = 64
+batch_size = 16
 n_epoch = 30
 k = 7
 lr = 0.01
 
-id_exp = 'cwt_bs64lr_d03-7fold'
+id_exp = 'cwt_ff2_200e003l32b'
 # path = '../../Datasets/pkl_ave'
 path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
@@ -80,10 +81,11 @@ if __name__ == '__main__':
         # ff = EEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
         # ff = ConvTransformer(num_classes=40, channels=8, num_heads=2, E=16, F=32,  # aep
         #                      size=32, T=1024, depth=1, drop=0.1).cuda()
-        ff = ConvTransformer(num_classes=40, channels=12, num_heads=3, E=16, F=32,  # aep
-                             size=32, T=500, depth=2, drop=0.3).cuda()
+        # ff = ConvTransformer(num_classes=40, channels=12, num_heads=3, E=16, F=32,  # aep
+        #                      size=32, T=500, depth=2, drop=0.3).cuda()
+        ff = FieldFlow2(channels=127).cuda()
         optimizer = torch.optim.SGD(ff.parameters(), lr=lr, momentum=0.9, weight_decay=0.001)
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # 设定优优化器更新的时刻表
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.4)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}')
         print(train_num, len(test_files), '--------------------------------')

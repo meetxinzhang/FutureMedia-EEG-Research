@@ -6,6 +6,7 @@ import torch.nn as nn
 from einops import rearrange
 from modules.layers_Chefer_H import *
 from utils.my_tools import to_2tuple
+from utils.pos_embed import RelPosEmb1DAISummer
 
 
 def compute_rollout_attention(all_layer_matrices, start_layer=0, true_bs=None):
@@ -56,12 +57,15 @@ class Mlp(nn.Module):
 
 
 class MultiHeadAttention(nn.Module):
-    def __init__(self, dim_in, dim_out=None, num_heads=8, qkv_bias=False, attn_drop=0., proj_drop=0.):
+    def __init__(self, tokens, dim_in, dim_out=None, num_heads=8, qkv_bias=False, rel_pos=True, attn_drop=0., proj_drop=0.):
         super().__init__()
         self.num_heads = num_heads
         dim_out = dim_out or dim_in
         head_dim = dim_out // num_heads
         self.scale = head_dim ** -0.5
+
+        # print q for tokens when Runtime Error at pos_emb
+        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=tokens, dim_head=head_dim, heads=None) if rel_pos else None
 
         # A = Q*K^T
         self.matmul1 = einsum('bhid,bhjd->bhij')
@@ -80,36 +84,6 @@ class MultiHeadAttention(nn.Module):
         self.v_cam = None
         self.attn_gradients = None
 
-    def get_attn(self):
-        return self.attn
-
-    def save_attn(self, attn):
-        self.attn = attn
-
-    def save_attn_cam(self, cam):
-        self.attn_cam = cam
-
-    def get_attn_cam(self):
-        return self.attn_cam
-
-    def get_v(self):
-        return self.v
-
-    def save_v(self, v):
-        self.v = v
-
-    def save_v_cam(self, cam):
-        self.v_cam = cam
-
-    def get_v_cam(self):
-        return self.v_cam
-
-    def save_attn_gradients_hook(self, attn_gradients):
-        self.attn_gradients = attn_gradients
-
-    def get_attn_gradients(self):
-        return self.attn_gradients
-
     def forward(self, x):
         b, t, _, = x.shape  # [b, t, dim]
         qkv = self.qkv_linear(x)  # [b, t, dim_in] -> [b, t, dim_out*3]
@@ -119,6 +93,10 @@ class MultiHeadAttention(nn.Module):
 
         dots = self.matmul1([q, k]) * self.scale
 
+        if self.rel_pos_emb is not None:
+            # print(q.size(), ' Please check the tokens number of pos_emb when Runtime Error')
+            relative_position_bias = self.rel_pos_emb(q)  # [b, h, p, p],  q need [b, h, tokens, dim]
+            dots += relative_position_bias
         attn = self.softmax(dots)
         attn = self.attn_drop(attn)
 
@@ -170,14 +148,44 @@ class MultiHeadAttention(nn.Module):
         # [b, t, dim*3]
         return self.qkv_linear.relprop(cam_qkv, **kwargs)  # [b, t, dim]
 
+    def get_attn(self):
+        return self.attn
+
+    def save_attn(self, attn):
+        self.attn = attn
+
+    def save_attn_cam(self, cam):
+        self.attn_cam = cam
+
+    def get_attn_cam(self):
+        return self.attn_cam
+
+    def get_v(self):
+        return self.v
+
+    def save_v(self, v):
+        self.v = v
+
+    def save_v_cam(self, cam):
+        self.v_cam = cam
+
+    def get_v_cam(self):
+        return self.v_cam
+
+    def save_attn_gradients_hook(self, attn_gradients):
+        self.attn_gradients = attn_gradients
+
+    def get_attn_gradients(self):
+        return self.attn_gradients
+
 
 class Block(nn.Module):
 
-    def __init__(self, dim, num_heads, mlp_dilator=4., qkv_bias=False, drop=0., attn_drop=0.):
+    def __init__(self, tokens, dim, num_heads, mlp_dilator=4., qkv_bias=False, rel_pos=True, drop=0., attn_drop=0.):
         super().__init__()
         self.norm1 = LayerNorm(dim, eps=1e-6)
-        self.attn = MultiHeadAttention(
-            dim, num_heads=num_heads, qkv_bias=qkv_bias, attn_drop=attn_drop, proj_drop=drop)
+        self.attn = MultiHeadAttention(tokens=tokens, dim_in=dim, num_heads=num_heads, qkv_bias=qkv_bias,
+                                       rel_pos=rel_pos, attn_drop=attn_drop, proj_drop=drop)
         self.norm2 = LayerNorm(dim, eps=1e-6)
         mlp_hidden_dim = int(dim * mlp_dilator)
         self.mlp = Mlp(in_features=dim, hidden_features=mlp_hidden_dim, drop=drop)

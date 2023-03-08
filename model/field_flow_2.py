@@ -9,6 +9,7 @@
 import torch
 from torch import nn
 from modules.linear_conv2d import LinearConv2D
+from modules.nn_lrp import Block
 import einops
 
 
@@ -44,9 +45,13 @@ class FieldFlow2(nn.Module):
         self.fla = nn.Flatten(start_dim=1, end_dim=-1)
 
         # b c f t
-        self.tf = nn.TransformerEncoder(encoder_layer=nn.TransformerEncoderLayer(
-            d_model=84, nhead=4, dim_feedforward=128, dropout=0.3, batch_first=True, norm_first=True), num_layers=1)
+        self.channel_token = nn.Parameter(torch.zeros(1, 1, 84))  # [1, 1, d]
+        self.tf_blocks = nn.ModuleList([
+            Block(tokens=128, dim=84, num_heads=4, mlp_dilator=2, rel_pos=True, drop=0.3, attn_drop=0.1)
+            for _ in range(1)])
+
         self.ch_embed = nn.Parameter(torch.zeros(1, channels, 84))
+        # self.channel_token = nn.Parameter(torch.zeros(1, 1, self.d))  # [1, 1, d]
 
         self.apply(_init_weights)
 
@@ -58,9 +63,11 @@ class FieldFlow2(nn.Module):
 
         _t = x.size()[-1]
         x = einops.rearrange(x, 'b (g d) f t -> (b t) g (f d)', g=self.c, d=4)  # [bt 127 84]
-        ch_embed = self.ch_embed.expand(b * _t, -1, -1)
-        x = torch.add(x, ch_embed)
-        x = self.tf(x)  # (b t) g (f d)
+        channel_tokens = self.channel_token.expand(b*_t, -1, -1)  # [1 1 d] -> [bt 1 d]
+        x = torch.cat((channel_tokens, x), dim=1)  # [bt 1 d] + [bt 127 d]  -> [bt 1+127 d]
+        for blk in self.tf_blocks:
+            x = blk(x)  # (b t) g (f d)
+        x = torch.index_select(x, dim=1, index=torch.LongTensor(range(0, self.c)).cuda())
         x = einops.rearrange(x, '(b t) g (f d) -> b (g d) f t', b=b, t=_t, f=f, d=4)  # [2, 508, 21, 84]
 
         x = self.lc3(x)  # [2, 254, 20, 42]

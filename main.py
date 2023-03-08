@@ -8,6 +8,7 @@
 import torch
 from torch.utils.data import DataLoader
 import time
+from utils.my_tools import file_scanf
 from data_pipeline.dataset_szu import SZUDataset
 from model.field_flow_2 import FieldFlow2
 from train_test import train, test
@@ -16,12 +17,12 @@ from utils.my_tools import IterForever
 # from model.lrp_manager import ignite_relprop, generate_visualization
 # from utils.weight_init import get_state_dict
 
-# torch.cuda.set_device(6)
-batch_size = 2
+torch.cuda.set_device(6)
+batch_size = 32
 n_epoch = 200
 lr = 0.003
 
-id_experiment = '_2000e03l-82test'
+id_experiment = 'ff2_200e003l32b'
 t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
 # ff = FieldFlow(dim=96, num_heads=6, mlp_dilator=2, qkv_bias=False, drop_rate=0.2, attn_drop_rate=0.2,
@@ -31,13 +32,15 @@ t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 # ff = ComplexEEGNet(classes_num=40, drop_out=0.25).cuda()
 
 # summary = SummaryWriter(log_dir='./log/' + t_experiment + id_experiment + '/')
+
+
 if __name__ == '__main__':
-    train_set = SZUDataset(path='G:/Datasets/SZUEEG/EEG/pkl_cwt_torch', contains='run_6', endswith='.pkl')
+    train_set = SZUDataset(path='/data0/zhangxin/Datasets/sz_eeg/pkl_cwt_torch', condition='run_', endswith='.pkl')
     total_train = train_set.__len__()
     print(total_train, ' training')
     loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
-    val_set = SZUDataset(path='G:/Datasets/SZUEEG/EEG/pkl_cwt_torch', contains='test', endswith='.pkl')
+    val_set = SZUDataset(path='/data0/zhangxin/Datasets/sz_eeg/pkl_cwt_torch', condition='test', endswith='.pkl')
     total_val = val_set.__len__()
     print(total_val, ' validation')
     val_loader = DataLoader(val_set, batch_size=batch_size, num_workers=1, shuffle=True, drop_last=True)
