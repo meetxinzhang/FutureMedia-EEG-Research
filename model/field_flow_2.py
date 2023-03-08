@@ -40,6 +40,8 @@ class LinearConv2DLayer(nn.Module):
         if bias:
             self.add_bias = nn.Parameter(torch.empty(out_channels, self.d, self.e, self.w))
             nn.init.xavier_uniform_(self.add_bias)
+        else:
+            self.add_bias = None
 
         self.conv2d = nn.Conv2d(in_channels=self.d, out_channels=1,
                                 kernel_size=(activate_height, self.w),
@@ -47,50 +49,46 @@ class LinearConv2DLayer(nn.Module):
         nn.init.constant_(self.conv2d.weight, 1)
         self.relu = nn.LeakyReLU()
 
+    def _linear_conv_broadcasting(self, x, w, b=None):
+        x = x.unsqueeze(-4).expand(-1, -1, -1, self.n, -1, -1, -1)  # [b t g 1->n d f w]
+        if not self.bias:
+            return torch.mul(x, w)  # [b t g n d f w] ele-wise* [g n d f w] with broadcast of low memory cost
+        else:
+            return torch.add(torch.mul(x, w), b)  # addition with broadcast
+
     def forward(self, x):
         [b, c, f, t] = x.size()  # [b t c f]
         assert c == self.c
         assert f == self.e
 
-        pad_1 = torch.zeros(b, c, f, self.w // 2).cuda()
-        x = torch.concat([pad_1, x, pad_1], dim=-1)  # [b c f t++]
+        pad_width = ((t-1)*self.ks-t+self.w)  # calculate the padding
+        pad_1 = torch.zeros(b, c, f, pad_width//2).cuda()
+        pad_2 = torch.zeros(b, c, f, (pad_width+1)//2).cuda()
+        x = torch.concat([pad_1, x, pad_2], dim=-1)  # [b c f t++]
 
         x = x.unfold(dimension=-1, size=self.w, step=self.ks)  # [b c f t w]
-        print(x.size(), 'tttttttt')
         x = einops.rearrange(x, 'b (g d) f t w -> b t g d f w', g=self.g, d=self.d)
         w = einops.rearrange(self.weight, '(g n) d f w -> g n d f w', g=self.g, n=self.n)
+        the_bias = None
         if self.bias:
-            bias = einops.rearrange(self.add_bias, '(g n) d f w -> g n d f w', g=self.g, n=self.n)
+            the_bias = einops.rearrange(self.add_bias, '(g n) d f w -> g n d f w', g=self.g, n=self.n)
 
         try:
-            x = x.unsqueeze(3).expand(-1, -1, -1, self.n, -1, -1, -1)  # [b t g 1->n d f w]
-            x = torch.mul(x, w)  # [b t g n d f w] ele-wise* [g n d f w] with broadcast of low memory cost
-            if self.bias:
-                x = torch.add(x, bias)
+            y = self._linear_conv_broadcasting(x, w, b=the_bias)
+            del x
 
         except MemoryError:
             print(' Out of memory, For loop replaced.')
-            x = x.unsqueeze(3)  # [b t g 1 d f w]
-            # [t g 1->n d f w] ele-wise* [g n d f w] -> [t g n d f w] with broadcast of low memory cost
-            y = torch.mul(x[0].expand(-1, -1, self.n, -1, -1, -1), w)  # [t g n d f w]
-            if self.bias:
-                y = torch.add(y, bias)
-            y.unsqueeze(0)  # [1 t g n d f w]
-            for i in range(1, b):
-                temp = torch.add(y, torch.mul(x[i].expand(-1, -1, self.n, -1, -1, -1), w))  # [t g n d f w]
-                if self.bias:
-                    temp = torch.add(y, bias)  # [t g n d f w]
-                temp.unsqueeze(0)  # [1 t g n d f w]
+            y = self._linear_conv_broadcasting(x[0].unsqueeze(0), w, b=the_bias)
+            for i in range(1, b):  # one or multi x depends on the memory
+                temp = self._linear_conv_broadcasting(x[i].unsqueeze(0), w, b=the_bias)
                 y = torch.cat((y, temp), dim=0)  # [1++ t g n d f w]
-                del temp
+                del temp, x
 
-        x = einops.rearrange(x, 'b t g n d f w -> b t (g n) d f w')  # [b t out_c d f w]
-        print(x.size(), 'qqqqqqqq')
-        x = einops.rearrange(x, 'b t o d f w -> (b t o) d f w')  # [m d f w]
-        print(x.size(), 'aaa')
-        x = self.conv2d(x)  # [m 1 1+f-height//s w/w]  [m 1 f' 1]
-        x = self.relu(x).squeeze()  # [m f']
-        print(x.size(), 'bbb')
-        x = einops.rearrange(x, '(b t o) f -> b o f t', b=b, t=t, o=self.o)
+        y = einops.rearrange(y, 'b t g n d f w -> b t (g n) d f w')  # [b t out_c d f w]
+        y = einops.rearrange(y, 'b t o d f w -> (b t o) d f w')  # [m d f w]
+        y = self.conv2d(y)  # [m 1 1+f-height//s w/w]  [m 1 f' 1]
+        y = self.relu(y).squeeze()  # [m f']
+        y = einops.rearrange(y, '(b t o) f -> b o f t', b=b, t=t, o=self.o)
 
-        return x
+        return y

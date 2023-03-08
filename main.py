@@ -49,7 +49,7 @@ if __name__ == '__main__':
     loader = DataLoader(train_set, batch_size=2, shuffle=True, drop_last=True)
 
     ff = LinearConv2DLayer(input_channels=127, out_channels=254, groups=127,
-                           embedding=85, kernel_width=3, kernel_stride=1,
+                           embedding=85, kernel_width=3, kernel_stride=2,
                            activate_height=2, activate_stride=2).cuda()
     optimizer = torch.optim.AdamW(ff.parameters(), lr=0.0003, betas=(0.9, 0.98), eps=1e-9)
 
