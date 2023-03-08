@@ -61,7 +61,6 @@ if __name__ == '__main__':
             # y = ff(x)  # [bs, 40]
 
             loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
-            lr_scheduler.step()
             lr = optimizer.param_groups[0]['lr']
             # summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
             # summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
@@ -82,7 +81,8 @@ if __name__ == '__main__':
             #     generate_visualization(x[0].squeeze(), cam.squeeze(),
             #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
 
-        # step = 0
+        step = 0
+        lr_scheduler.step()
     # torch.save(ff.state_dict(), 'log/checkpoint/' + t_experiment + id_experiment + '.pkl')
     # summary.flush()
     # summary.close()
