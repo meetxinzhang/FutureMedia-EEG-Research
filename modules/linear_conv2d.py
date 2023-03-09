@@ -37,16 +37,17 @@ class LinearConv2D(nn.Module):
 
         self.weight = nn.Parameter(torch.empty(out_channels, self.d, self.e, self.w))  # [o d e w]
         nn.init.xavier_uniform_(self.weight)
+
+        self.add_bias = None
         if bias:
             self.add_bias = nn.Parameter(torch.empty(out_channels, self.d, self.e, self.w))
             nn.init.xavier_uniform_(self.add_bias)
-        else:
-            self.add_bias = None
 
         self.conv2d = nn.Conv2d(in_channels=self.d, out_channels=1,
                                 kernel_size=(activate_height, self.w),
                                 stride=(activate_stride, 1), padding='valid', bias=False).requires_grad_(False)
         nn.init.constant_(self.conv2d.weight, 1)
+        self.bn = nn.BatchNorm3d(num_features=self.o, momentum=0.05)
         self.relu = nn.LeakyReLU()
 
     def _linear_mul_broadcasting(self, x, w, b=None):
@@ -69,26 +70,26 @@ class LinearConv2D(nn.Module):
         t = x.size(-2)
         x = einops.rearrange(x, 'b (g d) f t w -> b t g d f w', g=self.g, d=self.d)
         w = einops.rearrange(self.weight, '(g n) d f w -> g n d f w', g=self.g, n=self.n)
-        the_bias = None
-        if self.bias:
-            the_bias = einops.rearrange(self.add_bias, '(g n) d f w -> g n d f w', g=self.g, n=self.n)
+        the_b = einops.rearrange(self.add_bias, '(g n) d f w -> g n d f w', g=self.g, n=self.n) if self.bias else None
 
         try:
-            y = self._linear_mul_broadcasting(x, w, b=the_bias)
+            y = self._linear_mul_broadcasting(x, w, b=the_b)
             del x
 
         except MemoryError:
             print(' Out of memory, For loop replaced.')
-            y = self._linear_mul_broadcasting(x[0].unsqueeze(0), w, b=the_bias)
-            for i in range(1, b):  # one or multi x depends on the memory
-                temp = self._linear_mul_broadcasting(x[i].unsqueeze(0), w, b=the_bias)
+            y = self._linear_mul_broadcasting(x[0].unsqueeze(0), w, b=the_b)
+            mini_b = 4  # must keep b % mini_b = 0
+            for i in range(1, b, mini_b):  # one or multi x depends on the memory
+                temp = self._linear_mul_broadcasting(x[i:i+mini_b-1].unsqueeze(0), w, b=the_b)
                 y = torch.cat((y, temp), dim=0)  # [1++ t g n d f w]
                 del temp, x
 
-        y = einops.rearrange(y, 'b t g n d f w -> b t (g n) d f w')  # [b t out_c d f w]
-        y = einops.rearrange(y, 'b t o d f w -> (b t o) d f w')  # [m d f w]
+        y = einops.rearrange(y, 'b t g n d f w -> b (g n) d f (t w)')  # [b out_c d f (t w)]
+        y = self.bn(y)
+        y = einops.rearrange(y, 'b o d f (t w) -> (b o t) d f w', t=t, w=self.w)  # [m d f w]
         y = self.conv2d(y)  # [m 1 1+f-height//s w/w]  [m 1 f' 1]
-        y = self.relu(y).squeeze()  # [m f']
-        y = einops.rearrange(y, '(b t o) f -> b o f t', b=b, t=t, o=self.o)
+        y = self.relu(y).squeeze(1).squeeze(-1)  # [m f']
+        y = einops.rearrange(y, '(b o t) f -> b o f t', b=b, t=t, o=self.o)
 
         return y

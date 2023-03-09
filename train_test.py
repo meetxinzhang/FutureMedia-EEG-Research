@@ -43,6 +43,27 @@ def train(model, x, label, optimizer, batch_size, cal_acc=False):
     return loss, accuracy/batch_size
 
 
+def train_accumulate(model, x, label, optimizer, batch_size, step, accumulation, cal_acc=False):
+    x = x.cuda()
+    label = label.cuda()
+
+    model.train()
+    y = model(x)  # [bs, 40]
+    loss = F.cross_entropy(y, label) / accumulation
+    loss.backward()
+
+    if (step + 1) % accumulation == 0:
+        optimizer.step()
+        optimizer.zero_grad()
+
+    accuracy = None
+    if cal_acc:
+        corrects = (torch.argmax(y, dim=1).data == label.data)
+        accuracy = corrects.cpu().int().sum().numpy()
+
+    return loss, accuracy/batch_size
+
+
 def test(model, x, label, batch_size):
     x = x.cuda()
     label = label.cuda()

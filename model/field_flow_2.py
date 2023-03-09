@@ -24,7 +24,7 @@ def _init_weights(m):
 
 
 class FieldFlow2(nn.Module):
-    def __init__(self, channels=127):
+    def __init__(self, channels=127, early_drop=0.3, late_drop=0.1):
         super().__init__()
         self.c = channels
 
@@ -34,20 +34,22 @@ class FieldFlow2(nn.Module):
         self.lc2 = LinearConv2D(input_channels=254, out_channels=508, groups=channels,
                                 embedding=42, kernel_width=7, kernel_stride=2,
                                 activate_height=2, activate_stride=2)
-        self.lc3 = LinearConv2D(input_channels=508, out_channels=254, groups=channels,
+        self.lc3 = LinearConv2D(input_channels=4, out_channels=8, groups=1,
                                 embedding=21, kernel_width=7, kernel_stride=2,
-                                activate_height=2, activate_stride=1)
-        self.lc4 = LinearConv2D(input_channels=254, out_channels=127, groups=channels,
-                                embedding=20, kernel_width=7, kernel_stride=2,
-                                activate_height=2, activate_stride=1)
-        self.l1 = nn.Linear(in_features=50673, out_features=128)
+                                activate_height=9, activate_stride=3)
+        self.lc4 = LinearConv2D(input_channels=8, out_channels=16, groups=1,
+                                embedding=5, kernel_width=5, kernel_stride=2,
+                                activate_height=5, activate_stride=1)
+        self.l1 = nn.Linear(in_features=336, out_features=128)
         self.l2 = nn.Linear(in_features=128, out_features=40)
         self.fla = nn.Flatten(start_dim=1, end_dim=-1)
+        self.drop1 = nn.Dropout(p=early_drop)
+        self.drop2 = nn.Dropout(p=late_drop)
 
         # b c f t
         self.channel_token = nn.Parameter(torch.zeros(1, 1, 84))  # [1, 1, d]
         self.tf_blocks = nn.ModuleList([
-            Block(tokens=128, dim=84, num_heads=4, mlp_dilator=2, rel_pos=True, drop=0.3, attn_drop=0.1)
+            Block(tokens=128, dim=84, num_heads=4, mlp_dilator=2, rel_pos=True, drop=early_drop, attn_drop=0.1)
             for _ in range(1)])
 
         self.ch_embed = nn.Parameter(torch.zeros(1, channels, 84))
@@ -58,7 +60,9 @@ class FieldFlow2(nn.Module):
     def forward(self, x):
         # [b c=127 f=85 t=500]
         x = self.lc1(x)  # [b 254 42 167]
+        x = self.drop1(x)
         x = self.lc2(x)  # [b 508 21 83]
+        x = self.drop1(x)
         [b, _, f, _] = x.size()
 
         _t = x.size()[-1]
@@ -67,14 +71,18 @@ class FieldFlow2(nn.Module):
         x = torch.cat((channel_tokens, x), dim=1)  # [bt 1 d] + [bt 127 d]  -> [bt 1+127 d]
         for blk in self.tf_blocks:
             x = blk(x)  # (b t) g (f d)
-        x = torch.index_select(x, dim=1, index=torch.LongTensor(range(0, self.c)).cuda())
-        x = einops.rearrange(x, '(b t) g (f d) -> b (g d) f t', b=b, t=_t, f=f, d=4)  # [2, 508, 21, 84]
 
-        x = self.lc3(x)  # [2, 254, 20, 42]
-        x = self.lc4(x)  # [2, 127, 19, 21]
+        # x = torch.index_select(x, dim=1, index=torch.LongTensor(range(0, self.c)).cuda())
+        # x = einops.rearrange(x, '(b t) g (f d) -> b (g d) f t', b=b, t=_t, f=f, d=4)  # [b, 508, 21, 84]
+        x = torch.select(x, dim=1, index=0).squeeze()  # (b t) 1->_ (f d)
+        x = einops.rearrange(x, '(b t) (f d) -> b d f t', b=b, t=_t, f=f, d=4)  # [b, 4, 21, 84]
+
+        x = self.lc3(x)  # [b, 8, 5, 42]
+        x = self.drop2(x)
+        x = self.lc4(x)  # [b, 16, 1, 21]
 
         x = self.fla(x)
-        x = self.l1(x)
+        x = self.l1(self.drop2(x))
         x = self.l2(x)
 
         return x

@@ -11,7 +11,7 @@ from utils.my_tools import file_scanf
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from sklearn.model_selection import KFold
 import torch
-from train_test import train, test
+from train_test import train_accumulate, test
 from torch.utils.tensorboard import SummaryWriter
 import time
 from data_pipeline.dataset_szu import ListDataset
@@ -50,11 +50,12 @@ def kfold_loader(path, k):
 
 torch.cuda.set_device(7)
 batch_size = 16
-n_epoch = 30
+accumulation_steps = 4  # to accumulate gradient when you want to set larger batch_size but out of memory.
+n_epoch = 50
 k = 7
 lr = 0.01
 
-id_exp = 'cwt_ff2_200e003l32b'
+id_exp = 'cwt_ff2_200e01l64b'
 # path = '../../Datasets/pkl_ave'
 path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
@@ -83,7 +84,7 @@ if __name__ == '__main__':
         #                      size=32, T=1024, depth=1, drop=0.1).cuda()
         # ff = ConvTransformer(num_classes=40, channels=12, num_heads=3, E=16, F=32,  # aep
         #                      size=32, T=500, depth=2, drop=0.3).cuda()
-        ff = FieldFlow2(channels=127).cuda()
+        ff = FieldFlow2(channels=127, early_drop=0.5, late_drop=0.2).cuda()
         optimizer = torch.optim.SGD(ff.parameters(), lr=lr, momentum=0.9, weight_decay=0.001)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.4)  # 设定优优化器更新的时刻表
 
@@ -97,7 +98,8 @@ if __name__ == '__main__':
                 if x is None and label is None:
                     continue
 
-                loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
+                loss, acc = train_accumulate(ff, x, label, optimizer, batch_size=batch_size,
+                                             step=step, accumulation=accumulation_steps, cal_acc=True)
                 summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
                 summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
 
