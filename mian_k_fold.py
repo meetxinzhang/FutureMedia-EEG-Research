@@ -26,9 +26,6 @@ from utils.my_tools import IterForever
 
 
 def kfold_loader(path, k):
-    # a = file_scanf(path, contains='test1016', endswith='.pkl')
-    # b = file_scanf(path, contains='test1016', endswith='.pkl')
-    # random.shuffle(b)
     database = []
     for i in range(0, 9):
         files_list = file_scanf(path, contains='run_'+str(i)+'_', endswith='.pkl')
@@ -40,9 +37,9 @@ def kfold_loader(path, k):
         train_set = []
         test_set = []
         for inset in database:
-            klen = len(inset)//k
-            test_set += inset[p*klen:(p+1)*klen]
-            train_set += inset[:p*klen] + inset[(p+1)*klen:]
+            k_len = len(inset)//k
+            test_set += inset[p*k_len:(p+1)*k_len]
+            train_set += inset[:p*k_len] + inset[(p+1)*k_len:]
             assert len(test_set) > 0
         yield p, train_set, test_set
         p += 1
@@ -73,8 +70,8 @@ if __name__ == '__main__':
     #     valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
     #                               prefetch_factor=1)
     for (fold, train_files, test_files) in kfold_loader(path, k):
-        train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=4, shuffle=True)
-        valid_loader = DataLoader(ListDataset(test_files), batch_size=batch_size, num_workers=2, shuffle=True)
+        train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=2, shuffle=True)
+        valid_loader = DataLoader(ListDataset(test_files), batch_size=batch_size, num_workers=1, shuffle=True)
         val_iterable = IterForever(valid_loader)
         train_num = len(train_files)
 
@@ -84,7 +81,7 @@ if __name__ == '__main__':
         #                      size=32, T=1024, depth=1, drop=0.1).cuda()
         # ff = ConvTransformer(num_classes=40, channels=12, num_heads=3, E=16, F=32,  # aep
         #                      size=32, T=500, depth=2, drop=0.3).cuda()
-        ff = FieldFlow2(channels=127, early_drop=0.5, late_drop=0.2).cuda()
+        ff = FieldFlow2(channels=127, early_drop=0.3, late_drop=0.1).cuda()
         optimizer = torch.optim.SGD(ff.parameters(), lr=lr, momentum=0.9, weight_decay=0.001)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.4)  # 设定优优化器更新的时刻表
 

@@ -23,6 +23,15 @@ def _init_weights(m):
         nn.init.constant_(m.weight, 1.0)
 
 
+grads = {}
+
+
+def save_grad(name):
+    def hook(grad):
+        grads[name] = grad
+    return hook
+
+
 class FieldFlow2(nn.Module):
     def __init__(self, channels=127, early_drop=0.3, late_drop=0.1):
         super().__init__()
@@ -49,7 +58,7 @@ class FieldFlow2(nn.Module):
         # b c f t
         self.channel_token = nn.Parameter(torch.zeros(1, 1, 84))  # [1, 1, d]
         self.tf_blocks = nn.ModuleList([
-            Block(tokens=128, dim=84, num_heads=4, mlp_dilator=2, rel_pos=True, drop=early_drop, attn_drop=0.1)
+            Block(tokens=128, dim=84, num_heads=4, mlp_dilator=2, rel_pos=True, drop=early_drop, attn_drop=0)
             for _ in range(1)])
 
         self.ch_embed = nn.Parameter(torch.zeros(1, channels, 84))

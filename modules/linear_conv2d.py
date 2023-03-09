@@ -53,7 +53,7 @@ class LinearConv2D(nn.Module):
     def _linear_mul_broadcasting(self, x, w, b=None):
         x = x.unsqueeze(-4).expand(-1, -1, -1, self.n, -1, -1, -1)  # [b t g 1->n d f w]
         if not self.bias:
-            return torch.mul(x, w)  # [b t g n d f w] ele-wise* [g n d f w] with broadcast of low memory cost
+            return torch.mul(x, w)  # [b t g n d f w] ele-wise* [g n d f w] with broadcast
         else:
             return torch.add(torch.mul(x, w), b)  # addition with broadcast
 
@@ -64,7 +64,7 @@ class LinearConv2D(nn.Module):
 
         # pad_width = ((t-1)*self.ks-t+self.w)  # calculate the padding
         pad = torch.zeros(b, c, f, self.w//2).cuda()
-        x = torch.concat([pad, x, pad], dim=-1)  # [b c f t++]
+        x = torch.concat([pad, x, pad], dim=-1) # [b c f t++]
 
         x = x.unfold(dimension=-1, size=self.w, step=self.ks)  # [b c f t w]
         t = x.size(-2)
@@ -87,7 +87,8 @@ class LinearConv2D(nn.Module):
 
         y = einops.rearrange(y, 'b t g n d f w -> b (g n) d f (t w)')  # [b out_c d f (t w)]
         y = self.bn(y)
-        y = einops.rearrange(y, 'b o d f (t w) -> (b o t) d f w', t=t, w=self.w)  # [m d f w]
+        y = einops.rearrange(y, 'b o d f (t w) -> b o d f t w', t=t, w=self.w)  # [m d f w]
+        y = einops.rearrange(y, 'b o d f t w-> (b o t) d f w')  # [m d f w]
         y = self.conv2d(y)  # [m 1 1+f-height//s w/w]  [m 1 f' 1]
         y = self.relu(y).squeeze(1).squeeze(-1)  # [m f']
         y = einops.rearrange(y, '(b o t) f -> b o f t', b=b, t=t, o=self.o)

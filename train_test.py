@@ -8,6 +8,9 @@
 """
 import torch
 import torch.nn.functional as F
+from torch.cuda.amp import autocast, GradScaler
+
+scaler = GradScaler()
 
 
 # ----- Testing code start ----- Use following to test code without load data -----
@@ -22,6 +25,7 @@ import torch.nn.functional as F
 # _cam = ignite_relprop(model=ff, _x=_x[0].unsqueeze(0), index=_y[0])  # [1, 1, 500, 128]
 # generate_visualization(_x[0].squeeze(), _cam.squeeze())
 # ----- Testing code end-----------------------------------------------------------
+
 
 def train(model, x, label, optimizer, batch_size, cal_acc=False):
     x = x.cuda()
@@ -40,28 +44,33 @@ def train(model, x, label, optimizer, batch_size, cal_acc=False):
         corrects = (torch.argmax(y, dim=1).data == label.data)
         accuracy = corrects.cpu().int().sum().numpy()
 
-    return loss, accuracy/batch_size
+    return loss, accuracy / batch_size
 
 
 def train_accumulate(model, x, label, optimizer, batch_size, step, accumulation, cal_acc=False):
     x = x.cuda()
     label = label.cuda()
 
-    model.train()
-    y = model(x)  # [bs, 40]
-    loss = F.cross_entropy(y, label) / accumulation
-    loss.backward()
+    # forward pass with `autocast` context manager
+    with autocast(enabled=True):
+        model.train()
+        y = model(x)  # [bs, 40]
+        loss = F.cross_entropy(y, label) / accumulation
+
+    scaler.scale(loss).backward()  # scale gradient and perform backward pass
+    # scaler.unscale_(optimizer)  # before gradient clipping the optimizer parameters must be unscaled.
+    # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)  # perform optimization step
 
     if (step + 1) % accumulation == 0:
-        optimizer.step()
-        optimizer.zero_grad()
+        scaler.step(optimizer)
+        scaler.update()
 
     accuracy = None
     if cal_acc:
         corrects = (torch.argmax(y, dim=1).data == label.data)
         accuracy = corrects.cpu().int().sum().numpy()
 
-    return loss, accuracy/batch_size
+    return loss, accuracy / batch_size
 
 
 def test(model, x, label, batch_size):
@@ -75,5 +84,4 @@ def test(model, x, label, batch_size):
     corrects = (torch.argmax(y, dim=1).data == label.data)
     accuracy = corrects.cpu().int().sum().numpy()
 
-    return loss, accuracy/batch_size
-
+    return loss, accuracy / batch_size
