@@ -76,8 +76,8 @@ class LinearConv2D(nn.Module):
             y = self._linear_mul_broadcasting(x, w, b=the_b)
             del x
 
-        except MemoryError:
-            print(' Out of memory, For loop replaced.')
+        except RuntimeError:
+            print(' Out of memory, For loop ops replaced.')
             y = self._linear_mul_broadcasting(x[0].unsqueeze(0), w, b=the_b)
             mini_b = 4  # must keep b % mini_b = 0
             for i in range(1, b, mini_b):  # one or multi x depends on the memory
