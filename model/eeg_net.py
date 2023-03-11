@@ -180,11 +180,11 @@ class EEGNet(nn.Module):
             nn.Dropout(drop_out)
         )
 
-        self.out = nn.Linear((16 * 15), classes_num)
+        self.out = nn.Linear((16 * 16), classes_num)
 
     def forward(self, x):
-        x = x.transpose(2, 3)
-
+        x = x.transpose(2, 3)  # [b 1 c t]
+        # print('000000', x.shape)
         x = self.block_1(x)
         # print('11111111', x.shape)
         x = self.block_2(x)

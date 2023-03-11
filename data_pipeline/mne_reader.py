@@ -14,7 +14,8 @@ mne.set_log_level(verbose='WARNING')
 
 def get_electrode_pos(raw, kind='brainproducts-RNP-BA-128'):
     # montage = mne.channels.make_standard_montage(kind=kind, head_size='auto')
-    raw.set_montage('brainproducts-RNP-BA-128', match_alias=True, on_missing='warn')
+    # raw.set_montage('brainproducts-RNP-BA-128', match_alias=True, on_missing='warn')  # SZU
+    raw.set_montage(kind, match_alias=True, on_missing='warn')  # PD
     montage = raw.get_montage()
     pos_map = montage.get_positions()['ch_pos']  # ordered dict
     pos = np.array(list(pos_map.values()))
@@ -22,7 +23,8 @@ def get_electrode_pos(raw, kind='brainproducts-RNP-BA-128'):
 
 
 class MNEReader(object):
-    def __init__(self, filetype='edf', method='stim', resample=None, length=512, exclude=(), stim_channel='auto'):
+    def __init__(self, filetype='edf', method='stim', resample=None, length=512, exclude=(), stim_channel='auto',
+                 pos_kind=None):
         """
         @method: auto, stim, manual, default=stim
         @stim_channel: str. default=auto, in default case the stim_list is needed, and method=manual.
@@ -33,6 +35,7 @@ class MNEReader(object):
         self.length = length
         self.exclude = exclude
         self.stim_channel = stim_channel
+        self.pos_kind = pos_kind
         if stim_channel == 'auto':
             assert method == 'manual'
 
@@ -76,7 +79,8 @@ class MNEReader(object):
         # print(raw)
         # print(raw.info)
         # raw = raw.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
-        self.pos = get_electrode_pos(raw=raw)
+        if self.pos_kind is not None:
+            self.pos = get_electrode_pos(raw=raw, kind=self.pos_kind)
         if self.stim_channel == 'auto':
             if self.resample is not None:
                 raw = raw.resample(sfreq=self.resample)  # down sampling to 1024Hz

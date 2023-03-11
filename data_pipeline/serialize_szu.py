@@ -67,7 +67,7 @@ def thread_read_write(x, y, pos, pkl_filename):
 
 
 def go_through(label_filenames, pkl_path):
-    edf_reader = MNEReader(filetype='edf', method='manual', resample=None, length=2000)
+    edf_reader = MNEReader(filetype='edf', method='manual', length=2000, pos_kind='brainproducts-RNP-BA-128')
 
     for f in tqdm(label_filenames, desc=' Total', position=0, leave=True, colour='YELLOW', ncols=80):
         stim, y = ziyan_read(f)  # [frame_point], [class]

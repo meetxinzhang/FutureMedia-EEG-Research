@@ -56,17 +56,19 @@ class ListDataset(torch.utils.data.Dataset):
             x = pickle.load(f)       # SZU: [t=2000, channels=127], Purdue: [512, 96]
             y = int(pickle.load(f))
 
+            x = np.expand_dims(x, axis=0)  # Purdue [512, 96] -> [1, 512m 96]
+
             # stft  [127, 40, 101]
             # x = np.array(x)  # [127, 40, 101]
 
             # cwt # [127, 85, 2000]
-            x = x[:, :, :1000]  # [127, 85, 1000]
-            x = x[:, :, ::2]  # [127, 85, 500]
+            # x = x[:, :, :1000]  # [127, 85, 1000]
+            # x = x[:, :, ::2]  # [127, 85, 500]
 
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
             # x = x[:1024, :]               # SZU, [1000, 127]
             # x = difference(x, fold=4)     # SZU, [500, 127]
-            y = y-1                  # Ziyan He created EEG form
+            # y = y-1                  # Ziyan He created EEG form
 
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)

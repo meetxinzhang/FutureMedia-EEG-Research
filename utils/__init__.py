@@ -21,12 +21,13 @@
 
 #
 # """
-import mne
+# import mne
 # import numpy as np
 # import matplotlib.pyplot as plt
 #
-# # bdf = mne.io.read_raw_bdf('G:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-09.bdf',
-# #                           preload=True, infer_types=True, exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
+# bdf = mne.io.read_raw_bdf('G:/Datasets/CVPR2021-02785/data/imagenet40-1000-1-09.bdf',
+#                           preload=True, infer_types=True,
+#                           exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
 # bdf = mne.io.read_raw_edf('G:/Datasets/SZFace2/EEG/run_1_test_hzy.edf',
 #                           preload=True, infer_types=True)
 #
@@ -118,49 +119,16 @@ import mne
 # #     print(df.iloc[0:20, 1:96])
 
 
-# def safe_divide(a, b):
-#     den = b.clamp(min=1e-9) + b.clamp(max=1e-9)  # set the min bound, means get larger than 1e-9, the "stabilizer"
-#     den = den + den.eq(0).type(den.type()) * 1e-9   # if den==0 then +1*1e-9 else +0
-#     return a / den * b.ne(0).type(b.type())  # / !0 first then *0 if b==0 else *1
-#
-#
-# a = torch.Tensor([5])
-# b = torch.Tensor([0])
-#
-# print(safe_divide(a, b))
-
-
-# database = [[1, 2, 2, 34, 5, 6, 7, 8, 9, 7]] * 5
-#
-#
-# def a(k):
-#     p = 0
-#     while p < k:
-#         train_set = []
-#         test_set = []
-#         for inset in database:
-#             klen = len(inset) // k
-#             test_set += inset[p * klen:(p + 1) * klen]
-#             train_set += inset[:p * klen] + inset[(p + 1) * klen:]
-#         yield p, train_set, test_set
-#         p += 1
-#
-#
-# for p, a, e in a(k=5):
-#     print(p, a, e)
-#
-# c = [1, 2, 2, 34]
-# print(c[4:])
 
 # mne.channels.read_montage('GSN-HydroCel-128')
 # mne.viz.plot_sensors
 # kind = mne.channels.get_builtin_montages()
 # print(kind)
 
-# montage = mne.channels.make_standard_montage(kind='brainproducts-RNP-BA-128', head_size='auto')
+# montage = mne.channels.make_standard_montage(kind='biosemi128', head_size='auto')
 # print(montage.get_positions())
 # fig = montage.plot()
-# fig.savefig('a.jpg')
+# fig.savefig('pd.jpg')
 
 # map = {
 #     'EXG1': 'eeg',
@@ -173,10 +141,15 @@ import mne
 #     'EXG8': 'eeg'
 # }
 # bdf.set_channel_types(mapping=map)
-# bdf.set_montage('brainproducts-RNP-BA-128', match_alias=True, on_missing='warn')
+
+# bdf.set_montage('biosemi128', match_alias=True, on_missing='warn')
 # m = bdf.get_montage()
+# fig = m.plot()
+# fig.savefig('pd.jpg')
+
 # orderedDict = m.get_positions()['ch_pos']
 # print(orderedDict)
+
 # print(list(orderedDict.keys()))
 # print(np.array(list(orderedDict.values())))
 # raw.set_montage(mon) ## !!

@@ -12,6 +12,7 @@ from tqdm import tqdm
 import numpy as np
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
+from pre_process.difference import trial_average
 
 parallel_jobs = 6
 
@@ -60,7 +61,7 @@ classes = {"n02106662": 0,
 
 def get_one_hot(idx):
     one_hot = np.zeros([40], dtype=np.int)
-    print(one_hot, idx)
+    # print(one_hot, idx)
     one_hot[idx] = 1
     return one_hot
 
@@ -117,6 +118,11 @@ def go_through(bdf_filenames, label_dir, pkl_path):
         number = f.split('-')[-1].split('.')[0]  # ../imagenet40-1000-1-02.bdf
         ys = label_reader.get_set(file_path=label_dir + '/' + 'run-' + number + '.txt')
         assert len(times) == len(ys)
+        assert np.shape(xs[0]) == (512, 96)  # [length, channels]
+
+        x = np.reshape(x, (len(x)*512, 96))
+        x = trial_average(x, axis=0)
+        x = np.reshape(x, (-1, 512, 96))
 
         name = f.split('/')[-1].replace('.bdf', '')
         Parallel(n_jobs=parallel_jobs)(
@@ -130,7 +136,6 @@ if __name__ == "__main__":
     label_dir = path + '/design'
     # self.image_path = path + '/stimuli'
 
-    bdf_filenames = file_scanf(bdf_dir, contains='1000-1-0', endswith='.bdf')
-    print(len(bdf_filenames))
-    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_00-09/')
+    bdf_filenames = file_scanf(bdf_dir, contains='1000-1', endswith='.bdf')
+    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl/')
 
