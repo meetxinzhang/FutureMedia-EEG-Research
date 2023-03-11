@@ -52,8 +52,8 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'EEGNet_50e01l64b'
-path = '../../Datasets/CVPR2021-02785/pkl'
+id_exp = 'EEGNet-ave-50e01l64b'
+path = '../../Datasets/CVPR2021-02785/pkl_2048'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 

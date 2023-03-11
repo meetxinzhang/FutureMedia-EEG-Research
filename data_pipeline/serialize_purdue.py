@@ -109,7 +109,7 @@ def thread_read_write(x, y, pkl_filename):
 
 
 def go_through(bdf_filenames, label_dir, pkl_path):
-    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=512, stim_channel='Status',
+    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=2048, stim_channel='Status',
                            exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
     label_reader = LabelReader(one_hot=False)
 
@@ -118,11 +118,11 @@ def go_through(bdf_filenames, label_dir, pkl_path):
         number = f.split('-')[-1].split('.')[0]  # ../imagenet40-1000-1-02.bdf
         ys = label_reader.get_set(file_path=label_dir + '/' + 'run-' + number + '.txt')
         assert len(times) == len(ys)
-        assert np.shape(xs[0]) == (512, 96)  # [length, channels]
+        assert np.shape(xs[0]) == (2048, 96)  # [length, channels]
 
-        x = np.reshape(x, (len(x)*512, 96))
-        x = trial_average(x, axis=0)
-        x = np.reshape(x, (-1, 512, 96))
+        # x = np.reshape(x, (len(x)*2048, 96))
+        # x = trial_average(x, axis=0)
+        # x = np.reshape(x, (-1, 2048, 96))
 
         name = f.split('/')[-1].replace('.bdf', '')
         Parallel(n_jobs=parallel_jobs)(
@@ -137,5 +137,5 @@ if __name__ == "__main__":
     # self.image_path = path + '/stimuli'
 
     bdf_filenames = file_scanf(bdf_dir, contains='1000-1', endswith='.bdf')
-    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl/')
+    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_2048/')
 

@@ -20,6 +20,14 @@ def difference(series, fold):
     return delta
 
 
+def jiang_ave(series, fold):
+    assert len(series) % fold == 0
+    series = np.split(series, fold, axis=0)  # [fold length 96]
+    series = np.average(series, axis=0)
+    assert np.shape(series) == (512, 96)
+    return series
+
+
 def downsample(x, ratio):
     return x[::ratio, :]
 

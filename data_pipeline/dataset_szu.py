@@ -10,7 +10,7 @@ import torch
 import pickle
 from utils.my_tools import file_scanf
 from torch.utils.data.dataloader import default_collate
-from pre_process.difference import downsample
+from pre_process.difference import jiang_ave
 import numpy as np
 
 
@@ -56,7 +56,8 @@ class ListDataset(torch.utils.data.Dataset):
             x = pickle.load(f)       # SZU: [t=2000, channels=127], Purdue: [512, 96]
             y = int(pickle.load(f))
 
-            x = np.expand_dims(x, axis=0)  # Purdue [512, 96] -> [1, 512m 96]
+            x = jiang_ave(x, fold=4)  # [2048 96] -> [512 96]
+            x = np.expand_dims(x, axis=0)  # Purdue [2048 96] -> [1 512 96]
 
             # stft  [127, 40, 101]
             # x = np.array(x)  # [127, 40, 101]
