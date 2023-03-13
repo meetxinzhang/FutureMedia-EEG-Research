@@ -12,7 +12,7 @@ from tqdm import tqdm
 import numpy as np
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
-from pre_process.difference import trial_average
+from pre_process.difference import jiang_delta_ave
 
 parallel_jobs = 6
 
@@ -103,6 +103,9 @@ def thread_read_write(x, y, pkl_filename):
     """Writes and dumps the processed pkl file for each stimulus(or called subject).
     [time=2999, channels=127], y
     """
+
+    # x = jiang_delta_ave(x)  # [2048, 96] -> [512, 96]
+
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
         pickle.dump(y, file)
@@ -121,7 +124,7 @@ def go_through(bdf_filenames, label_dir, pkl_path):
         assert np.shape(xs[0]) == (2048, 96)  # [length, channels]
 
         # x = np.reshape(x, (len(x)*2048, 96))
-        # x = trial_average(x, axis=0)
+        # x = trial_average(x, axis=0)  # ave in session
         # x = np.reshape(x, (-1, 2048, 96))
 
         name = f.split('/')[-1].replace('.bdf', '')
@@ -137,5 +140,5 @@ if __name__ == "__main__":
     # self.image_path = path + '/stimuli'
 
     bdf_filenames = file_scanf(bdf_dir, contains='1000-1', endswith='.bdf')
-    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_2048/')
+    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_blank_2048/')
 

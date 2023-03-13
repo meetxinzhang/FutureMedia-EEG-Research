@@ -118,7 +118,7 @@ class MNEReader(object):
 
         set = []
         for i in range(len(start_time)):
-            start = start_time[i]
+            start = start_time[i] - 512
             # each sample lasting 2s, the 0.5s data from starting are selected in citation, 0.5*sample ratio
             end = start + self.length
             picks = mne.pick_types(raw.info, eeg=True, stim=False)

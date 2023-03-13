@@ -52,8 +52,8 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'EEGNet-ave-50e01l64b'
-path = '../../Datasets/CVPR2021-02785/pkl_2048'
+id_exp = 'EEGNet-blank-delta-ave-50e01l64b'
+path = '../../Datasets/CVPR2021-02785/pkl_blank_2048'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
@@ -66,7 +66,7 @@ if __name__ == '__main__':
         train_sampler = SubsetRandomSampler(train_ids)
         valid_sampler = SubsetRandomSampler(valid_ids)
         train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=3,
-                                  prefetch_factor=2)
+                                  prefetch_factor=1)
         valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
                                   prefetch_factor=1)
     # for (fold, train_files, test_files) in kfold_loader(path, k):
