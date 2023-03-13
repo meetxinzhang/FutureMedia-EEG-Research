@@ -104,7 +104,7 @@ def thread_read_write(x, y, pkl_filename):
     [time=2999, channels=127], y
     """
 
-    # x = jiang_delta_ave(x)  # [2048, 96] -> [512, 96]
+    x = jiang_delta_ave(x)  # [2048, 96] -> [512, 96]
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -140,5 +140,5 @@ if __name__ == "__main__":
     # self.image_path = path + '/stimuli'
 
     bdf_filenames = file_scanf(bdf_dir, contains='1000-1', endswith='.bdf')
-    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_blank_2048/')
+    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_delta_ave_512/')
 

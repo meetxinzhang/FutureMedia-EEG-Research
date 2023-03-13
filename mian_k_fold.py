@@ -6,7 +6,6 @@
  @name: 
  @desc:
 """
-import random
 from utils.my_tools import file_scanf
 from torch.utils.data import DataLoader, SubsetRandomSampler
 from sklearn.model_selection import KFold
@@ -102,7 +101,6 @@ if __name__ == '__main__':
                 summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
                 summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
 
-                # step += 1
                 global_step += 1
                 if step % 10 == 0:
                     x_val, label_val = val_iterable.next()

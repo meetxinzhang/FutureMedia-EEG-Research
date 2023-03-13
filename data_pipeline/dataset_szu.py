@@ -34,11 +34,6 @@ class SZUDataset(torch.utils.data.Dataset):
             x = pickle.load(f)       # SZU: [t=2000, channels=127], Purdue: [512, 96]
             y = int(pickle.load(f))
 
-            x = x[:, :, :1000]  # [127, 85, 1000]
-            x = x[:, :, ::2]  # [127, 85, 500]
-            # x = difference(x, fold=4)     # SZU, [500, 127]
-            y = y-1                  # Ziyan He created EEG form
-
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
 
@@ -61,8 +56,7 @@ class ListDataset(torch.utils.data.Dataset):
             # x = jiang_four_ave(x, fold=4)  # [2048 96] -> [512 96]
 
             # 1D-DCT
-            x = dct_1d(x)  # [512 96]
-
+            # x = dct_1d(x)  # [512 96]
             x = np.expand_dims(x, axis=0)  # Purdue [512 96] -> [1 512 96] added channel for EEGNet
 
             # stft  [127, 40, 101]
