@@ -7,6 +7,8 @@
  @desc: frequencies difference
 """
 import numpy as np
+import torch_dct as dct
+import torch
 
 
 def delta(series, fold):
@@ -42,6 +44,22 @@ def jiang_delta_ave(series):
 
     assert np.shape(re) == (512, 96)
     return re
+
+
+def dct_1d(series):
+    # [t d]
+    series = torch.from_numpy(series).T.cuda()  # [d=96 t=512]
+    sf = dct.dct(series)  # tensor [96 512]
+    fea_dim = sf.size()[-1]  # 512
+    principle = fea_dim // 4  # 128
+    fea_mask = torch.arange(1, fea_dim + 1)  # [512,]
+    fea_mask = (fea_mask < principle).type(torch.uint8).to(sf.device)  # >高频  <低频
+    # print(fea_mask)
+    _sf = sf * fea_mask
+    _s = dct.idct(_sf)  # [96 512]
+    _s = _s.T  # [512 96]
+    assert _s.size() == (512, 96)
+    return _s.cpu().numpy()
 
 
 def downsample(x, ratio):

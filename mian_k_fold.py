@@ -52,8 +52,8 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'EEGNet-blank-delta-ave-50e01l64b'
-path = '../../Datasets/CVPR2021-02785/pkl_blank_2048'
+id_exp = 'EEGNet-DCT1d-on-512-50e01l64b'
+path = '../../Datasets/CVPR2021-02785/pkl_512'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
@@ -62,6 +62,7 @@ filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
 dataset = ListDataset(filepaths)
 
 if __name__ == '__main__':
+    torch.multiprocessing.set_start_method('spawn')
     for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
         train_sampler = SubsetRandomSampler(train_ids)
         valid_sampler = SubsetRandomSampler(valid_ids)
