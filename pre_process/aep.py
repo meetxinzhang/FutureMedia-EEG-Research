@@ -14,7 +14,7 @@ from sklearn.preprocessing import scale
 import math as m
 import numpy as np
 np.random.seed(123)
-# import scipy.io
+import einops
 from sklearn.decomposition import PCA
 
 
@@ -82,7 +82,7 @@ def augment_EEG(data, stdMult, pca=False, n_components=2):
     return augData
 
 
-def gen_images(locs, features, n_gridpoints, normalize=True,
+def gen_images(locs, features, len_grid, normalize=True,
                augment=False, pca=False, std_mult=0.1, n_components=2, edgeless=False):
     """
     Generates EEG images given electrode locations in 2D space and multiple feature values for each electrode
@@ -91,8 +91,8 @@ def gen_images(locs, features, n_gridpoints, normalize=True,
     :param features: Feature matrix as [n_samples, n_features]
                                 Features are as columns.
                                 Features corresponding to each frequency band are concatenated.
-                                (alpha1, alpha2, ..., beta1, beta2,...)
-    :param n_gridpoints: Number of pixels in the output images
+                                (alpha1, alpha2, ..., alphaN, beta1, beta2,...), N=n_electrodes
+    :param len_grid: Number of pixels in the output images
     :param normalize:   Flag for whether to normalize each band overall samples
     :param augment:     Flag for generating augmented images
     :param pca:         Flag for PCA based data augmentation
@@ -103,32 +103,33 @@ def gen_images(locs, features, n_gridpoints, normalize=True,
     :return:            Tensor of size [samples, colors, W, H] containing generated
                         images.
     """
-    feat_array_temp = []
-    nElectrodes = locs.shape[0]  # Number of electrodes
+    electrodes = locs.shape[0]  # Number of electrodes
+    n_samples = features.shape[0]
 
     # Test whether the feature vector length is divisible by number of electrodes
-    assert features.shape[1] % nElectrodes == 0
-    n_colors = int(features.shape[1] / nElectrodes)
-    for c in range(n_colors):
-        feat_array_temp.append(features[:,
-                               c * nElectrodes: nElectrodes * (c + 1)])
+    assert features.shape[1] % electrodes == 0
+    n_colors = int(features.shape[1] / electrodes)  # color channels of output
+
+    # feat_array_temp = []
+    # for c in range(n_colors):
+    #     feat_array_temp.append(features[:, c * electrodes: electrodes * (c + 1)])
+    features = einops.rearrange(features, 'n (c e) -> c n e', c=n_colors, e=electrodes)
+
     if augment:
         if pca:
             for c in range(n_colors):
-                feat_array_temp[c] = augment_EEG(feat_array_temp[c], std_mult, pca=True, n_components=n_components)
+                features[c] = augment_EEG(features[c], std_mult, pca=True, n_components=n_components)
         else:
             for c in range(n_colors):
-                feat_array_temp[c] = augment_EEG(feat_array_temp[c], std_mult, pca=False, n_components=n_components)
-    n_samples = features.shape[0]
+                features[c] = augment_EEG(features[c], std_mult, pca=False, n_components=n_components)
 
-    # Interpolate the values
+    # Interpolate the values. np.mgrid: https://www.cnblogs.com/wanghui-garcia/p/10763103.html
     grid_x, grid_y = np.mgrid[
-                     min(locs[:, 0]):max(locs[:, 0]):n_gridpoints * 1j,
-                     min(locs[:, 1]):max(locs[:, 1]):n_gridpoints * 1j
-                     ]
+                     min(locs[:, 0]):max(locs[:, 0]):len_grid * 1j,  # from min to max in x, take len_grid points
+                     min(locs[:, 1]):max(locs[:, 1]):len_grid * 1j]    # from min to max in y, take len_grid points
     temp_interp = []
     for c in range(n_colors):
-        temp_interp.append(np.zeros([n_samples, n_gridpoints, n_gridpoints]))
+        temp_interp.append(np.zeros([n_samples, len_grid, len_grid]))
 
     # Generate edgeless images
     if edgeless:
@@ -136,13 +137,16 @@ def gen_images(locs, features, n_gridpoints, normalize=True,
         max_x, max_y = np.max(locs, axis=0)
         locs = np.append(locs, np.array([[min_x, min_y], [min_x, max_y], [max_x, min_y], [max_x, max_y]]), axis=0)
         for c in range(n_colors):
-            feat_array_temp[c] = np.append(feat_array_temp[c], np.zeros((n_samples, 4)), axis=1)
+            features[c] = np.append(features[c], np.zeros((n_samples, 4)), axis=1)
 
-    # Interpolating
+    # Interpolating. scipy.interpolate.griddata: https://www.cnblogs.com/ice-coder/p/12652572.html
     for i in range(n_samples):
         for c in range(n_colors):
-            temp_interp[c][i, :, :] = griddata(locs, feat_array_temp[c][i, :], (grid_x, grid_y),
-                                               method='cubic', fill_value=np.nan)
+            temp_interp[c][i, :, :] = griddata(points=locs,  # 2D-array, [n, 2], xy coordination
+                                               values=features[c][i, :],  # 1DArray, [n,], value of xy
+                                               xi=(grid_x, grid_y),  # space to interpolate, usually use numpy.mgrid
+                                               method='cubic',  # nearest, linear, cubic
+                                               fill_value=np.nan)  # filling when no z
         # print('Interpolating {0}/{1}\r'.format(i + 1, n_samples), end='\r')
 
     # Normalizing
@@ -152,3 +156,74 @@ def gen_images(locs, features, n_gridpoints, normalize=True,
                 scale(temp_interp[c][~np.isnan(temp_interp[c])])
         temp_interp[c] = np.nan_to_num(temp_interp[c])
     return np.swapaxes(np.asarray(temp_interp), 0, 1)  # swap axes to have [samples, colors, W, H]
+
+
+# def gen_images_original(locs, features, n_gridpoints, normalize=True,
+#                augment=False, pca=False, std_mult=0.1, n_components=2, edgeless=False):
+#     """
+#     Generates EEG images given electrode locations in 2D space and multiple feature values for each electrode
+#     :param locs: An array with shape [n_electrodes, 2] containing X, Y
+#                         coordinates for each electrode.
+#     :param features: Feature matrix as [n_samples, n_features]
+#                                 Features are as columns.
+#                                 Features corresponding to each frequency band are concatenated.
+#                                 (alpha1, alpha2, ..., beta1, beta2,...)
+#     :param n_gridpoints: Number of pixels in the output images
+#     :param normalize:   Flag for whether to normalize each band over all samples
+#     :param augment:     Flag for generating augmented images
+#     :param pca:         Flag for PCA based data augmentation
+#     :param std_mult     Multiplier for std of added noise
+#     :param n_components: Number of components in PCA to retain for augmentation
+#     :param edgeless:    If True generates edgeless images by adding artificial channels
+#                         at four corners of the image with value = 0 (default=False).
+#     :return:            Tensor of size [samples, colors, W, H] containing generated
+#                         images.
+#     """
+#     feat_array_temp = []
+#     nElectrodes = locs.shape[0]     # Number of electrodes
+#
+#     # Test whether the feature vector length is divisible by number of electrodes
+#     assert features.shape[1] % nElectrodes == 0
+#     n_colors = int(features.shape[1] / nElectrodes)
+#     for c in range(n_colors):
+#         feat_array_temp.append(features[:, c * nElectrodes : nElectrodes * (c+1)])
+#     if augment:
+#         if pca:
+#             for c in range(n_colors):
+#                 feat_array_temp[c] = augment_EEG(feat_array_temp[c], std_mult, pca=True, n_components=n_components)
+#         else:
+#             for c in range(n_colors):
+#                 feat_array_temp[c] = augment_EEG(feat_array_temp[c], std_mult, pca=False, n_components=n_components)
+#     n_samples = features.shape[0]
+#
+#     # Interpolate the values
+#     grid_x, grid_y = np.mgrid[
+#                      min(locs[:, 0]):max(locs[:, 0]):n_gridpoints*1j,
+#                      min(locs[:, 1]):max(locs[:, 1]):n_gridpoints*1j
+#                      ]
+#     temp_interp = []
+#     for c in range(n_colors):
+#         temp_interp.append(np.zeros([n_samples, n_gridpoints, n_gridpoints]))
+#
+#     # Generate edgeless images
+#     if edgeless:
+#         min_x, min_y = np.min(locs, axis=0)
+#         max_x, max_y = np.max(locs, axis=0)
+#         locs = np.append(locs, np.array([[min_x, min_y], [min_x, max_y], [max_x, min_y], [max_x, max_y]]), axis=0)
+#         for c in range(n_colors):
+#             feat_array_temp[c] = np.append(feat_array_temp[c], np.zeros((n_samples, 4)), axis=1)
+#
+#     # Interpolating
+#     for i in range(n_samples):
+#         for c in range(n_colors):
+#             temp_interp[c][i, :, :] = griddata(locs, feat_array_temp[c][i, :], (grid_x, grid_y),
+#                                                method='cubic', fill_value=np.nan)
+#         print('Interpolating {0}/{1}\r'.format(i + 1, n_samples), end='\r')
+#
+#     # Normalizing
+#     for c in range(n_colors):
+#         if normalize:
+#             temp_interp[c][~np.isnan(temp_interp[c])] = \
+#                 scale(temp_interp[c][~np.isnan(temp_interp[c])])
+#         temp_interp[c] = np.nan_to_num(temp_interp[c])
+#     return np.swapaxes(np.asarray(temp_interp), 0, 1)  # swap axes to have [samples, colors, W, H]
