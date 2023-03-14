@@ -51,7 +51,7 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'EEGNet-DCT1d-on-512-50e01l64b'
+id_exp = 'EEGNet-DCT2d-on-512-50e01l64b'
 path = '../../Datasets/CVPR2021-02785/pkl_512'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
@@ -98,6 +98,7 @@ if __name__ == '__main__':
                 # loss, acc = train_accumulate(ff, x, label, optimizer, batch_size=batch_size,
                 #                              step=step, accumulation=accumulation_steps, cal_acc=True)
                 loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
+                lr = optimizer.param_groups[0]['lr']
                 summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
                 summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
 
@@ -105,11 +106,10 @@ if __name__ == '__main__':
                 if step % 10 == 0:
                     x_val, label_val = val_iterable.next()
                     loss_val, acc_val = test(model=ff, x=x_val, label=label_val, batch_size=batch_size)
-                    print('epoch:{}/{} step:{}/{} global_step:{} '
-                          'loss={:.5f} acc={:.3f} val_loss={:.5f} val_acc={:.3f}'.format(epoch, n_epoch, step,
-                                                                                         int(train_num / batch_size),
-                                                                                         global_step, loss, acc,
-                                                                                         loss_val, acc_val))
+                    print('epoch:{}/{} step:{}/{} global_step:{} lr:{:.4f}'
+                          'loss={:.5f} acc={:.3f} val_loss={:.5f} val_acc={:.3f}'.
+                          format(epoch, n_epoch, step, int(train_num / batch_size), global_step, lr,
+                                 loss, acc, loss_val, acc_val))
                     summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=global_step)
                     summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=global_step)
                 # if step % 10 == 0:

@@ -10,7 +10,7 @@ import torch
 import pickle
 from utils.my_tools import file_scanf
 from torch.utils.data.dataloader import default_collate
-from pre_process.difference import dct_1d
+from pre_process.difference import dct_2d
 import numpy as np
 
 
@@ -57,6 +57,9 @@ class ListDataset(torch.utils.data.Dataset):
 
             # 1D-DCT
             # x = dct_1d(x)  # [512 96]
+            # 2D-DCT
+            x = dct_2d(x)
+
             x = np.expand_dims(x, axis=0)  # Purdue [512 96] -> [1 512 96] added channel for EEGNet
 
             # stft  [127, 40, 101]
