@@ -51,7 +51,7 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'EEGNet-DCT2d-on-512-50e01l64b'
+id_exp = 'EEGNet-ADCT-on-512-50e01l64b'
 path = '../../Datasets/CVPR2021-02785/pkl_512'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
@@ -75,7 +75,7 @@ if __name__ == '__main__':
         val_iterable = IterForever(valid_loader)
 
         # ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
-        ff = EEGNet(classes_num=40, channels=96, drop_out=0.2).cuda()
+        ff = EEGNet(classes_num=40, channels=48, drop_out=0.2).cuda()
         # ff = ConvTransformer(num_classes=40, channels=8, num_heads=2, E=16, F=32,  # aep
         #                      size=32, T=1024, depth=1, drop=0.1).cuda()
         # ff = ConvTransformer(num_classes=40, channels=12, num_heads=3, E=16, F=32,  # aep

@@ -136,7 +136,7 @@ class EEGNet(nn.Module):
             # left, right, up, bottom
             nn.ZeroPad2d((31, 32, 0, 0)),  # left, right, top, bottom of 2D img
             nn.Conv2d(
-                in_channels=1,  # input shape (1, C, T)
+                in_channels=4,  # input shape (1, C, T)
                 out_channels=8,  # num_filters
                 kernel_size=(1, 64),  # filter size
                 bias=False
@@ -180,7 +180,7 @@ class EEGNet(nn.Module):
             nn.Dropout(drop_out)
         )
 
-        self.out = nn.Linear((16 * 16), classes_num)
+        self.out = nn.Linear(128, classes_num)
 
     def forward(self, x):
         x = x.transpose(2, 3)  # [b 1 c t]

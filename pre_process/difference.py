@@ -64,6 +64,7 @@ def dct_1d(eeg):
 
 
 def dct_2d(eeg):
+    # https://zhuanlan.zhihu.com/p/114626779
     #  [t d]
     freqs = cv2.dct(eeg)
     # img_dct_log = 20 * np.log(abs(freqs))
@@ -72,11 +73,22 @@ def dct_2d(eeg):
         for j in range(freqs.shape[1]):
             if i > 24 or j > 128:
                 freqs[i, j] = 0  # 裁剪的实质为像素置0
-
     return cv2.idct(freqs)
 
 
-def downsample(eeg, ratio):
+def approximated_dct(eeg):
+    #  [t d]
+    oo = ((eeg[::2, ::2] + eeg[1::2, ::2]) + (eeg[::2, 1::2] + eeg[1::2, 1::2])) * 2
+    ol = ((eeg[::2, ::2] + eeg[1::2, ::2]) - (eeg[::2, 1::2] + eeg[1::2, 1::2])) * 2
+    lo = ((eeg[::2, ::2] - eeg[1::2, ::2]) + (eeg[::2, 1::2] - eeg[1::2, 1::2])) * 2
+    ll = ((eeg[::2, ::2] - eeg[1::2, ::2]) - (eeg[::2, 1::2] - eeg[1::2, 1::2])) * 2
+    # [[oo, ol],
+    #  [lo, ll]]
+    assert np.shape(oo) == np.shape(ll) == (256, 48)
+    return np.array([oo, ol, lo, ll])
+
+
+def down_sample(eeg, ratio):
     return eeg[::ratio, :]
 
 

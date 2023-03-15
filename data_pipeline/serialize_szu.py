@@ -12,7 +12,7 @@ from tqdm import tqdm
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
 import numpy as np
-from pre_process.difference import downsample
+from pre_process.difference import down_sample
 # from pre_process.aep import azim_proj, gen_images
 from pre_process.time_frequency import signal2spectrum_pywt_cwt
 import torch

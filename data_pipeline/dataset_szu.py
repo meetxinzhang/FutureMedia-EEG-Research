@@ -10,7 +10,7 @@ import torch
 import pickle
 from utils.my_tools import file_scanf
 from torch.utils.data.dataloader import default_collate
-from pre_process.difference import dct_2d
+from pre_process.difference import approximated_dct
 import numpy as np
 
 
@@ -56,11 +56,11 @@ class ListDataset(torch.utils.data.Dataset):
             # x = jiang_four_ave(x, fold=4)  # [2048 96] -> [512 96]
 
             # 1D-DCT
-            # x = dct_1d(x)  # [512 96]
+            # x = dct_1d(x)  # same with x [512 96]
             # 2D-DCT
-            x = dct_2d(x)
-
-            x = np.expand_dims(x, axis=0)  # Purdue [512 96] -> [1 512 96] added channel for EEGNet
+            # x = dct_2d(x)  # same with x
+            # approximated dct
+            x = approximated_dct(x)  # 1/2 of x shape [4, 256 48]
 
             # stft  [127, 40, 101]
             # x = np.array(x)  # [127, 40, 101]
@@ -74,6 +74,7 @@ class ListDataset(torch.utils.data.Dataset):
             # x = difference(x, fold=4)     # SZU, [500, 127]
             # y = y-1                  # Ziyan He created EEG form
 
+            # x = np.expand_dims(x, axis=0)  # Purdue [512 96] -> [1 512 96] added channel for EEGNet
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
         # return torch.tensor(x, dtype=torch.float).permute(1, 2, 0).unsqueeze(0), torch.tensor(y, dtype=torch.long)
