@@ -34,7 +34,7 @@
 # # # dbf = bdf.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
 # #
 # # print(bdf.info, '\n')
-# print('channels: ', len(bdf.ch_names), bdf.ch_names, '\n')
+# print('channels: ', len(bdf.ch_names), '\n', bdf.ch_names, '\n')
 # print('times: ', bdf.n_times, bdf.times, '\n')
 #
 # events1 = mne.find_events(bdf, stim_channel='Status', initial_event=True, output='step')
@@ -118,17 +118,20 @@
 # # with pd.option_context('display.max_rows', 500, 'display.max_columns', 10):
 # #     print(df.iloc[0:20, 1:96])
 
-
-
 # mne.channels.read_montage('GSN-HydroCel-128')
 # mne.viz.plot_sensors
 # kind = mne.channels.get_builtin_montages()
 # print(kind)
-
+# montage = mne.channels.read_custom_montage(fname='D:/GitHub/OptimusPrime/data_pipeline/other/biosemi96.sfp',
+#                                            head_size=0.095,
+#                                            coord_frame='head')
 # montage = mne.channels.make_standard_montage(kind='biosemi128', head_size='auto')
 # print(montage.get_positions())
+
 # fig = montage.plot()
 # fig.savefig('pd.jpg')
+
+
 
 # map = {
 #     'EXG1': 'eeg',
@@ -142,17 +145,17 @@
 # }
 # bdf.set_channel_types(mapping=map)
 
-# bdf.set_montage('biosemi128', match_alias=True, on_missing='warn')
+# bdf.set_montage(montage=montage, match_alias=True, on_missing='warn')
 # m = bdf.get_montage()
-# fig = m.plot()
-# fig.savefig('pd.jpg')
-
+# # fig = m.plot()
+# # fig.savefig('pd.jpg')
+#
 # orderedDict = m.get_positions()['ch_pos']
-# print(orderedDict)
-
+# # print(orderedDict)
+#
 # print(list(orderedDict.keys()))
 # print(np.array(list(orderedDict.values())))
-# raw.set_montage(mon) ## !!
+# # raw.set_montage(mon) ## !!
 # ### look at channels
 # mne.viz.plot_sensors(raw.info, show_names=True)
 # raw.plot_sensors(show_names=True)

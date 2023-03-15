@@ -14,7 +14,7 @@ from utils.my_tools import file_scanf
 import numpy as np
 from pre_process.difference import down_sample
 # from pre_process.aep import azim_proj, gen_images
-from pre_process.time_frequency import signal2spectrum_pywt_cwt
+from pre_process.time_frequency import cwt_pywt
 import torch
 from pre_process.cwt_torch import CWT
 
@@ -67,7 +67,7 @@ def thread_read_write(x, y, pos, pkl_filename):
 
 
 def go_through(label_filenames, pkl_path):
-    edf_reader = MNEReader(filetype='edf', method='manual', length=2000, pos_kind='brainproducts-RNP-BA-128')
+    edf_reader = MNEReader(filetype='edf', method='manual', length=2000, montage='brainproducts-RNP-BA-128')
 
     for f in tqdm(label_filenames, desc=' Total', position=0, leave=True, colour='YELLOW', ncols=80):
         stim, y = ziyan_read(f)  # [frame_point], [class]

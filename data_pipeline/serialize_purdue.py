@@ -12,8 +12,9 @@ from tqdm import tqdm
 import numpy as np
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
-from pre_process.difference import jiang_delta_ave
-
+import mne
+from pre_process.aep import gen_images, azim_proj
+from pre_process.time_frequency import three_bands
 parallel_jobs = 6
 
 
@@ -99,27 +100,37 @@ class LabelReader(object):
             return idx
 
 
-def thread_read_write(x, y, pkl_filename):
+def thread_read_write(x, y, pos, pkl_filename):
     """Writes and dumps the processed pkl file for each stimulus(or called subject).
     [time=2999, channels=127], y
     """
 
-    x = jiang_delta_ave(x)  # [2048, 96] -> [512, 96]
+    # x = jiang_delta_ave(x)  # [2048, 96] -> [512, 96]
+
+    # Power spectrum
+    x = three_bands(x)  # [t=63, 3*96]
+    # AEP
+    locs_2d = np.array([azim_proj(e) for e in pos])
+    x = gen_images(locs=locs_2d, features=x, len_grid=32, normalize=True).squeeze()  # [time, colors=3, W, H]
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
         pickle.dump(y, file)
 
 
-def go_through(bdf_filenames, label_dir, pkl_path):
-    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=2048, stim_channel='Status',
+def go_through(bdf_files, labels_dir, pkl_path):
+    montage = mne.channels.read_custom_montage(fname='other/biosemi96.sfp',
+                                               head_size=0.095,
+                                               coord_frame='head')
+    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=2048, stim_channel='Status', montage=montage,
                            exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
     label_reader = LabelReader(one_hot=False)
 
-    for f in tqdm(bdf_filenames, desc=' Total', position=0, leave=True, colour='YELLOW', ncols=80):
+    for f in tqdm(bdf_files, desc=' Total', position=0, leave=True, colour='YELLOW', ncols=80):
         xs, times = bdf_reader.get_set(file_path=f)
+        pos = bdf_reader.get_pos()
         number = f.split('-')[-1].split('.')[0]  # ../imagenet40-1000-1-02.bdf
-        ys = label_reader.get_set(file_path=label_dir + '/' + 'run-' + number + '.txt')
+        ys = label_reader.get_set(file_path=labels_dir + '/' + 'run-' + number + '.txt')
         assert len(times) == len(ys)
         assert np.shape(xs[0]) == (2048, 96)  # [length, channels]
 
@@ -129,7 +140,7 @@ def go_through(bdf_filenames, label_dir, pkl_path):
 
         name = f.split('/')[-1].replace('.bdf', '')
         Parallel(n_jobs=parallel_jobs)(
-            delayed(thread_read_write)(xs[i], ys[i], pkl_path+name+'_'+str(i)+'_'+str(times[i])+'_'+str(ys[i]))
+            delayed(thread_read_write)(xs[i], ys[i], pos, pkl_path+name+'_'+str(i)+'_'+str(times[i])+'_'+str(ys[i]))
             for i in tqdm(range(len(ys)), desc=' write '+name, position=1, leave=False, colour='WHITE', ncols=80))
 
 
@@ -140,5 +151,5 @@ if __name__ == "__main__":
     # self.image_path = path + '/stimuli'
 
     bdf_filenames = file_scanf(bdf_dir, contains='1000-1', endswith='.bdf')
-    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_delta_ave_512/')
+    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_spec_2048/')
 

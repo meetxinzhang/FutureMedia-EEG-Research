@@ -12,10 +12,10 @@ from utils.my_tools import ExceptionPassing
 mne.set_log_level(verbose='WARNING')
 
 
-def get_electrode_pos(raw, kind='brainproducts-RNP-BA-128'):
+def get_electrode_pos(raw, montage='brainproducts-RNP-BA-128'):
     # montage = mne.channels.make_standard_montage(kind=kind, head_size='auto')
     # raw.set_montage('brainproducts-RNP-BA-128', match_alias=True, on_missing='warn')  # SZU
-    raw.set_montage(kind, match_alias=True, on_missing='warn')  # PD
+    raw.set_montage(montage, match_alias=True, on_missing='warn')  # PD
     montage = raw.get_montage()
     pos_map = montage.get_positions()['ch_pos']  # ordered dict
     pos = np.array(list(pos_map.values()))
@@ -24,7 +24,7 @@ def get_electrode_pos(raw, kind='brainproducts-RNP-BA-128'):
 
 class MNEReader(object):
     def __init__(self, filetype='edf', method='stim', resample=None, length=512, exclude=(), stim_channel='auto',
-                 pos_kind=None):
+                 montage=None):
         """
         @method: auto, stim, manual, default=stim
         @stim_channel: str. default=auto, in default case the stim_list is needed, and method=manual.
@@ -35,7 +35,7 @@ class MNEReader(object):
         self.length = length
         self.exclude = exclude
         self.stim_channel = stim_channel
-        self.pos_kind = pos_kind
+        self.montage = montage
         if stim_channel == 'auto':
             assert method == 'manual'
 
@@ -79,8 +79,8 @@ class MNEReader(object):
         # print(raw)
         # print(raw.info)
         # raw = raw.filter(l_freq=49, h_freq=51, method='fir', fir_window='hamming')
-        if self.pos_kind is not None:
-            self.pos = get_electrode_pos(raw=raw, kind=self.pos_kind)
+        if self.montage is not None:
+            self.pos = get_electrode_pos(raw=raw, montage=self.montage)
         if self.stim_channel == 'auto':
             if self.resample is not None:
                 raw = raw.resample(sfreq=self.resample)  # down sampling to 1024Hz
@@ -166,11 +166,11 @@ if __name__ == '__main__':
     # Ws = mne.time_frequency.morlet(sfreq=1024, freqs=np.array([10, 20]), n_cycles=2)
     # tfr = mne.time_frequency.tfr.cwt(X=sample, Ws=Ws, decim=1)
 
-    from pre_process.time_frequency import signal2spectrum_pywt_cwt
+    from pre_process.time_frequency import cwt_pywt
 
     signal = sample[0, :]  # [t,]
     # spec = signal2spectrum(signal)
-    spec = signal2spectrum_pywt_cwt(signal=signal)  # [f, t]
+    spec = cwt_pywt(signal=signal)  # [f, t]
 
     # specs = cwt_on_sample(sample)  # [c, 2, 512]
 
