@@ -14,7 +14,7 @@ from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
 import mne
 from pre_process.aep import gen_images, azim_proj
-from pre_process.time_frequency import three_bands
+from pre_process.time_frequency import spectrogram_scipy
 parallel_jobs = 6
 
 
@@ -107,11 +107,12 @@ def thread_read_write(x, y, pos, pkl_filename):
 
     # x = jiang_delta_ave(x)  # [2048, 96] -> [512, 96]
 
-    # Power spectrum
-    x = three_bands(x)  # [t=63, 3*96]
     # AEP
-    locs_2d = np.array([azim_proj(e) for e in pos])
-    x = gen_images(locs=locs_2d, features=x, len_grid=32, normalize=True).squeeze()  # [time, colors=3, W, H]
+    # x = three_bands(x)  # [t=63, 3*96]
+    # locs_2d = np.array([azim_proj(e) for e in pos])
+    # x = gen_images(locs=locs_2d, features=x, len_grid=32, normalize=True).squeeze()  # [time, colors=3, W, H]
+    # Spectrogram
+    _, _, x = spectrogram_scipy(x)  # [c f t]
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -151,5 +152,5 @@ if __name__ == "__main__":
     # self.image_path = path + '/stimuli'
 
     bdf_filenames = file_scanf(bdf_dir, contains='1000-1', endswith='.bdf')
-    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_spec_2048/')
+    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_spec_from_2048/')
 

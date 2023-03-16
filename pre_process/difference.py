@@ -36,10 +36,10 @@ def jiang_delta_ave(eeg):
     # [t d]
     assert len(eeg) % 4 == 0
     eeg = np.split(eeg, 4, axis=0)  # [fold t 96]
-    base = eeg[3]
-    d1 = eeg[0] - base
-    d2 = eeg[1] - base
-    d3 = eeg[2] - base
+    base = eeg[0]
+    d1 = eeg[1] - base
+    d2 = eeg[2] - base
+    d3 = eeg[3] - base
 
     re = (d1 + d2 + d3) / 3  # [t 96]
 

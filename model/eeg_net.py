@@ -128,7 +128,7 @@ class ComplexEEGNet(nn.Module):
 
 
 class EEGNet(nn.Module):
-    def __init__(self, classes_num, channels=127, drop_out=0.25):
+    def __init__(self, classes_num, in_channels=1, electrodes=127, drop_out=0.25):
         super(EEGNet, self).__init__()
 
         self.block_1 = nn.Sequential(
@@ -136,7 +136,7 @@ class EEGNet(nn.Module):
             # left, right, up, bottom
             nn.ZeroPad2d((31, 32, 0, 0)),  # left, right, top, bottom of 2D img
             nn.Conv2d(
-                in_channels=4,  # input shape (1, C, T)
+                in_channels=in_channels,  # input shape (1, C, T)
                 out_channels=8,  # num_filters
                 kernel_size=(1, 64),  # filter size
                 bias=False
@@ -149,7 +149,7 @@ class EEGNet(nn.Module):
             nn.Conv2d(
                 in_channels=8,  # input shape (8, C, T)
                 out_channels=16,  # num_filters  (16, C, T)
-                kernel_size=(channels, 1),  # filter size
+                kernel_size=(electrodes, 1),  # filter size
                 groups=8,
                 bias=False
             ),  # output shape (16, 1, T)
@@ -180,7 +180,7 @@ class EEGNet(nn.Module):
             nn.Dropout(drop_out)
         )
 
-        self.out = nn.Linear(128, classes_num)
+        self.out = nn.Linear(256, classes_num)
 
     def forward(self, x):
         x = x.transpose(2, 3)  # [b 1 c t]

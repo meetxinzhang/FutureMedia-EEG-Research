@@ -43,7 +43,7 @@ if __name__ == '__main__':
     val_iterable = IterForever(val_loader)
 
     # ff = FieldFlow2(channels=127).cuda()
-    ff = EEGNet(classes_num=40, channels=96, drop_out=0.2).cuda()
+    ff = EEGNet(classes_num=40, electrodes=96, drop_out=0.2).cuda()
     optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.4)
 

@@ -140,7 +140,7 @@ class ConvTransformer(nn.Module):
         self.elu = nn.ELU()
         self.pool = nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2), padding=0)
         self.fla = nn.Flatten(start_dim=1, end_dim=-1)
-        self.l1 = nn.Linear(in_features=480, out_features=128)
+        self.l1 = nn.Linear(in_features=240, out_features=128)
         self.l2 = nn.Linear(in_features=128, out_features=num_classes)
         self.d1 = nn.Dropout(p=drop)
         self.d2 = nn.Dropout(p=drop)

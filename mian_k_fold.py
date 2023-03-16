@@ -14,9 +14,9 @@ from train_test import train, test
 from torch.utils.tensorboard import SummaryWriter
 import time
 from data_pipeline.dataset_szu import ListDataset
-# from model.eeg_net import EEGNet
+from model.eeg_net import EEGNet
 # from model.eeg_net import ComplexEEGNet
-from model.conv_transformer import ConvTransformer
+# from model.conv_transformer import ConvTransformer
 # from model.field_flow_2 import FieldFlow2
 from utils.my_tools import IterForever
 # random.seed = 2022
@@ -51,8 +51,8 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'CT-spec-from2048-50e01l64b'
-path = '../../Datasets/CVPR2021-02785/pkl_spec_from_2048'
+id_exp = 'EEGNet-blank-delta-ave-50e01l64b'
+path = '../../Datasets/CVPR2021-02785/pkl_blank_2048'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
@@ -70,14 +70,14 @@ if __name__ == '__main__':
         valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
                                   prefetch_factor=1)
     # for (fold, train_files, test_files) in kfold_loader(path, k):
-    #     train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=2, shuffle=True)
+    #     train_loader = zddddddDataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=2, shuffle=True)
     #     valid_loader = DataLoader(ListDataset(test_files), batch_size=batch_size, num_workers=1, shuffle=True)
         val_iterable = IterForever(valid_loader)
 
         # ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
-        # ff = EEGNet(classes_num=40, channels=48, drop_out=0.2).cuda()
-        ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=16, num_heads=4,
-                             ffd_channels=32, deep_channels=32, size=32, T=63, depth=1, drop=0.1).cuda()
+        ff = EEGNet(classes_num=40, electrodes=96, drop_out=0.2).cuda()
+        # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
+        #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
         # ff = FieldFlow2(channels=127, early_drop=0.3, late_drop=0.1).cuda()
         optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.4)  # 设定优优化器更新的时刻表
