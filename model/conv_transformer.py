@@ -5,7 +5,7 @@
  @time: 2023/3/3 19:11
  @desc:
 """
-
+import einops
 import torch
 import torch.nn as nn
 from einops import rearrange
@@ -13,20 +13,20 @@ from utils.pos_embed import RelPosEmb1DAISummer
 
 
 class LocFeaExtractor(nn.Module):
-    def __init__(self, channels):
+    def __init__(self, in_channels, hid_channels):
         super().__init__()
-        self.c = channels
-        self.conv3d_3 = nn.Conv3d(in_channels=1, out_channels=channels // 2, bias=True,
+        self.c = hid_channels
+        self.conv3d_3 = nn.Conv3d(in_channels=in_channels, out_channels=hid_channels // 2, bias=True,
                                   kernel_size=(8, 8, 3), stride=(4, 4, 1), padding=(0, 0, 1))
-        self.conv3d_5 = nn.Conv3d(in_channels=1, out_channels=channels // 2, bias=True,
+        self.conv3d_5 = nn.Conv3d(in_channels=in_channels, out_channels=hid_channels // 2, bias=True,
                                   kernel_size=(8, 8, 5), stride=(4, 4, 1), padding=(0, 0, 2))
 
-        self.bn = nn.BatchNorm3d(num_features=channels)
+        self.bn = nn.BatchNorm3d(num_features=hid_channels)
         self.elu = nn.ELU()
         self.pool = nn.MaxPool3d(kernel_size=(1, 1, 2), stride=(1, 1, 2), padding=0)
 
     def forward(self, x):
-        # [b, 1,  M, M, T]
+        # [b, 1, M, M, T]
         x_3 = self.conv3d_3(x)  # [b, c/2, m, m, T]
         x_5 = self.conv3d_5(x)  # [b, c/2, m, m, T]
         x = torch.cat((x_3, x_5), dim=1)  # [b, c, m, m, T]
@@ -40,16 +40,16 @@ class LocFeaExtractor(nn.Module):
 
 
 class CFE(nn.Module):
-    def __init__(self, channels, E=16, drop=0.2):
+    def __init__(self, channels, ffd_c=16, drop=0.2):
         super().__init__()
-        self.conv1 = nn.Conv2d(in_channels=channels, out_channels=E // 2,
+        self.conv1 = nn.Conv2d(in_channels=channels, out_channels=ffd_c // 2,
                                kernel_size=(1, 3), stride=(1, 1), padding='same')
-        self.conv2 = nn.Conv2d(in_channels=channels, out_channels=E // 2,
+        self.conv2 = nn.Conv2d(in_channels=channels, out_channels=ffd_c // 2,
                                kernel_size=(1, 5), stride=(1, 1), padding='same')
-        self.bn = nn.BatchNorm2d(num_features=E)
+        self.bn = nn.BatchNorm2d(num_features=ffd_c)
         self.elu = nn.ELU()
         self.drop = nn.Dropout(drop)
-        self.conv3 = nn.Conv2d(in_channels=E, out_channels=channels,
+        self.conv3 = nn.Conv2d(in_channels=ffd_c, out_channels=channels,
                                kernel_size=(1, 1), stride=(1, 1), padding='same')
 
     def forward(self, x):
@@ -77,7 +77,7 @@ class MHA(nn.Module):
         self.softmax = nn.Softmax(dim=-1)
         self.drop = nn.Dropout(drop)
 
-        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=601, dim_head=1000, heads=None)  # print q for size
+        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=50, dim_head=124, heads=None)  # print q for size at 90 line
 
     def forward(self, x):
         # [b, c, p, t]
@@ -87,7 +87,7 @@ class MHA(nn.Module):
         k = rearrange(k, 'b h d p t -> b h (d t) p')
         v = rearrange(v, 'b h d p t -> b h p (d t)')
 
-        # print(q.size())  # print q for rel_pos_emb size
+        # print(q.size(), 'q')  # print q for rel_pos_emb size
         dots = torch.matmul(q, k)  # [b, h, p, p]
         relative_position_bias = self.rel_pos_emb(q)  # [b, h, p, p],  q need [b, h, tokens, dim]
         dots += relative_position_bias
@@ -102,11 +102,11 @@ class MHA(nn.Module):
 
 
 class CTBlock(nn.Module):
-    def __init__(self, channels, num_heads, E, drop=0.3):
+    def __init__(self, channels, num_heads, ffd_c, drop=0.3):
         super().__init__()
         self.mha = MHA(channels=channels, num_heads=num_heads, drop=drop)
         self.bn1 = nn.BatchNorm2d(num_features=channels)
-        self.cfe = CFE(channels=channels, E=E, drop=drop)
+        self.cfe = CFE(channels=channels, ffd_c=ffd_c, drop=drop)
         self.bn2 = nn.BatchNorm2d(num_features=channels)
 
     def forward(self, x):
@@ -119,32 +119,34 @@ class CTBlock(nn.Module):
 
 
 class ConvTransformer(nn.Module):
-    def __init__(self, num_classes, channels=8, num_heads=2, E=16, F=64, size=32, T=500, depth=2, drop=0.2):
+    def __init__(self, num_classes, in_channels, hid_channels=8, num_heads=2,
+                 ffd_channels=16, deep_channels=64, size=32, T=500, depth=2, drop=0.2):
         super().__init__()
-        self.lfe = LocFeaExtractor(channels=channels)
+        self.lfe = LocFeaExtractor(in_channels=in_channels, hid_channels=hid_channels)
 
-        self.channel_token = nn.Parameter(torch.eye(n=channels, m=T // 2)).unsqueeze(0).unsqueeze(2)  # [1, c, 1, T/2]
+        self.channel_token = nn.Parameter(torch.eye(n=hid_channels, m=T // 2)).unsqueeze(0).unsqueeze(2)  # [1, c, 1, T/2]
         self.blocks = nn.ModuleList([
-            CTBlock(channels=channels, num_heads=num_heads, E=E, drop=drop)
+            CTBlock(channels=hid_channels, num_heads=num_heads, ffd_c=ffd_channels, drop=drop)
             for _ in range(depth)])
 
         p = ((size - 8 + 2 * 0) // 4 + 1) ** 2
         t = T // 4
 
-        self.conv1 = nn.Conv2d(in_channels=channels, out_channels=F // 2,
+        self.conv1 = nn.Conv2d(in_channels=hid_channels, out_channels=deep_channels // 2,
                                kernel_size=(p, 3), stride=(p, 1), padding=(0, 1))
-        self.conv2 = nn.Conv2d(in_channels=channels, out_channels=F // 2,
+        self.conv2 = nn.Conv2d(in_channels=hid_channels, out_channels=deep_channels // 2,
                                kernel_size=(p, 5), stride=(p, 1), padding=(0, 2))
         self.bn = nn.BatchNorm3d(num_features=1)
         self.elu = nn.ELU()
         self.pool = nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2), padding=0)
         self.fla = nn.Flatten(start_dim=1, end_dim=-1)
-        self.l1 = nn.Linear(in_features=48000, out_features=128)
+        self.l1 = nn.Linear(in_features=480, out_features=128)
         self.l2 = nn.Linear(in_features=128, out_features=num_classes)
         self.d1 = nn.Dropout(p=drop)
         self.d2 = nn.Dropout(p=drop)
 
     def forward(self, x):
+        x = einops.rearrange(x, 'b t c w h -> b c w h t')
         # [b, 1, M, M, T]
         x = self.lfe(x)  # [b, c, p=m*m, T/2]
         ct = self.channel_token.expand(x.size()[0], -1, -1, -1).to(x.device)  # [b, c, 1, T/2]

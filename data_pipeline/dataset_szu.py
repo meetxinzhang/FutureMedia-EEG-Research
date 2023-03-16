@@ -60,7 +60,7 @@ class ListDataset(torch.utils.data.Dataset):
             # 2D-DCT
             # x = dct_2d(x)  # same with x
             # approximated dct
-            x = approximated_dct(x)  # 1/2 of x shape [4, 256 48]
+            # x = approximated_dct(x)  # 1/2 of x shape [4, 256 48]
 
             # stft  [127, 40, 101]
             # x = np.array(x)  # [127, 40, 101]
@@ -75,6 +75,7 @@ class ListDataset(torch.utils.data.Dataset):
             # y = y-1                  # Ziyan He created EEG form
 
             # x = np.expand_dims(x, axis=0)  # Purdue [512 96] -> [1 512 96] added channel for EEGNet
+            assert np.shape(x) == (63, 3, 32, 32)
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
         # return torch.tensor(x, dtype=torch.float).permute(1, 2, 0).unsqueeze(0), torch.tensor(y, dtype=torch.long)
