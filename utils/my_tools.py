@@ -23,6 +23,20 @@ def file_scanf(path, contains, endswith, sub_ratio=1):
     return list(filter(lambda x: contains in x and x.endswith(endswith), _input_files))
 
 
+def file_scanf2(path, contains, endswith, sub_ratio=1):
+    files = glob.glob(path + '/*')
+    input_files = []
+    for f in files[:int(len(files) * sub_ratio)]:
+        if not any([c in f for c in contains]):
+            continue
+        if not f.endswith(endswith):
+            continue
+        if platform.system().lower() == 'windows':
+            f.replace('\\', '/')
+        input_files.append(f)
+    return input_files
+
+
 class IterForever:
     def __init__(self, dataloader):
         self.dataloader = dataloader

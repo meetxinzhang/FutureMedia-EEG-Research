@@ -29,7 +29,8 @@ def spectrogram_scipy(signal, fs=1024, nperseg=64, overlap=0.5):
 
 def three_bands(signal):
     _, _, specs = spectrogram_scipy(signal=signal)  # [c f t]
-    theta = np.sum(np.square(abs(specs[:, 0:8, :])), axis=1)  # [c 7 t] -> [c t] (96, 63)
+    theta = np.sum(np.square(abs(specs[:, 0:8, :])), axis=1)  # [c 7 t] -> [c t] (96,
+    # )
     alpha = np.sum(np.square(abs(specs[:, 8:14, :])), axis=1)
     beta = np.sum(np.square(abs(specs[:, 14:, :])), axis=1)
     re = np.concatenate((theta, alpha, beta), axis=0)  # [3*c t]
