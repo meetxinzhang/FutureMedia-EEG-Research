@@ -14,7 +14,7 @@ from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
 import mne
 from pre_process.aep import gen_images, azim_proj
-from pre_process.time_frequency import spectrogram_scipy
+from pre_process.time_frequency import cwt_scipy
 parallel_jobs = 6
 
 
@@ -111,8 +111,12 @@ def thread_read_write(x, y, pos, pkl_filename):
     # x = three_bands(x)  # [t=63, 3*96]
     # locs_2d = np.array([azim_proj(e) for e in pos])
     # x = gen_images(locs=locs_2d, features=x, len_grid=32, normalize=True).squeeze()  # [time, colors=3, W, H]
+
     # Spectrogram
-    _, _, x = spectrogram_scipy(x)  # [c f t]
+    # _, _, x = spectrogram_scipy(x)  # [c f t]
+
+    # CWT
+    x = cwt_scipy(x)  # [c f=30 t=2048]
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -123,7 +127,7 @@ def go_through(bdf_files, labels_dir, pkl_path):
     montage = mne.channels.read_custom_montage(fname='other/biosemi96.sfp',
                                                head_size=0.095,
                                                coord_frame='head')
-    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=2048, stim_channel='Status', montage=montage,
+    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=1024, stim_channel='Status', montage=montage,
                            exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
     label_reader = LabelReader(one_hot=False)
 
@@ -133,7 +137,7 @@ def go_through(bdf_files, labels_dir, pkl_path):
         number = f.split('-')[-1].split('.')[0]  # ../imagenet40-1000-1-02.bdf
         ys = label_reader.get_set(file_path=labels_dir + '/' + 'run-' + number + '.txt')
         assert len(times) == len(ys)
-        assert np.shape(xs[0]) == (2048, 96)  # [length, channels]
+        assert np.shape(xs[0]) == (1024, 96)  # [length, channels]
 
         # x = np.reshape(x, (len(x)*2048, 96))
         # x = trial_average(x, axis=0)  # ave in session
@@ -142,7 +146,7 @@ def go_through(bdf_files, labels_dir, pkl_path):
         name = f.split('/')[-1].replace('.bdf', '')
         Parallel(n_jobs=parallel_jobs)(
             delayed(thread_read_write)(xs[i], ys[i], pos, pkl_path+name+'_'+str(i)+'_'+str(times[i])+'_'+str(ys[i]))
-            for i in tqdm(range(len(ys)), desc=' write '+name, position=1, leave=False, colour='WHITE', ncols=80))
+            for i in tqdm(range(len(ys)), desc=' write '+name, position=1, leave=True, colour='WHITE', ncols=80))
 
 
 if __name__ == "__main__":
@@ -152,5 +156,5 @@ if __name__ == "__main__":
     # self.image_path = path + '/stimuli'
 
     bdf_filenames = file_scanf(bdf_dir, contains='1000-1', endswith='.bdf')
-    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_spec_from_2048/')
+    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_cwt_from_1024/')
 

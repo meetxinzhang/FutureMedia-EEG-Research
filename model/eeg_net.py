@@ -134,11 +134,12 @@ class EEGNet(nn.Module):
         self.block_1 = nn.Sequential(
             # Pads the input tensor boundaries with zero
             # left, right, up, bottom
-            nn.ZeroPad2d((31, 32, 0, 0)),  # left, right, top, bottom of 2D img
+            nn.ZeroPad2d((1, 2, 0, 0)),  # left, right, top, bottom of 2D img
             nn.Conv2d(
                 in_channels=in_channels,  # input shape (1, C, T)
                 out_channels=8,  # num_filters
                 kernel_size=(1, 64),  # filter size
+                # kernel_size=(1, 3),  # filter size 1111111111111 short T
                 bias=False
             ),  # output shape (b, 8, C, T)
             nn.BatchNorm2d(8)  # output shape (8, C, T)
@@ -156,15 +157,17 @@ class EEGNet(nn.Module):
             nn.BatchNorm2d(16),  # output shape (16, 1, T)
             nn.ELU(),
             nn.AvgPool2d((1, 4)),  # output shape (16, 1, T//4)
+            # nn.AvgPool2d((1, 2)),  # output shape (16, 1, T//2) 1111111111111 short T
             nn.Dropout(drop_out)  # output shape (16, 1, T//4)
         )
 
         self.block_3 = nn.Sequential(
-            nn.ZeroPad2d((7, 8, 0, 0)),
+            nn.ZeroPad2d((1, 2, 0, 0)),
             nn.Conv2d(
                 in_channels=16,  # input shape (16, 1, T//4)
                 out_channels=16,  # num_filters
                 kernel_size=(1, 16),  # filter size
+                # kernel_size=(1, 3),  # 1111111111111 short T
                 groups=16,
                 bias=False
             ),  # output shape (16, 1, T//4)
@@ -177,6 +180,7 @@ class EEGNet(nn.Module):
             nn.BatchNorm2d(16),  # output shape (16, 1, T//4)
             nn.ELU(),
             nn.AvgPool2d((1, 8)),  # output shape (16, 1, T//32)
+            # nn.AvgPool2d((1, 2)),  # 1111111111111 short T
             nn.Dropout(drop_out)
         )
 

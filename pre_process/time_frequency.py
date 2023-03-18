@@ -42,8 +42,8 @@ def cwt_scipy(signal):
     specs = []
     for s in signal.T:  # [c t]
         zxx = scipy.signal.cwt(s, scipy.signal.ricker, widths=np.arange(1, 31))
-        # assert np.shape(zxx) == (33, 63)  # Purdue
         specs.append(np.flipud(zxx))
+    assert np.shape(specs) == (96, 30, 1024)
     return np.array(specs)  # [c f t]
 
 
