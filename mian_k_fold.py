@@ -51,8 +51,8 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'EEGNet-blank-delta-ave-50e01l64b'
-path = '../../Datasets/CVPR2021-02785/pkl_blank_2048'
+id_exp = 'EEGNet-spec_from2048-50e01l64b'
+path = '../../Datasets/CVPR2021-02785/pkl_spec_from_2048'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
@@ -61,7 +61,7 @@ filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
 dataset = ListDataset(filepaths)
 
 if __name__ == '__main__':
-    torch.multiprocessing.set_start_method('spawn')
+    # torch.multiprocessing.set_start_method('spawn')
     for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
         train_sampler = SubsetRandomSampler(train_ids)
         valid_sampler = SubsetRandomSampler(valid_ids)
@@ -75,7 +75,7 @@ if __name__ == '__main__':
         val_iterable = IterForever(valid_loader)
 
         # ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
-        ff = EEGNet(classes_num=40, electrodes=96, drop_out=0.2).cuda()
+        ff = EEGNet(classes_num=40, in_channels=33, electrodes=96, drop_out=0.2).cuda()
         # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
         #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
         # ff = FieldFlow2(channels=127, early_drop=0.3, late_drop=0.1).cuda()

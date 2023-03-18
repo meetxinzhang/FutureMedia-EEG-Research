@@ -183,14 +183,10 @@ class EEGNet(nn.Module):
         self.out = nn.Linear(256, classes_num)
 
     def forward(self, x):
-        x = x.transpose(2, 3)  # [b 1 c t]
-        # print('000000', x.shape)
+        # x = x.transpose(2, 3)  # [b 1 c t] needed
         x = self.block_1(x)
-        # print('11111111', x.shape)
         x = self.block_2(x)
-        # print('22222222', x.shape)
         x = self.block_3(x)
-        # print('sssssssss', x.shape)
 
         x = x.view(x.size(0), -1)
         x = self.out(x)

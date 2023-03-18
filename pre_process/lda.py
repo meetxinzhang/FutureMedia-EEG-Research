@@ -73,8 +73,9 @@ if __name__ == '__main__':
     lda = LinearDiscriminantAnalysis()
     pca = PCA(n_components=60, copy=False, svd_solver='auto')
 
-    dataset = []
+    dataset = []  # [b 3780]
     labels = []
+
     for file in tqdm(filenames, desc=' process '):
         with open(file, 'rb') as f:
             x = pickle.load(f)  # [96, 33, 63]
