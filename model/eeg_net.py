@@ -142,6 +142,7 @@ class EEGNet(nn.Module):
                 # kernel_size=(1, 3),  # filter size 1111111111111 short T
                 bias=False
             ),  # output shape (b, 8, C, T)
+            # nn.AvgPool2d((1, 2)),  # output shape (16, 1, T//4)
             nn.BatchNorm2d(8)  # output shape (8, C, T)
         )
 
@@ -184,10 +185,10 @@ class EEGNet(nn.Module):
             nn.Dropout(drop_out)
         )
 
-        self.out = nn.Linear(256, classes_num)
+        self.out = nn.Linear(192, classes_num)
 
     def forward(self, x):
-        # x = x.transpose(2, 3)  # [b 1 c t] needed
+        x = x.transpose(2, 3)  # [b 1 c t] needed
         x = self.block_1(x)
         x = self.block_2(x)
         x = self.block_3(x)

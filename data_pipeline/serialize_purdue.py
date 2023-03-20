@@ -13,10 +13,10 @@ import numpy as np
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
 import mne
-from pre_process.aep import gen_images, azim_proj
+from pre_process.difference import trial_average
 from pre_process.time_frequency import cwt_scipy
-parallel_jobs = 6
 
+parallel_jobs = 6
 
 classes = {"n02106662": 0,
            "n02124075": 1,
@@ -116,37 +116,39 @@ def thread_read_write(x, y, pos, pkl_filename):
     # _, _, x = spectrogram_scipy(x)  # [c f t]
 
     # CWT
-    x = cwt_scipy(x)  # [c f=30 t=2048]
+    # x = cwt_scipy(x)  # [c f=30 t=1024]
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
         pickle.dump(y, file)
 
 
-def go_through(bdf_files, labels_dir, pkl_path):
-    montage = mne.channels.read_custom_montage(fname='other/biosemi96.sfp',
-                                               head_size=0.095,
-                                               coord_frame='head')
-    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=1024, stim_channel='Status', montage=montage,
+def go_through(bdf_files, labels_dir, len_x, pkl_path):
+    # montage = mne.channels.read_custom_montage(fname='other/biosemi96.sfp',
+    #                                            head_size=0.095,
+    #                                            coord_frame='head')
+    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=len_x, stim_channel='Status', montage=None,
                            exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
     label_reader = LabelReader(one_hot=False)
 
-    for f in tqdm(bdf_files, desc=' Total', position=0, leave=True, colour='YELLOW', ncols=80):
+    for f in tqdm(bdf_files, desc=' Total', position=0, leave=False, colour='YELLOW', ncols=80):
         xs, times = bdf_reader.get_set(file_path=f)
         pos = bdf_reader.get_pos()
         number = f.split('-')[-1].split('.')[0]  # ../imagenet40-1000-1-02.bdf
         ys = label_reader.get_set(file_path=labels_dir + '/' + 'run-' + number + '.txt')
         assert len(times) == len(ys)
-        assert np.shape(xs[0]) == (1024, 96)  # [length, channels]
+        assert np.shape(xs[0]) == (len_x, 96)  # [length, channels]
 
-        # x = np.reshape(x, (len(x)*2048, 96))
-        # x = trial_average(x, axis=0)  # ave in session
-        # x = np.reshape(x, (-1, 2048, 96))
+        xs = np.reshape(xs, (len(xs) * len_x, 96))
+        xs = trial_average(xs, axis=0)
+        # ave in session
+        xs = np.reshape(xs, (-1, len_x, 96))
 
         name = f.split('/')[-1].replace('.bdf', '')
         Parallel(n_jobs=parallel_jobs)(
-            delayed(thread_read_write)(xs[i], ys[i], pos, pkl_path+name+'_'+str(i)+'_'+str(times[i])+'_'+str(ys[i]))
-            for i in tqdm(range(len(ys)), desc=' write '+name, position=1, leave=True, colour='WHITE', ncols=80))
+            delayed(thread_read_write)(xs[i], ys[i], pos,
+                                       pkl_path + name + '_' + str(i) + '_' + str(times[i]) + '_' + str(ys[i]))
+            for i in tqdm(range(len(ys)), desc=' write ' + name, position=1, leave=False, colour='WHITE', ncols=80))
 
 
 if __name__ == "__main__":
@@ -156,5 +158,4 @@ if __name__ == "__main__":
     # self.image_path = path + '/stimuli'
 
     bdf_filenames = file_scanf(bdf_dir, contains='1000-1', endswith='.bdf')
-    go_through(bdf_filenames, label_dir, pkl_path=path + '/pkl_cwt_from_1024/')
-
+    go_through(bdf_filenames, label_dir, len_x=2048, pkl_path=path + '/pkl_trial_2048/')
