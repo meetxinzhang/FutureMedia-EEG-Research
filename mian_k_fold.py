@@ -75,7 +75,6 @@ if __name__ == '__main__':
     #     valid_loader = DataLoader(ListDataset(test_files), batch_size=batch_size, num_workers=1, shuffle=True)
         val_iterable = IterForever(valid_loader)
 
-        # ff = ComplexEEGNet(classes_num=40, channels=127, drop_out=0.2).cuda()
         ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.2).cuda()
         # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
         #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
