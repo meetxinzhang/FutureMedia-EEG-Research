@@ -101,7 +101,7 @@ if __name__ == '__main__':
                 summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
 
                 global_step += 1
-                if step % 50 == 0:
+                if step % 10 == 0:
                     x_val, label_val = val_iterable.next()
                     loss_val, acc_val = test(model=ff, x=x_val, label=label_val, batch_size=batch_size)
                     print('epoch:{}/{} step:{}/{} global_step:{} lr:{:.4f}'

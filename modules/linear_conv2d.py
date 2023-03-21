@@ -39,12 +39,12 @@ class LinearConv2D(nn.Module):
         self.padding = padding
 
         self.weight = nn.Parameter(torch.empty(out_channels, self.d, self.e, self.w))  # [o d e w]
-        # nn.init.xavier_uniform_(self.weight)
+        nn.init.xavier_uniform_(self.weight)
 
         self.add_bias = None
         if bias:
             self.add_bias = nn.Parameter(torch.empty(out_channels, self.d, self.e, self.w))
-            # nn.init.xavier_uniform_(self.add_bias)
+            nn.init.xavier_uniform_(self.add_bias)
 
         self.conv2d = nn.Conv2d(in_channels=self.d, out_channels=1,
                                 kernel_size=(activate_height, self.w),

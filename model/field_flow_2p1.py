@@ -18,10 +18,6 @@ def _init_weights(m):
         nn.init.normal_(m.weight, std=.002)
         if isinstance(m, nn.Linear) and m.bias is not None:
             nn.init.constant_(m.bias, 0)
-    if isinstance(m, LinearConv2D):
-        nn.init.xavier_uniform_(m.weight)
-        if isinstance(m, LinearConv2D) and m.add_bias is not None:
-            nn.init.xavier_uniform_(m.add_bias, 0)
     elif isinstance(m, nn.LayerNorm):
         nn.init.constant_(m.bias, 0)
         nn.init.constant_(m.weight, 1.0)
