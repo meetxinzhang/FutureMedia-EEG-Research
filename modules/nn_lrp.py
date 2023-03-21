@@ -94,7 +94,7 @@ class MultiHeadAttention(nn.Module):
         dots = self.matmul1([q, k]) * self.scale
 
         if self.rel_pos_emb is not None:
-            # print(q.size(), ' Please check the tokens number of pos_emb when Runtime Error')
+            # print(q.size(), ' !!!!!!!! Please check the tokens number of pos_emb when Runtime Error')
             relative_position_bias = self.rel_pos_emb(q)  # [b, h, p, p],  q need [b, h, tokens, dim]
             dots += relative_position_bias
         attn = self.softmax(dots)

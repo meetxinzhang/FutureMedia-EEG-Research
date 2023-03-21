@@ -11,6 +11,7 @@
 import torch
 import torch.nn as nn
 import einops
+import gc
 
 
 class LinearConv2D(nn.Module):
@@ -19,12 +20,13 @@ class LinearConv2D(nn.Module):
     """
 
     def __init__(self, input_channels, out_channels, groups, embedding,
-                 kernel_width, kernel_stride, activate_height=2, activate_stride=2, bias=False):
+                 kernel_width, kernel_stride, activate_height=2, activate_stride=2, padding=True, bias=False):
         super().__init__()
         self.c = input_channels
         self.e = embedding
         self.w = kernel_width
         self.ks = kernel_stride
+        self.ah = activate_height
         self.g = groups
         assert input_channels % groups == 0
         kernel_depth = input_channels // groups
@@ -34,20 +36,20 @@ class LinearConv2D(nn.Module):
         n_filters1group = out_channels // groups
         self.n = n_filters1group
         self.bias = bias
+        self.padding = padding
 
         self.weight = nn.Parameter(torch.empty(out_channels, self.d, self.e, self.w))  # [o d e w]
-        nn.init.xavier_uniform_(self.weight)
+        # nn.init.xavier_uniform_(self.weight)
 
         self.add_bias = None
         if bias:
             self.add_bias = nn.Parameter(torch.empty(out_channels, self.d, self.e, self.w))
-            nn.init.xavier_uniform_(self.add_bias)
+            # nn.init.xavier_uniform_(self.add_bias)
 
         self.conv2d = nn.Conv2d(in_channels=self.d, out_channels=1,
                                 kernel_size=(activate_height, self.w),
                                 stride=(activate_stride, 1), padding='valid', bias=False).requires_grad_(False)
         nn.init.constant_(self.conv2d.weight, 1)
-        self.bn = nn.BatchNorm3d(num_features=self.o, momentum=0.05)
         self.relu = nn.LeakyReLU()
 
     def _linear_mul_broadcasting(self, x, w, b=None):
@@ -63,8 +65,9 @@ class LinearConv2D(nn.Module):
         assert f == self.e
 
         # pad_width = ((t-1)*self.ks-t+self.w)  # calculate the padding
-        pad = torch.zeros(b, c, f, self.w//2).cuda()
-        x = torch.concat([pad, x, pad], dim=-1) # [b c f t++]
+        if self.padding:
+            pad1 = torch.zeros(b, c, f, self.w // 2).cuda()
+            x = torch.concat([pad1, x, pad1], dim=-1)  # [b c f t++]
 
         x = x.unfold(dimension=-1, size=self.w, step=self.ks)  # [b c f t w]
         t = x.size(-2)
@@ -74,23 +77,59 @@ class LinearConv2D(nn.Module):
 
         try:
             y = self._linear_mul_broadcasting(x, w, b=the_b)
-            del x
+            y = einops.rearrange(y, 'b t g n d f w -> b t (g n) d f w')  # [b t out_c d f w]
+            y = einops.rearrange(y, 'b t o d f w -> (b t o) d f w')  # [m d f w]
 
-        except RuntimeError:
-            print(' Out of memory, For loop ops replaced.')
-            y = self._linear_mul_broadcasting(x[0].unsqueeze(0), w, b=the_b)
+            if self.padding:
+                pad2 = torch.zeros(y.shape[0], self.d, self.ah//2, self.w).to(y.device)
+                y = torch.concat([pad2, y, pad2], dim=-2)  # [m d f++ w]
+
+            y = self.conv2d(y)  # [m 1 f w/w]  [m 1 f 1]
+            y = self.relu(y).squeeze(1).squeeze(-1)  # [m f]
+            y = einops.rearrange(y, '(b t o) f -> b o f t', b=b, t=t, o=self.o)
+
+        except RuntimeError:  # Out of memory, For loop ops replaced.
+            gc.collect()
             mini_b = 4  # must keep b % mini_b = 0
-            for i in range(1, b, mini_b):  # one or multi x depends on the memory
-                temp = self._linear_mul_broadcasting(x[i:i+mini_b-1].unsqueeze(0), w, b=the_b)
-                y = torch.cat((y, temp), dim=0)  # [1++ t g n d f w]
-                del temp, x
+            x = [e for e in torch.split(x, mini_b, dim=0)]  # list(mini_b, t g d f w)
+            temp = x.pop()
+            y = self._linear_mul_broadcasting(temp, w, b=the_b)
+            del temp
+            gc.collect()
+            y = einops.rearrange(y, 'b t g n d f w -> b t (g n) d f w')  # [b t out_c d f w]
+            y = einops.rearrange(y, 'b t o d f w -> (b t o) d f w')  # [m d f w]
+            if self.padding:
+                pad2 = torch.zeros(y.shape[0], self.d, self.ah//2, self.w).to(y.device)
+                y = torch.concat([pad2, y, pad2], dim=-2)  # [m d f++ w]
+            y = self.conv2d(y)  # [m 1 f w/w]  [m 1 f 1]
+            y = self.relu(y).squeeze(1).squeeze(-1)  # [m f]
+            y = einops.rearrange(y, '(b t o) f -> b o f t', b=mini_b, t=t, o=self.o)
 
-        y = einops.rearrange(y, 'b t g n d f w -> b (g n) d f (t w)')  # [b out_c d f (t w)]
-        y = self.bn(y)
-        y = einops.rearrange(y, 'b o d f (t w) -> b o d f t w', t=t, w=self.w)  # [m d f w]
-        y = einops.rearrange(y, 'b o d f t w-> (b o t) d f w')  # [m d f w]
-        y = self.conv2d(y)  # [m 1 1+f-height//s w/w]  [m 1 f' 1]
-        y = self.relu(y).squeeze(1).squeeze(-1)  # [m f']
-        y = einops.rearrange(y, '(b o t) f -> b o f t', b=b, t=t, o=self.o)
+            rest = len(x)
+            for _ in range(rest):  # one or multi x depends on the memory
+                temp = x.pop()
+                temp = self._linear_mul_broadcasting(temp, w, b=the_b)
+                temp = einops.rearrange(temp, 'b t g n d f w -> b t (g n) d f w')  # [b t out_c d f w]
+                temp = einops.rearrange(temp, 'b t o d f w -> (b t o) d f w')  # [m d f w]
+                if self.padding:
+                    pad2 = torch.zeros(temp.shape[0], self.d, self.ah // 2, self.w).to(y.device)
+                    temp = torch.concat([pad2, temp, pad2], dim=-2)  # [m d f++ w]
+                temp = self.conv2d(temp)  # [m 1 f w/w]  [m 1 f 1]
+                temp = self.relu(temp).squeeze(1).squeeze(-1)  # [m f]
+                temp = einops.rearrange(temp, '(b t o) f -> b o f t', b=mini_b, t=t, o=self.o)
 
+                y = torch.cat((y, temp), dim=0)  # [mini_b++ o f t]
+                del temp
+                gc.collect()
+
+        # if self.padding:
+        #     pad2 = torch.zeros(b, self.d, f//2, self.w).cuda()
+        #     print(y.size(), pad2.size(), 'qqqqq')
+        #     y = torch.concat([pad2, y, pad2], dim=-2)  # [m d f++ w]
+        #
+        # y = self.conv2d(y)  # [m 1 f w/w]  [m 1 f 1]
+        # y = self.relu(y).squeeze(1).squeeze(-1)  # [m f]
+        # y = einops.rearrange(y, '(b t o) f -> b o f t', b=b, t=t, o=self.o)
+        del x
+        gc.collect()
         return y

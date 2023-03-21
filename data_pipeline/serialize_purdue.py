@@ -140,8 +140,7 @@ def go_through(bdf_files, labels_dir, len_x, pkl_path):
         assert np.shape(xs[0]) == (len_x, 96)  # [length, channels]
 
         xs = np.reshape(xs, (len(xs) * len_x, 96))
-        xs = trial_average(xs, axis=0)
-        # ave in session
+        xs = trial_average(xs, axis=0)  # ave in session
         xs = np.reshape(xs, (-1, len_x, 96))
 
         name = f.split('/')[-1].replace('.bdf', '')
