@@ -9,43 +9,11 @@ import numpy as np
 import einops
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.decomposition import PCA
+from sklearn.svm import LinearSVC
 from utils.my_tools import file_scanf2
 import pickle
 from tqdm import tqdm
 from joblib import Parallel, delayed
-# import torch
-
-
-# def lda_torch(x1, x2, device="cpu"):
-#     """Forked from https://github.com/juliusbierk/torchlda/blob/master/torchlda.py
-#     """
-#     with torch.no_grad():
-#         x1 = torch.tensor(x1, device=device, dtype=torch.float)
-#         x2 = torch.tensor(x2, device=device, dtype=torch.float)
-#
-#         m1 = torch.mean(x1, dim=0)
-#         m2 = torch.mean(x2, dim=0)
-#         m = (len(x1) * m1 + len(x2) * m2) / (len(x1) + len(x2))
-#
-#         d1 = x1 - m1[None, :]
-#         scatter1 = d1.t() @ d1
-#         d2 = x2 - m2[None, :]
-#         scatter2 = d2.t() @ d2
-#         within_class_scatter = scatter1 + scatter2
-#
-#         d1 = m1 - m[None, :]
-#         scatter1 = len(x1) * (d1.t() @ d1)
-#         d2 = m2 - m[None, :]
-#         scatter2 = len(x2) * (d2.t() @ d2)
-#         between_class_scatter = scatter1 + scatter2
-#
-#         p = torch.pinverse(within_class_scatter) @ between_class_scatter
-#         eigenvalues, eigenvectors = torch.eig(p, eigenvectors=True)
-#         idx = torch.argsort(eigenvalues[:, 0], descending=True)
-#         eigenvalues = eigenvalues[idx, 0]
-#         eigenvectors = eigenvectors[idx, :]
-#
-#         return eigenvectors[0, :].cpu().numpy()
 
 
 def thread_read_write(x, y, pkl_filename):
@@ -64,19 +32,12 @@ def go_through(xs, ys, names, pkl_path):
         for i in tqdm(range(len(ys)), desc=' writing ', colour='WHITE', ncols=80))
 
 
-if __name__ == '__main__':
-    path = '../../../Datasets/CVPR2021-02785/pkl_spec_from_2048'
-    filenames = file_scanf2(path, contains=['1000-1-00', '1000-1-01', '1000-1-02', '1000-1-03', '1000-1-04',
-                                            '1000-1-05', '1000-1-06', '1000-1-07', '1000-1-08', '1000-1-09'],
-                            endswith='.pkl')
-
-    lda = LinearDiscriminantAnalysis()
+def pca_dataset(file_names):
     pca = PCA(n_components=60, copy=False, svd_solver='auto')
 
     dataset = []  # [b 3780]
     labels = []
-
-    for file in tqdm(filenames, desc=' process '):
+    for file in tqdm(file_names, desc=' reading '):
         with open(file, 'rb') as f:
             x = pickle.load(f)  # [96, 33, 63]
             y = int(pickle.load(f))
@@ -85,10 +46,32 @@ if __name__ == '__main__':
             x = einops.rearrange(x, 't c -> (t c)')  # [3780,]
             dataset.append(x)
             labels.append(y)
+    return dataset, labels
 
-    # dataset_lda = lda.fit_transform(dataset, labels)  # [b=2000 3780]
-    lda.fit(dataset, labels)
-    dataset_lda = np.dot(dataset, lda.scalings_[:, 0:1024])
-    del dataset
 
-    go_through(dataset_lda, labels, filenames, pkl_path=path + '/../pkl_pca_lda_from_spec/')
+if __name__ == '__main__':
+    path = '../../../Datasets/CVPR2021-02785/pkl_spec_from_2048'
+    file_names = file_scanf2(path, contains=['1000-1-00', '1000-1-01', '1000-1-02', '1000-1-03', '1000-1-04',
+                                             '1000-1-05', '1000-1-06', '1000-1-07', '1000-1-08', '1000-1-09'],
+                             endswith='.pkl')
+    np.random.shuffle(file_names)
+    total = len(file_names)
+    train_x, train_y = pca_dataset(file_names=file_names[0:int(total * 0.6)])
+    test_x, test_y = pca_dataset(file_names=file_names[int(total * 0.6):])
+
+    lda = LinearDiscriminantAnalysis()
+    lda.fit(train_x, train_y)
+
+    print('\n分类准确度：{:.4f}'.format(lda.score(test_x, test_y)))
+
+    test_x = np.dot(test_x, lda.scalings_)
+    print(np.shape(test_x[0:1000]))
+    # go_through(dataset_lda, labels, filenames, pkl_path=path + '/../pkl_pca_lda_from_spec/')
+
+    svm = LinearSVC(fit_intercept=True, C=0.1, dual=True, max_iter=5000)
+    svm.fit(test_x[0:1000], test_y[0:1000])
+
+    print("\nSVM model: Y = w0 + w1*x1 + w2*x2")  # 分类超平面模型
+    print('截距: w0={}'.format(svm.intercept_))  # w0: 截距, YouCans
+    print('系数: w1={}'.format(svm.coef_))  # w1,w2: 系数, XUPT
+    print('\n分类准确度：{:.4f}'.format(svm.score(test_x[1000:], test_y[1000:])))  # 对训练集的分类准确度

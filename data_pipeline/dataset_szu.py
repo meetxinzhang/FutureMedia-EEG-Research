@@ -52,7 +52,7 @@ class ListDataset(torch.utils.data.Dataset):
             y = int(pickle.load(f))
 
             # jiang ave
-            x = jiang_delta_ave(x)  # [2048 96] -> [512 96]
+            # x = jiang_delta_ave(x)  # [2048 96] -> [512 96]
             # x = jiang_four_ave(x, fold=4)  # [2048 96] -> [512 96]
 
             # 1D-DCT
@@ -71,7 +71,7 @@ class ListDataset(torch.utils.data.Dataset):
             # x = x[:, :, ::2]  # [127, 85, 500]
 
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
-            # x = x[:1024, :]               # SZU, [1000, 127]
+            x = x[:512, :]               # [512 96]
             # x = difference(x, fold=4)     # SZU, [500, 127]
             # y = y-1                  # Ziyan He created EEG form
 

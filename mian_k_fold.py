@@ -51,7 +51,7 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'EEGNet-trial-delta-ave-50e01l64b'
+id_exp = 'EEGNet-trial-50e01l64b'
 path = '../../Datasets/CVPR2021-02785/pkl_trial_2048'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
@@ -75,12 +75,12 @@ if __name__ == '__main__':
     #     valid_loader = DataLoader(ListDataset(test_files), batch_size=batch_size, num_workers=1, shuffle=True)
         val_iterable = IterForever(valid_loader)
 
-        ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.2).cuda()
+        ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.1).cuda()
         # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
         #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
         # ff = FieldFlow2(channels=127, early_drop=0.3, late_drop=0.1).cuda()
         optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)  # 设定优优化器更新的时刻表
+        # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}')
         train_num = len(train_ids)
@@ -114,7 +114,7 @@ if __name__ == '__main__':
                 #     cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
                 #     generate_visualization(x[0].squeeze(), cam.squeeze(),
                 #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
-            lr_scheduler.step()  # 更新学习率
+            # lr_scheduler.step()  # 更新学习率
         summary.flush()
         summary.close()
     print('done')
