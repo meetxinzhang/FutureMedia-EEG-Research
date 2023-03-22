@@ -26,9 +26,10 @@ from utils.my_tools import IterForever
 
 def kfold_loader(path, k):
     database = []
-    for i in range(0, 9):
-        files_list = file_scanf(path, contains='run_'+str(i)+'_', endswith='.pkl')
-        # random.shuffle(files_list)  # shuffle the set by random
+    for i in range(0, 100):
+        # files_list = file_scanf(path, contains='run_'+str(i)+'_', endswith='.pkl')  # SZ
+        i = '0' + str(i) if i < 10 else str(i)
+        files_list = file_scanf(path, contains='1000-1-' + i + '_', endswith='.pkl')  # PD
         database.append(files_list)
 
     p = 0
@@ -45,8 +46,8 @@ def kfold_loader(path, k):
 
 
 torch.cuda.set_device(7)
-batch_size = 16
-accumulation_steps = 4  # to accumulate gradient when you want to set larger batch_size but out of memory.
+batch_size = 8
+accumulation_steps = 8  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
 lr = 0.01
@@ -56,23 +57,23 @@ path = '../../Datasets/CVPR2021-02785/pkl_trial_cwt_from_1024'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
-k_fold = KFold(n_splits=k, shuffle=True)
-filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
-dataset = ListDataset(filepaths)
+# k_fold = KFold(n_splits=k, shuffle=True)
+# filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
+# dataset = ListDataset(filepaths)
 
 if __name__ == '__main__':
-
     # torch.multiprocessing.set_start_method('spawn')
-    for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
-        train_sampler = SubsetRandomSampler(train_ids)
-        valid_sampler = SubsetRandomSampler(valid_ids)
-        train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4,
-                                  prefetch_factor=1)
-        valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
-                                  prefetch_factor=1)
-    # for (fold, train_files, test_files) in kfold_loader(path, k):
-    #     train_loader = zddddddDataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=2, shuffle=True)
-    #     valid_loader = DataLoader(ListDataset(test_files), batch_size=batch_size, num_workers=1, shuffle=True)
+
+    # for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
+    #     train_sampler = SubsetRandomSampler(train_ids)
+    #     valid_sampler = SubsetRandomSampler(valid_ids)
+    #     train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4,
+    #                               prefetch_factor=1)
+    #     valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
+    #                               prefetch_factor=1)
+    for (fold, train_files, valid_files) in kfold_loader(path, k):
+        train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=2, shuffle=True)
+        valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=True)
         val_iterable = IterForever(valid_loader)
 
         # ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.1).cuda()
@@ -83,8 +84,8 @@ if __name__ == '__main__':
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}')
-        train_num = len(train_ids)
-        print(train_num, len(valid_ids), '--------------------------------')
+        train_num = len(train_files)
+        print(train_num, len(valid_files), '--------------------------------')
         summary = SummaryWriter(log_dir='./log/' + time_exp + id_exp + '/' + str(fold) + '_fold/')
 
         global_step = 0
@@ -105,7 +106,7 @@ if __name__ == '__main__':
                     x_val, label_val = val_iterable.next()
                     loss_val, acc_val = test(model=ff, x=x_val, label=label_val, batch_size=batch_size)
                     print('epoch:{}/{} step:{}/{} global_step:{} lr:{:.4f}'
-                          ' loss={:.5f} acc={:.3f} val_loss={:.5f} val_acc={:.3f}'.
+                          ' loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
                           format(epoch, n_epoch, step, int(train_num / batch_size), global_step, lr,
                                  loss, acc, loss_val, acc_val))
                     summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=global_step)
