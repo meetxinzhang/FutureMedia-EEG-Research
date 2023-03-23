@@ -12,15 +12,15 @@ import torch
 import cv2
 
 
-def delta(eeg, fold):
-    # time-series [t, d]
-    length = int(len(eeg) // fold)
-    base = eeg[0:length - 1, :]
-    a2 = eeg[2 * length:(length * 3) - 1, :]
-    assert np.shape(base)[0] == np.shape(a2)[0]
-    d = a2 - base
-    del eeg, base, a2
-    return d
+# def delta(eeg, fold):
+#     # time-series [t, d]
+#     length = int(len(eeg) // fold)
+#     base = eeg[0:length - 1, :]
+#     a2 = eeg[2 * length:(length * 3) - 1, :]
+#     assert np.shape(base)[0] == np.shape(a2)[0]
+#     d = a2 - base
+#     del eeg, base, a2
+#     return d
 
 
 def jiang_four_ave(eeg, fold):
@@ -40,6 +40,20 @@ def jiang_delta_ave(eeg):
     d1 = eeg[1] - base
     d2 = eeg[2] - base
     d3 = eeg[3] - base
+
+    re = (d1 + d2 + d3) / 3  # [t 96]
+
+    assert np.shape(re) == (512, 96)
+    return re
+
+
+def time_delta_ave(eeg):
+    # [t d]
+    assert len(eeg) % 4 == 0
+    eeg = np.split(eeg, 4, axis=0)  # [fold t 96]
+    d1 = eeg[1] - eeg[0]
+    d2 = eeg[2] - eeg[1]
+    d3 = eeg[3] - eeg[2]
 
     re = (d1 + d2 + d3) / 3  # [t 96]
 

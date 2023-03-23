@@ -15,7 +15,7 @@ import time
 import os
 from train_test import XinTrainer
 from data_pipeline.dataset_szu import ListDataset
-from main_k_fold import kfold_loader
+from main_k_fold import k_fold_share
 from model.field_flow_2p1 import FieldFlow2
 from utils.my_tools import IterForever
 os.environ['MASTER_ADDR'] = 'localhost'
@@ -37,7 +37,7 @@ data_path = '../../Datasets/CVPR2021-02785/pkl_trial_cwt_from_1024'
 # data_path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
-devices_id = [4, 7]
+devices_id = [6, 7]
 main_gpu_rank = 0
 
 
@@ -78,7 +78,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     print(str(gpu_rank) + ' rank is initialized')
 
     optim_paras = [p for p in ff.parameters() if p.requires_grad]
-    optimizer = torch.optim.Adam(optim_paras, lr=learn_rate)
+    optimizer = torch.optim.SGD(optim_paras, lr=learn_rate, momentum=0.9, weight_decay=1e-4)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)  # 设定优优化器更新的时刻表
 
     xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size,
@@ -106,7 +106,7 @@ if __name__ == '__main__':
     #                               prefetch_factor=1)
     #     valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
     #                               prefetch_factor=1)
-    for (fold, train_files, valid_files) in kfold_loader(data_path, k):
+    for (fold, train_files, valid_files) in k_fold_share(data_path, k):
         train_set = ListDataset(train_files)
         valid_set = ListDataset(valid_files)
 

@@ -41,17 +41,20 @@ class XinTrainer:
         self.summary = summary
         self.gpu_rank = gpu_rank
         self.device = device
+        self.train_num = len(train_loader)
+        print('Train: ', self.train_num, 'Validate',  len(val_iterable), '--------------------------------')
 
-    def train_period_parallel(self, epoch, accumulation):
+    def train_period_parallel(self, epoch, accumulation=1, print_step=10):
+        method = self.train_step if accumulation == 1 else self.train_accumulate
         for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127], [b]
             if x is None and label is None:
                 continue
 
-            if step % 10 != 0:
-                _, _ = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
+            if step % print_step != 0:
+                _, _ = method(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
 
             else:
-                loss, acc = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
+                loss, acc = method(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
                 x_val, label_val = self.val_iterable.next()
                 loss_val, acc_val = self.validate(x=x_val, label=label_val)
 
@@ -63,7 +66,7 @@ class XinTrainer:
 
                     lr = self.optimizer.param_groups[0]['lr']
                     print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
-                          format(epoch, self.n, step, len(self.train_loader), lr, loss, acc, loss_val, acc_val))
+                          format(epoch, self.n, step, self.train_num, lr, loss, acc, loss_val, acc_val))
                     self.summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
                     self.summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
                     self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
@@ -101,6 +104,23 @@ class XinTrainer:
 
         return loss, accuracy
 
+    def train_step(self, x, label, step, accumulation, cal_acc=False):
+        x = x.to(self.device)
+        label = label.to(self.device)
+
+        self.model.train()
+        self.optimizer.zero_grad()
+        y = self.model(x)  # [bs, 40]
+        loss = F.cross_entropy(y, label)
+        loss.backward()
+        self.optimizer.step()
+
+        accuracy = None
+        if cal_acc:
+            corrects = (torch.argmax(y, dim=1).data == label.data)
+            accuracy = corrects.cpu().int().sum().numpy() / self.batch_size
+        return loss, accuracy
+
     def validate(self, x, label):
         x = x.to(self.device)
         label = label.to(self.device)
@@ -115,61 +135,61 @@ class XinTrainer:
         return loss, accuracy
 
 
-def train(model, x, label, optimizer, batch_size, cal_acc=False):
-    x = x.cuda()
-    label = label.cuda()
-
-    model.train()
-    # # if step % 2 == 0:
-    optimizer.zero_grad()
-    y = model(x)  # [bs, 40]
-    loss = F.cross_entropy(y, label)
-    loss.backward()
-    optimizer.step()
-
-    accuracy = None
-    if cal_acc:
-        corrects = (torch.argmax(y, dim=1).data == label.data)
-        accuracy = corrects.cpu().int().sum().numpy()
-
-    return loss, accuracy / batch_size
-
-
-def train_accumulate(model, x, label, optimizer, batch_size, step, accumulation, cal_acc=False):
-    x = x.cuda()
-    label = label.cuda()
-
-    # forward pass with `autocast` context manager
-    with autocast(enabled=True):
-        model.train()
-        y = model(x)  # [bs, 40]
-        loss = F.cross_entropy(y, label) / accumulation
-
-    scaler.scale(loss).backward()  # scale gradient and perform backward pass
-    # scaler.unscale_(optimizer)  # before gradient clipping the optimizer parameters must be unscaled.
-    # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)  # perform optimization step
-
-    if (step + 1) % accumulation == 0:
-        scaler.step(optimizer)
-        scaler.update()
-
-    accuracy = None
-    if cal_acc:
-        corrects = (torch.argmax(y, dim=1).data == label.data)
-        accuracy = corrects.cpu().int().sum().numpy()
-
-    return loss, accuracy / batch_size
-
-
-def test(model, x, label, batch_size):
-    x = x.cuda()
-    label = label.cuda()
-
-    model.eval()
-    y = model(x)  # [bs, 40]
-    loss = F.cross_entropy(y, label)
-
-    corrects = (torch.argmax(y, dim=1).data == label.data)
-    accuracy = corrects.cpu().int().sum().numpy()
-
-    return loss, accuracy / batch_size
+# def train(model, x, label, optimizer, batch_size, cal_acc=False):
+#     x = x.cuda()
+#     label = label.cuda()
+#
+#     model.train()
+#     # # if step % 2 == 0:
+#     optimizer.zero_grad()
+#     y = model(x)  # [bs, 40]
+#     loss = F.cross_entropy(y, label)
+#     loss.backward()
+#     optimizer.step()
+#
+#     accuracy = None
+#     if cal_acc:
+#         corrects = (torch.argmax(y, dim=1).data == label.data)
+#         accuracy = corrects.cpu().int().sum().numpy()
+#
+#     return loss, accuracy / batch_size
+#
+#
+# def train_accumulate(model, x, label, optimizer, batch_size, step, accumulation, cal_acc=False):
+#     x = x.cuda()
+#     label = label.cuda()
+#
+#     # forward pass with `autocast` context manager
+#     with autocast(enabled=True):
+#         model.train()
+#         y = model(x)  # [bs, 40]
+#         loss = F.cross_entropy(y, label) / accumulation
+#
+#     scaler.scale(loss).backward()  # scale gradient and perform backward pass
+#     # scaler.unscale_(optimizer)  # before gradient clipping the optimizer parameters must be unscaled.
+#     # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)  # perform optimization step
+#
+#     if (step + 1) % accumulation == 0:
+#         scaler.step(optimizer)
+#         scaler.update()
+#
+#     accuracy = None
+#     if cal_acc:
+#         corrects = (torch.argmax(y, dim=1).data == label.data)
+#         accuracy = corrects.cpu().int().sum().numpy()
+#
+#     return loss, accuracy / batch_size
+#
+#
+# def test(model, x, label, batch_size):
+#     x = x.cuda()
+#     label = label.cuda()
+#
+#     model.eval()
+#     y = model(x)  # [bs, 40]
+#     loss = F.cross_entropy(y, label)
+#
+#     corrects = (torch.argmax(y, dim=1).data == label.data)
+#     accuracy = corrects.cpu().int().sum().numpy()
+#
+#     return loss, accuracy / batch_size

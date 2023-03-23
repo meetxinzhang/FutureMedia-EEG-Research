@@ -42,6 +42,9 @@ class IterForever:
         self.dataloader = dataloader
         self.it = iter(self.dataloader)
 
+    def __len__(self):
+        return len(self.dataloader)
+
     def next(self):
         try:
             return next(self.it)
