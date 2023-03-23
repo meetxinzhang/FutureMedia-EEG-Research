@@ -30,7 +30,7 @@ batch_size = 16
 accumulation_steps = 4  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
-learn_rate = 0.01
+learn_rate = 0.1
 
 id_exp = 'EEGNet-trial-ff2-on-cwt-50e01l64b'
 data_path = '../../Datasets/CVPR2021-02785/pkl_trial_cwt_from_1024'
@@ -56,7 +56,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     valid_batch_sampler = tud.BatchSampler(valid_sampler, batch_size, drop_last=True)
 
     # nw = min([os.cpu_count(), batch_size if batch_size > 1 else 0, 8])  # number of workers
-    train_loader = tud.DataLoader(train_dataset, batch_sampler=train_batch_sampler, pin_memory=True, num_workers=2)
+    train_loader = tud.DataLoader(train_dataset, batch_sampler=train_batch_sampler, pin_memory=True, num_workers=1)
     valid_loader = tud.DataLoader(valid_dataset, batch_sampler=valid_batch_sampler, pin_memory=True, num_workers=1)
     val_iterable = IterForever(valid_loader)
 
@@ -78,8 +78,8 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     print(str(gpu_rank) + ' rank is initialized')
 
     optim_paras = [p for p in ff.parameters() if p.requires_grad]
-    optimizer = torch.optim.SGD(optim_paras, lr=learn_rate, momentum=0.9, weight_decay=1e-4)
-    lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)  # 设定优优化器更新的时刻表
+    optimizer = torch.optim.SGD(optim_paras, lr=learn_rate, momentum=0.9, weight_decay=0.001, nesterov=True)
+    # lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.6)  # 设定优优化器更新的时刻表
 
     xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size,
                      train_loader=train_loader, val_iterable=val_iterable,
@@ -87,7 +87,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     for epoch in range(1, n_epoch + 1):
         train_sampler.set_epoch(epoch)  # to update epoch related random seed
         xin.train_period_parallel(epoch=epoch, accumulation=accumulation_steps)
-        lr_scheduler.step()  # 更新学习率
+        # lr_scheduler.step()  # 更新学习率
 
     if gpu_rank == main_gpu_rank:
         summary.flush()

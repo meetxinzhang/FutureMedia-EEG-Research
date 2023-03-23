@@ -75,7 +75,7 @@ if __name__ == '__main__':
     #     valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
     #                               prefetch_factor=1)
     for (fold, train_files, valid_files) in k_fold_share(path, k):
-        train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=2, shuffle=False)
+        train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=1, shuffle=False)
         valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
         val_iterable = IterForever(valid_loader)
 
