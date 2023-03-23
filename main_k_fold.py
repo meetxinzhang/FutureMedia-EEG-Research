@@ -19,6 +19,8 @@ from data_pipeline.dataset_szu import ListDataset
 # from model.conv_transformer import ConvTransformer
 from model.field_flow_2p1 import FieldFlow2
 from utils.my_tools import IterForever
+
+
 # random.seed = 2022
 # torch.manual_seed(2022)
 # torch.cuda.manual_seed(2022)
@@ -37,9 +39,9 @@ def kfold_loader(path, k):
         train_set = []
         test_set = []
         for inset in database:
-            k_len = len(inset)//k
-            test_set += inset[p*k_len:(p+1)*k_len]
-            train_set += inset[:p*k_len] + inset[(p+1)*k_len:]
+            k_len = len(inset) // k
+            test_set += inset[p * k_len:(p + 1) * k_len]
+            train_set += inset[:p * k_len] + inset[(p + 1) * k_len:]
             assert len(test_set) > 0
         yield p, train_set, test_set
         p += 1
@@ -80,7 +82,8 @@ if __name__ == '__main__':
         # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
         #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
         ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).cuda()
-        optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
+        optim_paras = [p for p in ff.parameters() if p.requires_grad]
+        optimizer = torch.optim.Adam(ff.optim_paras, lr=lr)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}')
@@ -94,27 +97,29 @@ if __name__ == '__main__':
                 if x is None and label is None:
                     continue
 
-                loss, acc = train_accumulate(ff, x, label, optimizer, batch_size=batch_size,
-                                             step=step, accumulation=accumulation_steps, cal_acc=True)
-                # loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
-                lr = optimizer.param_groups[0]['lr']
-                summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
-                summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
-
-                global_step += 1
-                if step % 10 == 0:
+                if step % 10 != 0:
+                    _, _ = train_accumulate(ff, x, label, optimizer, batch_size=batch_size,
+                                            step=step, accumulation=accumulation_steps, cal_acc=False)
+                else:
+                    loss, acc = train_accumulate(ff, x, label, optimizer, batch_size=batch_size,
+                                                 step=step, accumulation=accumulation_steps, cal_acc=True)
                     x_val, label_val = val_iterable.next()
                     loss_val, acc_val = test(model=ff, x=x_val, label=label_val, batch_size=batch_size)
+
                     print('epoch:{}/{} step:{}/{} global_step:{} lr:{:.4f}'
                           ' loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
                           format(epoch, n_epoch, step, int(train_num / batch_size), global_step, lr,
                                  loss, acc, loss_val, acc_val))
+                    lr = optimizer.param_groups[0]['lr']
+                    summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
+                    summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
                     summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=global_step)
                     summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=global_step)
                 # if step % 10 == 0:
                 #     cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
                 #     generate_visualization(x[0].squeeze(), cam.squeeze(),
                 #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
+                global_step += 1
             lr_scheduler.step()  # 更新学习率
         summary.flush()
         summary.close()

@@ -9,8 +9,8 @@
 import sys
 import torch
 import torch.nn.functional as F
+import torch.distributed as dist
 from torch.cuda.amp import autocast, GradScaler
-
 scaler = GradScaler()
 
 
@@ -29,17 +29,21 @@ scaler = GradScaler()
 
 
 class XinTrainer:
-    def __init__(self, n_epoch, model, optimizer, batch_size, main_gpu, device):
+    def __init__(self, n_epoch, model, optimizer, train_loader, val_iterable, batch_size,
+                 summary, gpu_rank, device):
         self.global_step = 0
         self.n = n_epoch
         self.model = model
         self.optimizer = optimizer
+        self.train_loader = train_loader
+        self.val_iterable = val_iterable
         self.batch_size = batch_size
-        self.main_gpu = main_gpu
+        self.summary = summary
+        self.gpu_rank = gpu_rank
         self.device = device
 
-    def train_period_parallel(self, epoch, accumulation, gpu_rank, summary, train_loader, val_iterable):
-        for step, (x, label) in enumerate(train_loader):  # [b, 1, 500, 127], [b]
+    def train_period_parallel(self, epoch, accumulation):
+        for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127], [b]
             if x is None and label is None:
                 continue
 
@@ -48,24 +52,23 @@ class XinTrainer:
 
             else:
                 loss, acc = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
-                x_val, label_val = val_iterable.next()
+                x_val, label_val = self.val_iterable.next()
                 loss_val, acc_val = self.validate(x=x_val, label=label_val)
 
-                if gpu_rank == self.main_gpu:
-                    if self.device != torch.device("cpu"):
-                        torch.cuda.synchronize(self.device)  # 等待所有进程计算完毕
+                if self.gpu_rank == 0:
+                    torch.cuda.synchronize(self.device)  # 等待所有进程计算完毕
+                    if not torch.isfinite(loss):
+                        print('WARNING: non-finite loss, ending training ', loss)
+                        sys.exit(1)
 
                     lr = self.optimizer.param_groups[0]['lr']
                     print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
-                          format(epoch, self.n, step, len(train_loader), lr, loss, acc, loss_val, acc_val))
-                    summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
-                    summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
-                    summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
-                    summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
-
-            if not torch.isfinite(loss):
-                print('WARNING: non-finite loss, ending training ', loss)
-                sys.exit(1)
+                          format(epoch, self.n, step, len(self.train_loader), lr, loss, acc, loss_val, acc_val))
+                    self.summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
+                    self.summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
+                    self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
+                    self.summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
+                dist.barrier()  # waite the main process
             self.global_step += 1
 
             # if step % 10 == 0:
@@ -94,9 +97,9 @@ class XinTrainer:
         accuracy = None
         if cal_acc:
             corrects = (torch.argmax(y, dim=1).data == label.data)
-            accuracy = corrects.cpu().int().sum().numpy()
+            accuracy = corrects.cpu().int().sum().numpy() / self.batch_size
 
-        return loss, accuracy / self.batch_size
+        return loss, accuracy
 
     def validate(self, x, label):
         x = x.to(self.device)
@@ -107,9 +110,9 @@ class XinTrainer:
         loss = F.cross_entropy(y, label)
 
         corrects = (torch.argmax(y, dim=1).data == label.data)
-        accuracy = corrects.cpu().int().sum().numpy()
+        accuracy = corrects.cpu().int().sum().numpy() / self.batch_size
 
-        return loss, accuracy / self.batch_size
+        return loss, accuracy
 
 
 def train(model, x, label, optimizer, batch_size, cal_acc=False):
