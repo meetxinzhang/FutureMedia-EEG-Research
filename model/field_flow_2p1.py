@@ -40,7 +40,7 @@ class FieldFlow2(nn.Module):
         self.lc1 = LinearConv2D(input_channels=channels, out_channels=channels*2, groups=channels,
                                 embedding=30, kernel_width=15, kernel_stride=1,
                                 activate_height=2, activate_stride=1)  # b o f t
-        self.p1 = nn.AvgPool2d(kernel_size=(2, 2), stride=(2, 2))  # b o f/2 t/3
+        self.p1 = nn.AvgPool2d(kernel_size=(2, 1), stride=(2, 1))  # b o f/2 t/3
 
         self.lc2 = LinearConv2D(input_channels=channels*2, out_channels=channels*4, groups=channels,
                                 embedding=15, kernel_width=7, kernel_stride=1,

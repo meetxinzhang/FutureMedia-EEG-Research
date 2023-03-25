@@ -42,7 +42,7 @@ main_gpu_rank = 0
 
 
 def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_dataset: ListDataset):
-    dist.init_process_group(backend='nccl', init_method='env://', world_size=2, rank=gpu_rank)
+    dist.init_process_group(backend='nccl', init_method='env://', world_size=len(devices_id), rank=gpu_rank)
     device = torch.device(f"cuda:{device_id}")
     torch.cuda.set_device(device)
 
