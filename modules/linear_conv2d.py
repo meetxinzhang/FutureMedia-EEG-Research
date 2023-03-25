@@ -20,13 +20,14 @@ class LinearConv2D(nn.Module):
     """
 
     def __init__(self, input_channels, out_channels, groups, embedding,
-                 kernel_width, kernel_stride, activate_height=2, activate_stride=2, padding=True, bias=False):
+                 kernel_width, kernel_stride, activate_height=2, activate_stride=2, padding=None, bias=False):
         super().__init__()
         self.c = input_channels
         self.e = embedding
         self.w = kernel_width
         self.ks = kernel_stride
         self.ah = activate_height
+        self.a_s = activate_stride
         self.g = groups
         assert input_channels % groups == 0
         kernel_depth = input_channels // groups
@@ -36,7 +37,11 @@ class LinearConv2D(nn.Module):
         n_filters1group = out_channels // groups
         self.n = n_filters1group
         self.bias = bias
-        self.padding = padding
+        # self.padding = [self.w//2, self.w//2, 0, 0] if padding is None else padding
+        if padding is None:
+            self.padding = [0, 0, 0, 0]
+        else:
+            self.padding = padding
 
         self.weight = nn.Parameter(torch.empty(out_channels, self.d, self.e, self.w))  # [o d e w]
         nn.init.xavier_uniform_(self.weight)
@@ -63,11 +68,14 @@ class LinearConv2D(nn.Module):
         [b, c, f, _] = x.size()
         assert c == self.c
         assert f == self.e
+        if self.padding[2] or self.padding[3] != 0:
+            pad_vertical = nn.ZeroPad2d(padding=(0, 0, self.padding[2], self.padding[3]))
+        else:
+            pad_vertical = None
 
-        # pad_width = ((t-1)*self.ks-t+self.w)  # calculate the padding
-        if self.padding:
-            pad1 = torch.zeros(b, c, f, self.w // 2).cuda()
-            x = torch.concat([pad1, x, pad1], dim=-1)  # [b c f t++]
+        if self.padding[0] or self.padding[1] != 0:
+            pad_horizon = nn.ZeroPad2d(padding=(self.padding[0], self.padding[1], 0, 0))
+            x = pad_horizon(x)  # left, right, top, bottom
 
         x = x.unfold(dimension=-1, size=self.w, step=self.ks)  # [b c f t w]
         t = x.size(-2)
@@ -80,9 +88,8 @@ class LinearConv2D(nn.Module):
             y = einops.rearrange(y, 'b t g n d f w -> b t (g n) d f w')  # [b t out_c d f w]
             y = einops.rearrange(y, 'b t o d f w -> (b t o) d f w')  # [m d f w]
 
-            if self.padding:
-                pad2 = torch.zeros(y.shape[0], self.d, self.ah//2, self.w).to(y.device)
-                y = torch.concat([pad2, y, pad2], dim=-2)  # [m d f++ w]
+            if pad_vertical is not None:
+                y = pad_vertical(y)
 
             y = self.conv2d(y)  # [m 1 f w/w]  [m 1 f 1]
             y = self.relu(y).squeeze(1).squeeze(-1)  # [m f]
@@ -98,9 +105,8 @@ class LinearConv2D(nn.Module):
             gc.collect()
             y = einops.rearrange(y, 'b t g n d f w -> b t (g n) d f w')  # [b t out_c d f w]
             y = einops.rearrange(y, 'b t o d f w -> (b t o) d f w')  # [m d f w]
-            if self.padding:
-                pad2 = torch.zeros(y.shape[0], self.d, self.ah//2, self.w).to(y.device)
-                y = torch.concat([pad2, y, pad2], dim=-2)  # [m d f++ w]
+            if pad_vertical is not None:
+                y = pad_vertical(y)
             y = self.conv2d(y)  # [m 1 f w/w]  [m 1 f 1]
             y = self.relu(y).squeeze(1).squeeze(-1)  # [m f]
             y = einops.rearrange(y, '(b t o) f -> b o f t', b=mini_b, t=t, o=self.o)
@@ -111,9 +117,8 @@ class LinearConv2D(nn.Module):
                 temp = self._linear_mul_broadcasting(temp, w, b=the_b)
                 temp = einops.rearrange(temp, 'b t g n d f w -> b t (g n) d f w')  # [b t out_c d f w]
                 temp = einops.rearrange(temp, 'b t o d f w -> (b t o) d f w')  # [m d f w]
-                if self.padding:
-                    pad2 = torch.zeros(temp.shape[0], self.d, self.ah // 2, self.w).to(y.device)
-                    temp = torch.concat([pad2, temp, pad2], dim=-2)  # [m d f++ w]
+                if pad_vertical is not None:
+                    temp = pad_vertical(temp)
                 temp = self.conv2d(temp)  # [m 1 f w/w]  [m 1 f 1]
                 temp = self.relu(temp).squeeze(1).squeeze(-1)  # [m f]
                 temp = einops.rearrange(temp, '(b t o) f -> b o f t', b=mini_b, t=t, o=self.o)
@@ -122,14 +127,6 @@ class LinearConv2D(nn.Module):
                 del temp
                 gc.collect()
 
-        # if self.padding:
-        #     pad2 = torch.zeros(b, self.d, f//2, self.w).cuda()
-        #     print(y.size(), pad2.size(), 'qqqqq')
-        #     y = torch.concat([pad2, y, pad2], dim=-2)  # [m d f++ w]
-        #
-        # y = self.conv2d(y)  # [m 1 f w/w]  [m 1 f 1]
-        # y = self.relu(y).squeeze(1).squeeze(-1)  # [m f]
-        # y = einops.rearrange(y, '(b t o) f -> b o f t', b=b, t=t, o=self.o)
         del x
         gc.collect()
         return y

@@ -54,7 +54,7 @@ class ListDataset(torch.utils.data.Dataset):
             # jiang ave
             # x = jiang_delta_ave(x)  # [2048 96] -> [512 96]
             # x = jiang_four_ave(x, fold=4)  # [2048 96] -> [512 96]
-            # x = time_delta_ave(x)
+            # x = time_delta_ave(x)  # [2048->512 96]
 
             # 1D-DCT
             # x = dct_1d(x)  # same with x [512 96]
@@ -69,8 +69,8 @@ class ListDataset(torch.utils.data.Dataset):
 
             # cwt  [c=96 f=30 t=1024]
             # x = x[:, :, :1000]  # [127, 85, 1000]
-            x = x[:, :, ::2]  # [96, 30, 512]
 
+            # x = x[:, :, ::2]  # [96, 30, 512]
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
             # x = x[:512, :]               # [512 96]
             # x = difference(x, fold=4)     # SZU, [500, 127]
