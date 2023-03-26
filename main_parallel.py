@@ -27,8 +27,8 @@ os.environ['MASTER_PORT'] = '7890'
 
 
 # torch.cuda.set_device(7)
-batch_size = 16
-accumulation_steps = 4  # to accumulate gradient when you want to set larger batch_size but out of memory.
+batch_size = 8
+accumulation_steps = 8  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
 learn_rate = 0.01
@@ -38,7 +38,7 @@ data_path = '../../Datasets/CVPR2021-02785/pkl_trial_cwt_from_1024'
 # data_path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = '' + str(time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()))
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
-devices_id = [6, 7]
+devices_id = [0, 1, 2, 3, 4]
 main_gpu_rank = 0
 train_loaders = 1
 valid_loaders = 1

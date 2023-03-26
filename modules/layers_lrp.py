@@ -5,9 +5,11 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-__all__ = ['forward_hook', 'Clone', 'Add', 'Cat', 'ReLU', 'GELU', 'Dropout', 'BatchNorm2d', 'Linear', 'MaxPool2d',
-           'AdaptiveAvgPool2d', 'AvgPool2d', 'Conv2d', 'Sequential', 'safe_divide', 'einsum', 'Softmax', 'IndexSelect',
-           'LayerNorm', 'AddEye']
+__all__ = ['forward_hook', 'Clone', 'Add', 'Cat', 'safe_divide', 'einsum', 'IndexSelect', 'AddEye',
+           'ReLU', 'GELU', 'ELU', 'Softmax', 'Dropout', 'BatchNorm2d', 'BatchNorm3d', 'LayerNorm',
+           'Linear',
+           'MaxPool2d', 'MaxPool3d', 'AdaptiveAvgPool2d', 'AvgPool2d', 'Conv2d', 'Conv3d',
+           'Sequential']
 
 
 def safe_divide(a, b):
@@ -120,6 +122,10 @@ class Dropout(nn.Dropout, RelProp):
 
 
 class MaxPool2d(nn.MaxPool2d, RelPropSimple):
+    pass
+
+
+class MaxPool3d(nn.MaxPool3d, RelPropSimple):
     pass
 
 
@@ -273,6 +279,19 @@ class BatchNorm2d(nn.BatchNorm2d, RelProp):
         return R
 
 
+class BatchNorm3d(nn.BatchNorm3d, RelProp):
+    def relprop(self, R, alpha):
+        X = self.X
+        beta = 1 - alpha
+        weight = self.weight.unsqueeze(0).unsqueeze(2).unsqueeze(3).unsqueeze(4) / (
+            (self.running_var.unsqueeze(0).unsqueeze(2).unsqueeze(3).unsqueeze(4).pow(2) + self.eps).pow(0.5))
+        Z = X * weight + 1e-9
+        S = R / Z
+        Ca = S * weight
+        R = self.X * (Ca)
+        return R
+
+
 class Linear(nn.Linear, RelProp):
     def relprop(self, R, alpha):
         beta = alpha - 1
@@ -365,4 +384,32 @@ class Conv2d(nn.Conv2d, RelProp):
             inhibitor_relevances = f(nw, pw, px, nx)  # Z1-+-, Z2+--
 
             R = alpha * activator_relevances - beta * inhibitor_relevances
+        return R
+
+
+class Conv3d(nn.Conv3d, RelProp):
+    def relprop(self, R, alpha):
+        beta = alpha - 1  # 0
+        pw = torch.clamp(self.weight, min=0)
+        nw = torch.clamp(self.weight, max=0)
+        px = torch.clamp(self.X, min=0)
+        nx = torch.clamp(self.X, max=0)
+
+        def f(w1, w2, x1, x2):
+            Za = F.conv3d(x1, w1, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
+            Zb = F.conv3d(x2, w2, bias=None, stride=self.stride, padding=self.padding, groups=self.groups)
+            S1 = safe_divide(R, Za)
+            S2 = safe_divide(R, Zb)
+            # print(R.sum())  # =1
+            # This may break the relevance conservation due to: "almost all relevance is
+            # absorbed by the non-redistributed zero-order term."
+            Ca = x1 * self.gradprop(Za, x1, S1)[0]
+            Cb = x2 * self.gradprop(Zb, x2, S2)[0]
+
+            return Ca + Cb
+
+        activator_relevances = f(pw, nw, px, nx)  # Z1+++, Z2--+
+        inhibitor_relevances = f(nw, pw, px, nx)  # Z1-+-, Z2+--
+
+        R = alpha * activator_relevances - beta * inhibitor_relevances
         return R

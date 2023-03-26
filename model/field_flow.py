@@ -10,7 +10,7 @@ import torch
 import torch.nn as nn
 from utils.weight_init import trunc_normal_
 import modules.nn_lrp as nnlrp
-import modules.layers_Chefer_H as lylrp
+import modules.layers_lrp as lylrp
 from modules.arcface import ArcFace
 import einops
 

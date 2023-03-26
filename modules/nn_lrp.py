@@ -4,7 +4,7 @@ Hacked together by / Copyright 2020 Ross Wightman
 import torch
 import torch.nn as nn
 from einops import rearrange
-from modules.layers_Chefer_H import *
+from modules.layers_lrp import *
 from utils.my_tools import to_2tuple
 from utils.pos_embed import RelPosEmb1DAISummer
 
