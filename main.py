@@ -18,12 +18,12 @@ from utils.my_tools import IterForever
 # from model.lrp_manager import ignite_relprop, generate_visualization
 # from utils.weight_init import get_state_dict
 
-torch.cuda.set_device(6)
+torch.cuda.set_device(7)
 batch_size = 64
 n_epoch = 50
 lr = 0.01
 
-id_experiment = 'EEGNet-delta-ave-train-512-test-50e01l64b'
+id_experiment = 'aep-lrp-ConvTsfm-50e01l64b'
 t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 train_files = file_scanf(path='../../Datasets/CVPR2021-02785/pkl_delta_ave_512', contains='i', endswith='.pkl')
 test_files = file_scanf(path='../../Datasets/CVPR2021-02785/pkl_512', contains='i', endswith='.pkl')

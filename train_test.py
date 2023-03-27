@@ -74,10 +74,31 @@ class XinTrainer:
                 dist.barrier()  # waite the main process
             self.global_step += 1
 
-            # if step % 10 == 0:
-            #     cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
-            #     generate_visualization(x[0].squeeze(), cam.squeeze(),
-            #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
+    def train_period(self, epoch, accumulation=1, print_step=10):
+        method = self.train_step if accumulation == 1 else self.train_accumulate
+        for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127], [b]
+            if x is None and label is None:
+                continue
+
+            if step % print_step != 0:
+                _, _ = method(x, label, step=step, accumulation=accumulation, cal_acc=False)
+            else:
+                loss, acc = method(x, label, step=step, accumulation=accumulation, cal_acc=True)
+                x_val, label_val = self.val_iterable.next()
+                loss_val, acc_val = self.validate(x=x_val, label=label_val)
+
+                lr = self.optimizer.param_groups[0]['lr']
+                print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
+                      format(epoch, self.n, step, self.train_num, lr, loss, acc, loss_val, acc_val))
+                self.summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
+                self.summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
+                self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
+                self.summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
+
+                # cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
+                # generate_visualization(x[0].squeeze(), cam.squeeze(),
+                #                save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
+            self.global_step += 1
 
     def train_accumulate(self, x, label, step, accumulation, cal_acc=False):
         x = x.to(self.device)

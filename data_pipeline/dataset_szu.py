@@ -10,8 +10,8 @@ import torch
 import pickle
 from utils.my_tools import file_scanf
 from torch.utils.data.dataloader import default_collate
-from pre_process.difference import time_delta_ave
-import numpy as np
+# from pre_process.difference import time_delta_ave
+import os
 
 
 def collate_(batch):  # [b, 2], [x, y]

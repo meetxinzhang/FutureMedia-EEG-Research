@@ -15,11 +15,11 @@ from torch.utils.tensorboard import SummaryWriter
 import time
 import numpy as np
 from data_pipeline.dataset_szu import ListDataset
+from utils.my_tools import IterForever
 # from model.eeg_net import EEGNet
 # from model.eeg_net import ComplexEEGNet
-# from model.conv_transformer import ConvTransformer
-from model.field_flow_2p1 import FieldFlow2
-from utils.my_tools import IterForever
+from model.conv_tsfm_lrp import ConvTransformer
+# from model.field_flow_2p1 import FieldFlow2
 
 # random.seed = 2022
 # torch.manual_seed(2022)
@@ -49,14 +49,14 @@ def k_fold_share(path, k):
 
 
 device = torch.device(f"cuda:{7}")
-batch_size = 8
-accumulation_steps = 8  # to accumulate gradient when you want to set larger batch_size but out of memory.
+batch_size = 64
+accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'EEGNet-trial-ff2-on-cwt-50e01l64b'
-path = '../../Datasets/CVPR2021-02785/pkl_trial_cwt_from_1024'
+id_exp = 'AEP-lrp-ConvTsfm-50e01l64b-50e01l64b'
+path = '../../Datasets/CVPR2021-02785/pkl_aep_from_2048'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 
@@ -80,49 +80,22 @@ if __name__ == '__main__':
         val_iterable = IterForever(valid_loader)
 
         # ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.1).cuda()
-        # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
-        #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
-        ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).cuda()
+        ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=16, num_heads=4,
+                             ffd_channels=16, last_channels=16, size=32, T=63, depth=1, drop=0.2).to(device)
+        # ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).cuda()
         optim_paras = [p for p in ff.parameters() if p.requires_grad]
-        optimizer = torch.optim.Adam(ff.optim_paras, lr=lr)
+        optimizer = torch.optim.Adam(optim_paras, lr=lr)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}')
-        summary = SummaryWriter(log_dir='./log/' + time_exp + id_exp + '/' + str(fold) + '_fold/')
+        summary = SummaryWriter(log_dir='./log/' + id_exp + '/' + time_exp + '---' + str(fold) + '_fold/')
 
         xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size, gpu_rank=0,
                          device=device, train_loader=train_loader, val_iterable=val_iterable, summary=summary)
         for epoch in range(1, n_epoch + 1):
-            xin.train_period_parallel(epoch=epoch, accumulation=accumulation_steps)
-
-            # for step, (x, label) in enumerate(train_loader):  # [b, 1, 500, 127], [b]
-            #     if x is None and label is None:
-            #         continue
-            #
-            #     if step % 10 != 0:
-            #         _, _ = train_accumulate(ff, x, label, optimizer, batch_size=batch_size,
-            #                                 step=step, accumulation=accumulation_steps, cal_acc=False)
-            #     else:
-            #         loss, acc = train_accumulate(ff, x, label, optimizer, batch_size=batch_size,
-            #                                      step=step, accumulation=accumulation_steps, cal_acc=True)
-            #         x_val, label_val = val_iterable.next()
-            #         loss_val, acc_val = test(model=ff, x=x_val, label=label_val, batch_size=batch_size)
-            #
-            #         print('epoch:{}/{} step:{}/{} global_step:{} lr:{:.4f}'
-            #               ' loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
-            #               format(epoch, n_epoch, step, int(train_num / batch_size), global_step, lr,
-            #                      loss, acc, loss_val, acc_val))
-            #         lr = optimizer.param_groups[0]['lr']
-            #         summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
-            #         summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
-            #         summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=global_step)
-            #         summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=global_step)
-            #     # if step % 10 == 0:
-            #     #     cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
-            #     #     generate_visualization(x[0].squeeze(), cam.squeeze(),
-            #     #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
-            #     global_step += 1
+            xin.train_period(epoch=epoch, accumulation=accumulation_steps)
             lr_scheduler.step()  # 更新学习率
         summary.flush()
         summary.close()
+    torch.save(ff.state_dict(), './log/checkpoint/' + id_exp + '/' + time_exp + '.pkl')
     print('done')

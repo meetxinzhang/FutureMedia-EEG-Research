@@ -103,7 +103,7 @@ class MHA(nn.Module):
         # scale factor
         self.scale = self.d ** -0.5
 
-        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=50, dim_head=124, heads=None)  # print q for size at 90 line
+        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=49, dim_head=124, heads=None)  # print q for size at 90 line
 
         self.conv_qkv = layers_lrp.Conv2d(in_channels=channels, out_channels=3 * channels, kernel_size=(1, 1),
                                           stride=(1, 1))
@@ -207,15 +207,15 @@ class CTBlock(nn.Module):
         self.add1 = layers_lrp.Add()
         self.add2 = layers_lrp.Add()
         self.clone1 = layers_lrp.Clone()
-        self.clone2 = layers_lrp.Add()
+        self.clone2 = layers_lrp.Clone()
 
     def forward(self, x):
         # [b, c, p=m*m, T]
         x1, x2 = self.clone1(x, 2)
-        x = self.add1(self.mha(x1), x2)
+        x = self.add1([self.mha(x1), x2])
         x = self.bn1(x)
         x1, x2 = self.clone2(x, 2)
-        x = self.add2(self.cfe(x1), x2)
+        x = self.add2([self.cfe(x1), x2])
         x = self.bn2(x)
         return x
 
