@@ -47,6 +47,10 @@ class ListDataset(torch.utils.data.Dataset):
 
     def __getitem__(self, idx):
         filepath = self.path_list[idx]
+        if os.path.getsize(filepath) <= 0:
+            print('EOFError: Ran out of input')
+            print(filepath)
+            return
         with open(filepath, 'rb') as f:
             x = pickle.load(f)       # SZU: [t=2000, channels=127], Purdue: [512, 96]
             y = int(pickle.load(f))

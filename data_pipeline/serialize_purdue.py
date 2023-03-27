@@ -12,7 +12,6 @@ from tqdm import tqdm
 import numpy as np
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
-import mne
 from pre_process.difference import trial_average
 from pre_process.time_frequency import cwt_scipy
 
@@ -151,7 +150,8 @@ def go_through(bdf_files, labels_dir, len_x, pkl_path):
 
 
 if __name__ == "__main__":
-    path = '../../../Datasets/CVPR2021-02785'
+    # path = '../../../Datasets/CVPR2021-02785'
+    path = '/data0/hossam/1-EEG_repeate/1-Dataset/CVPR2021-02785'
     bdf_dir = path + '/data'
     label_dir = path + '/design'
     # self.image_path = path + '/stimuli'
