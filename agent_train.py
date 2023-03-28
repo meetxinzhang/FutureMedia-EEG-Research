@@ -10,7 +10,9 @@ import sys
 import torch
 import torch.nn.functional as F
 import torch.distributed as dist
+from agent_lrp import ignite_relprop, get_heatmap
 from torch.cuda.amp import autocast, GradScaler
+
 scaler = GradScaler()
 
 
@@ -29,7 +31,7 @@ scaler = GradScaler()
 
 
 class XinTrainer:
-    def __init__(self, n_epoch, model, optimizer, train_loader, val_iterable, batch_size,
+    def __init__(self, n_epoch, model, optimizer, train_loader, val_iterable, batch_size, id_exp,
                  summary, gpu_rank, device):
         self.global_step = 0
         self.n = n_epoch
@@ -42,7 +44,7 @@ class XinTrainer:
         self.gpu_rank = gpu_rank
         self.device = device
         self.train_num = len(train_loader)
-        print('Train: ', self.train_num, 'Validate',  len(val_iterable), '--------------------------------')
+        self.id_exp = id_exp
 
     def train_period_parallel(self, epoch, accumulation=1, print_step=10):
         method = self.train_step if accumulation == 1 else self.train_accumulate
@@ -95,9 +97,11 @@ class XinTrainer:
                 self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
                 self.summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
 
-                # cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
-                # generate_visualization(x[0].squeeze(), cam.squeeze(),
-                #                save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
+                if epoch > 25 and acc >= 0.06:
+                    cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
+                    get_heatmap(cam.squeeze(0),
+                            save_name=self.id_exp + 'S' + str(self.global_step) + '_C' + str(label[0].cpu().numpy()))
+
             self.global_step += 1
 
     def train_accumulate(self, x, label, step, accumulation, cal_acc=False):
@@ -154,63 +158,3 @@ class XinTrainer:
         accuracy = corrects.cpu().int().sum().numpy() / self.batch_size
 
         return loss, accuracy
-
-
-# def train(model, x, label, optimizer, batch_size, cal_acc=False):
-#     x = x.cuda()
-#     label = label.cuda()
-#
-#     model.train()
-#     # # if step % 2 == 0:
-#     optimizer.zero_grad()
-#     y = model(x)  # [bs, 40]
-#     loss = F.cross_entropy(y, label)
-#     loss.backward()
-#     optimizer.step()
-#
-#     accuracy = None
-#     if cal_acc:
-#         corrects = (torch.argmax(y, dim=1).data == label.data)
-#         accuracy = corrects.cpu().int().sum().numpy()
-#
-#     return loss, accuracy / batch_size
-#
-#
-# def train_accumulate(model, x, label, optimizer, batch_size, step, accumulation, cal_acc=False):
-#     x = x.cuda()
-#     label = label.cuda()
-#
-#     # forward pass with `autocast` context manager
-#     with autocast(enabled=True):
-#         model.train()
-#         y = model(x)  # [bs, 40]
-#         loss = F.cross_entropy(y, label) / accumulation
-#
-#     scaler.scale(loss).backward()  # scale gradient and perform backward pass
-#     # scaler.unscale_(optimizer)  # before gradient clipping the optimizer parameters must be unscaled.
-#     # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)  # perform optimization step
-#
-#     if (step + 1) % accumulation == 0:
-#         scaler.step(optimizer)
-#         scaler.update()
-#
-#     accuracy = None
-#     if cal_acc:
-#         corrects = (torch.argmax(y, dim=1).data == label.data)
-#         accuracy = corrects.cpu().int().sum().numpy()
-#
-#     return loss, accuracy / batch_size
-#
-#
-# def test(model, x, label, batch_size):
-#     x = x.cuda()
-#     label = label.cuda()
-#
-#     model.eval()
-#     y = model(x)  # [bs, 40]
-#     loss = F.cross_entropy(y, label)
-#
-#     corrects = (torch.argmax(y, dim=1).data == label.data)
-#     accuracy = corrects.cpu().int().sum().numpy()
-#
-#     return loss, accuracy / batch_size

@@ -17,12 +17,15 @@ class LocFeaExtractor(nn.Module):
     def __init__(self, in_channels, hid_channels):
         super().__init__()
         self.c = hid_channels
-        self.m_cache = 32
+        self.m_cache = None
         self.clone = layers_lrp.Clone()
         self.conv3d_3 = layers_lrp.Conv3d(in_channels=in_channels, out_channels=hid_channels // 2, bias=True,
-                                          kernel_size=(8, 8, 3), stride=(4, 4, 1), padding=(0, 0, 1))
+                                          # kernel_size=(8, 8, 3), stride=(4, 4, 1), padding=(0, 0, 1))
+                                          kernel_size=(5, 5, 3), stride=(1, 1, 1), padding=(0, 0, 1))
         self.conv3d_5 = layers_lrp.Conv3d(in_channels=in_channels, out_channels=hid_channels // 2, bias=True,
-                                          kernel_size=(8, 8, 5), stride=(4, 4, 1), padding=(0, 0, 2))
+                                          # kernel_size=(8, 8, 5), stride=(4, 4, 1), padding=(0, 0, 2))
+                                          kernel_size=(5, 5, 5), stride=(1, 1, 1), padding=(0, 0, 2))
+
         self.cat = layers_lrp.Cat()
 
         self.bn = layers_lrp.BatchNorm3d(num_features=hid_channels)
@@ -103,7 +106,7 @@ class MHA(nn.Module):
         # scale factor
         self.scale = self.d ** -0.5
 
-        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=49, dim_head=124, heads=None)  # print q for size at 90 line
+        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=256, dim_head=100, heads=None)  # print q for size at 90 line
 
         self.conv_qkv = layers_lrp.Conv2d(in_channels=channels, out_channels=3 * channels, kernel_size=(1, 1),
                                           stride=(1, 1))
@@ -122,13 +125,13 @@ class MHA(nn.Module):
         # [b, c, p, t]
         qkv = self.conv_qkv(x)  # [b, c, p, t] -> [b, 3*c, p, t]
         q, k, v = rearrange(qkv, 'b (qkv h d) p t -> qkv b h d p t', qkv=3, h=self.h, d=self.d)
-        q = rearrange(q, 'b h d p t -> b h p (d t)')
-        k = rearrange(k, 'b h d p t -> b h (d t) p')
-        v = rearrange(v, 'b h d p t -> b h p (d t)')
+        q = rearrange(q, 'b h d p t -> b h p (t d)')
+        k = rearrange(k, 'b h d p t -> b h (t d) p')
+        v = rearrange(v, 'b h d p t -> b h p (t d)')
         self.save_v(v)
 
         # print(q.size(), 'q')  # print q for rel_pos_emb size
-        dots = self.matmul1(q, k)  # [b, h, p, p]
+        dots = self.matmul1([q, k])  # [b, h, p, p]
         relative_position_bias = self.rel_pos_emb(q)  # [b, h, p, p],  q need [b, h, tokens, dim]
         dots += relative_position_bias
 
@@ -139,12 +142,12 @@ class MHA(nn.Module):
         self.save_attn(attn)  # save attn for rel_prop
         attn.register_hook(self.save_attn_gradients_hook)  # save attn gradients for model.rel_prop: attn_grad*cam
 
-        out = self.matmul2(attn, v)  # [b, h, p, (dt)]
-        out = rearrange(out, 'b h p (d t) -> b (h d) p t', h=self.h, d=self.d)
+        out = self.matmul2([attn, v])  # [b, h, p, (td)]
+        out = rearrange(out, 'b h p (t d) -> b (h d) p t', h=self.h, d=self.d)
         return out
 
     def relprop(self, cam, **kwargs):
-        cam = rearrange(cam, 'b (h d) p t -> b h p (d t)', h=self.h)
+        cam = rearrange(cam, 'b (h d) p t -> b h p (d t)', h=self.h, d=self.d)
         [cam_attn, cam_v] = self.matmul2.relprop(cam, **kwargs)
         cam_attn /= 2
         cam_v /= 2
@@ -157,9 +160,9 @@ class MHA(nn.Module):
         cam_q /= 2
         cam_k /= 2
 
-        cam_q = rearrange(cam_q, 'b h p (d t) -> b h d p t', d=self.d)
-        cam_k = rearrange(cam_k, 'b h (d t) p -> b h d p t', d=self.d)
-        cam_v = rearrange(cam_v, 'b h p (d t) -> b h d p t', d=self.d)
+        cam_q = rearrange(cam_q, 'b h p (t d) -> b h d p t', d=self.d)
+        cam_k = rearrange(cam_k, 'b h (t d) p -> b h d p t', d=self.d)
+        cam_v = rearrange(cam_v, 'b h p (t d) -> b h d p t', d=self.d)
         cam_qkv = rearrange([cam_q, cam_k, cam_v], 'qkv b h d p t -> b (qkv h d) p t')
         cam = self.conv_qkv.relprop(cam_qkv, **kwargs)
         return cam
@@ -227,7 +230,7 @@ class CTBlock(nn.Module):
 
         cam = self.bn1.relprop(cam, **kwargs)
         [cam1, cam2] = self.add1.relprop(cam, **kwargs)
-        cam1 = self.mha.relprop(cam1, ** kwargs)
+        cam1 = self.mha.relprop(cam1, **kwargs)
         cam = self.clone1.relprop([cam1, cam2], **kwargs)
         return cam
 
@@ -245,7 +248,7 @@ class ConvTransformer(nn.Module):
             CTBlock(channels=att_channels, num_heads=num_heads, ffd_c=ffd_channels, drop=drop)
             for _ in range(depth)])
 
-        p = ((size - 8 + 2 * 0) // 4 + 1) ** 2
+        p = 256
 
         self.conv1 = layers_lrp.Conv2d(in_channels=att_channels, out_channels=last_channels // 2,
                                        kernel_size=(p, 3), stride=(p, 1), padding=(0, 1))
@@ -256,7 +259,7 @@ class ConvTransformer(nn.Module):
         self.elu = layers_lrp.ELU()
         self.pool = layers_lrp.MaxPool2d(kernel_size=(1, 2), stride=(1, 2), padding=0)
 
-        self.l1 = layers_lrp.Linear(in_features=240, out_features=128)
+        self.l1 = layers_lrp.Linear(in_features=192, out_features=128)
         self.l2 = layers_lrp.Linear(in_features=128, out_features=num_classes)
         self.d1 = layers_lrp.Dropout(p=drop)
         self.d2 = layers_lrp.Dropout(p=drop)
@@ -278,8 +281,7 @@ class ConvTransformer(nn.Module):
         x1 = self.conv1(x1)  # [b, F/2, 1, T/2]
         x2 = self.conv2(x2)  # [b, F/2, 1, T/2]
         x = self.cat((x1, x2), dim=1)  # [b, F, 1, T/2]
-        # x = self.bn(x.unsqueeze(1)).squeeze()  # [b, F, T/2]
-        x = self.bn(x).squeeze()  # [b f 1 T/2]
+        x = self.bn(x).squeeze(dim=2)  # [b f 1 T/2] -> [b f T/2]
         x = self.elu(x)
         x = self.pool(x)  # [b, F, t]
         x = rearrange(x, 'b f t -> b (f t)')
@@ -290,35 +292,47 @@ class ConvTransformer(nn.Module):
     def relprop(self, cam, **kwargs):
         cam = self.l2.relprop(cam, **kwargs)
         cam = self.d2.relprop(cam, **kwargs)
-        cam = self.l1.relprop(cam, ** kwargs)
-        cam = self.d2.relprop(cam, ** kwargs)
+        cam = self.l1.relprop(cam, **kwargs)
+        cam = self.d2.relprop(cam, **kwargs)
         cam = rearrange(cam, 'b (f t) -> b f t', f=self.last_c)
         cam = self.pool.relprop(cam, **kwargs)
         cam = self.elu.relprop(cam, **kwargs)
         cam = cam.unsqueeze(2)  # [b f t] -> b f 1 t
-        cam = self.bn.relprop(cam, ** kwargs)
-        [cam1, cam2] = self.cat(cam, **kwargs)
+        cam = self.bn.relprop(cam, **kwargs)
+        [cam1, cam2] = self.cat.relprop(cam, **kwargs)
         cam1 = self.conv1.relprop(cam1, **kwargs)
-        cam2 = self.conv2.relprop(cam2, ** kwargs)
-        cam = self.clone([cam1, cam2], **kwargs)
+        # cam1 /= 2
+        cam2 = self.conv2.relprop(cam2, **kwargs)
+        # cam2 /= 2
+        cam = self.clone.relprop([cam1, cam2], **kwargs)
+        # print(cam.sum(), 'conv')
 
         for blk in self.blocks:
-            cam = blk.relprop(cam, **kwargs)
+            cam = blk.relprop(cam, **kwargs)  # [b c p t]
+        # print(cam.sum(), 'tsfm')
 
-        cams = []
+        cams_ch = []
         for blk in self.blocks:
-            grad = blk.attn.get_attn_gradients()
-            cam = blk.attn.get_attn_cam()
-            cam = cam[0].reshape(-1, cam.shape[-1], cam.shape[-1])
+            grad = blk.mha.get_attn_gradients()
+            cam_ch = blk.mha.get_attn_cam()
+            cam_ch = cam_ch[0].reshape(-1, cam_ch.shape[-1], cam_ch.shape[-1])
             grad = grad[0].reshape(-1, grad.shape[-1], grad.shape[-1])
-            cam = grad * cam
-            cam = cam.clamp(min=0).mean(dim=0)
-            cams.append(cam.unsqueeze(0))
+            cam_ch = grad * cam_ch
+            cam_ch = cam_ch.clamp(min=0).mean(dim=0)
+            cams_ch.append(cam_ch.unsqueeze(0))
         from modules.nn_lrp import compute_rollout_attention
-        rollout = compute_rollout_attention(cams, start_layer=0)
-        cam = rollout[:, 0, 1:]
+        rollout = compute_rollout_attention(cams_ch, start_layer=0)
+        cam_ch = rollout[:, 0, :]  # [b=1 p=tokens]
 
-        cam = self.lfe.relprop(cam, ** kwargs)
+        # cam = torch.transpose(cam, 2, 3)  # [b c t p]
+        # print(cam_ch.sum(), 'ch')
+        #
+        # print(cam_ch.shape, 'shape')
+        # cam = torch.mul(cam_ch[0], cam)  # [p=tokens,] * [b c t p]
+        # cam = torch.transpose(cam, 2, 3)  # [b c p t]
+        # print(cam.sum(), 'last')
+        #
+        # cam = self.lfe.relprop(cam, ** kwargs)  # [b=1 c m m t]
 
-        return cam
-
+        cam_ch = rearrange(cam_ch, 'b (h w) -> b h w', h=16)
+        return cam_ch

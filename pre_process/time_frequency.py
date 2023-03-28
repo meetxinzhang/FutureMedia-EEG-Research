@@ -18,7 +18,7 @@ def stft_scipy(signal, nperseg=64):
     return f, t, zxx  # [f t]
 
 
-def spectrogram_scipy(signal, fs=1024, nperseg=64, overlap=0.5):
+def spectrogram_scipy(signal, fs=4096, nperseg=256, overlap=0.7):
     """ https://stackoverflow.com/questions/55683936/what-is-the-difference-between-scipy-signal-spectrogram-and-scipy-signal-stft
     """
     # [t c]
@@ -28,14 +28,13 @@ def spectrogram_scipy(signal, fs=1024, nperseg=64, overlap=0.5):
 
 
 def three_bands(signal):
-    _, _, specs = spectrogram_scipy(signal=signal)  # [c f t]
-    theta = np.sum(np.square(abs(specs[:, 0:8, :])), axis=1)  # [c 7 t] -> [c t] (96,
-    # )
+    _, _, specs = spectrogram_scipy(signal=signal, fs=4096, nperseg=256, overlap=0.7)  # [c f t]
+    theta = np.sum(np.square(abs(specs[:, 3:8, :])), axis=1)  # [c 7 t] -> [c t] (96, # )
     alpha = np.sum(np.square(abs(specs[:, 8:14, :])), axis=1)
-    beta = np.sum(np.square(abs(specs[:, 14:, :])), axis=1)
+    beta = np.sum(np.square(abs(specs[:, 14:31, :])), axis=1)
     re = np.concatenate((theta, alpha, beta), axis=0)  # [3*c t]
-    assert np.shape(re) == (3 * 96, 63)
-    return re.T  # [63, 3*96]
+    assert np.shape(re) == (3 * 96, 50)
+    return re.T  # [31, 3*96]
 
 
 def cwt_scipy(signal):
@@ -89,7 +88,7 @@ if __name__ == "__main__":
     import PIL.Image as Image
 
     print(pywt.wavelist(family=None, kind='continuous'))
-    filepath = 'G:/Datasets/SZUEEG/EEG/pkl_ave/run_1_test_hzy_2_6501_38.pkl'
+    filepath = '/data0/zhangxin/Datasets/CVPR2021-02785/pkl_trial_2048/imagenet40-1000-1-00_0_10934_8.pkl'
     # filepath = 'G:/Datasets/SZUEEG/EEG/pkl_ave/run_1_test_hzy_66_195501_38.pkl'
     # filepath = 'G:/Datasets/SZUEEG/EEG/pkl_ave/run_1_test_hzy_4_12501_18.pkl'
     # filepath = 'G:/Datasets/SZUEEG/EEG/pkl_ave/run_1_test_hzy_88_261501_18.pkl'
@@ -102,9 +101,10 @@ if __name__ == "__main__":
 
         # f, t, zxx = stft_scipy(x)
 
-        zxx = cwt_scipy(x)
-
-        # f, t, zxx = spectrogram_scipy(x)
+        # zxx = cwt_scipy(x)
+        x = np.concatenate([x, x], axis=0)
+        print('xxxx', np.shape(x))
+        f, t, zxx = spectrogram_scipy(x, fs=4096)
 
         print(np.shape(zxx))
         plt.contourf(t, f, abs(zxx[0]))

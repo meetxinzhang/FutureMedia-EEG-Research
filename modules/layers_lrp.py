@@ -384,7 +384,7 @@ class Conv2d(nn.Conv2d, RelProp):
             inhibitor_relevances = f(nw, pw, px, nx)  # Z1-+-, Z2+--
 
             R = alpha * activator_relevances - beta * inhibitor_relevances
-        return R
+        return R/2
 
 
 class Conv3d(nn.Conv3d, RelProp):
@@ -412,4 +412,4 @@ class Conv3d(nn.Conv3d, RelProp):
         inhibitor_relevances = f(nw, pw, px, nx)  # Z1-+-, Z2+--
 
         R = alpha * activator_relevances - beta * inhibitor_relevances
-        return R
+        return R/2

@@ -12,7 +12,7 @@ from torch.utils.tensorboard import SummaryWriter
 from utils.my_tools import file_scanf
 from data_pipeline.dataset_szu import ListDataset
 from model.eeg_net import EEGNet
-from train_test import train, test
+from agent_train import train, test
 from utils.my_tools import IterForever
 
 # from model.lrp_manager import ignite_relprop, generate_visualization

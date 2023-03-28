@@ -10,10 +10,13 @@ import pickle
 from joblib import Parallel, delayed
 from tqdm import tqdm
 import numpy as np
+import os
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf
 from pre_process.difference import trial_average
-from pre_process.time_frequency import cwt_scipy
+from pre_process.time_frequency import three_bands
+from pre_process.aep import gen_images, azim_proj
+
 
 parallel_jobs = 6
 
@@ -99,7 +102,7 @@ class LabelReader(object):
             return idx
 
 
-def thread_read_write(x, y, pos, pkl_filename):
+def thread_write(x, y, pos, pkl_filename):
     """Writes and dumps the processed pkl file for each stimulus(or called subject).
     [time=2999, channels=127], y
     """
@@ -107,9 +110,10 @@ def thread_read_write(x, y, pos, pkl_filename):
     # x = jiang_delta_ave(x)  # [2048, 96] -> [512, 96]
 
     # AEP
-    # x = three_bands(x)  # [t=63, 3*96]
-    # locs_2d = np.array([azim_proj(e) for e in pos])
-    # x = gen_images(locs=locs_2d, features=x, len_grid=32, normalize=True).squeeze()  # [time, colors=3, W, H]
+    x = three_bands(x)  # [t=63, 3*96]
+    locs_2d = np.array([azim_proj(e) for e in pos])
+    x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=3, W, H]
+    assert np.shape(x) == (50, 3, 20, 20)
 
     # Spectrogram
     # _, _, x = spectrogram_scipy(x)  # [c f t]
@@ -122,31 +126,58 @@ def thread_read_write(x, y, pos, pkl_filename):
         pickle.dump(y, file)
 
 
-def go_through(bdf_files, labels_dir, len_x, pkl_path):
-    # montage = mne.channels.read_custom_montage(fname='other/biosemi96.sfp',
-    #                                            head_size=0.095,
-    #                                            coord_frame='head')
-    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=len_x, stim_channel='Status', montage=None,
+def thread_read(bdf_path, labels_dir, len_x, pkl_path):
+    bdf_reader = MNEReader(filetype='bdf', resample=None, length=len_x, stim_channel='Status', montage=None,
                            exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
     label_reader = LabelReader(one_hot=False)
 
-    for f in tqdm(bdf_files, desc=' Total', position=0, leave=False, colour='YELLOW', ncols=80):
-        xs, times = bdf_reader.get_set(file_path=f)
-        pos = bdf_reader.get_pos()
-        number = f.split('-')[-1].split('.')[0]  # ../imagenet40-1000-1-02.bdf
-        ys = label_reader.get_set(file_path=labels_dir + '/' + 'run-' + number + '.txt')
-        assert len(times) == len(ys)
-        assert np.shape(xs[0]) == (len_x, 96)  # [length, channels]
+    xs, times = bdf_reader.get_set(file_path=bdf_path)
+    pos = bdf_reader.get_pos()
+    number = bdf_path.split('-')[-1].split('.')[0]  # ../imagenet40-1000-1-02.bdf
+    ys = label_reader.get_set(file_path=labels_dir + '/' + 'run-' + number + '.txt')
 
-        xs = np.reshape(xs, (len(xs) * len_x, 96))
-        xs = trial_average(xs, axis=0)  # ave in session
-        xs = np.reshape(xs, (-1, len_x, 96))
+    assert len(times) == len(ys)
+    assert np.shape(xs[0]) == (len_x, 96)  # [length, channels]
 
-        name = f.split('/')[-1].replace('.bdf', '')
-        Parallel(n_jobs=parallel_jobs)(
-            delayed(thread_read_write)(xs[i], ys[i], pos,
-                                       pkl_path + name + '_' + str(i) + '_' + str(times[i]) + '_' + str(ys[i]))
-            for i in tqdm(range(len(ys)), desc=' write ' + name, position=1, leave=False, colour='WHITE', ncols=80))
+    xs = np.reshape(xs, (len(xs) * len_x, 96))
+    xs = trial_average(xs, axis=0)  # ave in session
+    xs = np.reshape(xs, (-1, len_x, 96))
+
+    name = bdf_path.split('/')[-1].replace('.bdf', '')
+
+    Parallel(n_jobs=2)(
+        delayed(thread_write)(
+            xs[i], ys[i], pos, pkl_path + name + '_' + str(i) + '_' + str(times[i]) + '_' + str(ys[i])
+        )
+        for i in range(len(ys))
+    )
+
+
+# def go_through(bdf_files, labels_dir, len_x, pkl_path):
+#     # montage = mne.channels.read_custom_montage(fname='other/biosemi96.sfp',
+#     #                                            head_size=0.095,
+#     #                                            coord_frame='head')
+#     bdf_reader = MNEReader(filetype='bdf', resample=1024, length=len_x, stim_channel='Status', montage=None,
+#                            exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
+#     label_reader = LabelReader(one_hot=False)
+#
+#     for f in tqdm(bdf_files, desc=' Total', position=0, leave=False, colour='YELLOW', ncols=80):
+#         xs, times = bdf_reader.get_set(file_path=f)
+#         pos = bdf_reader.get_pos()
+#         number = f.split('-')[-1].split('.')[0]  # ../imagenet40-1000-1-02.bdf
+#         ys = label_reader.get_set(file_path=labels_dir + '/' + 'run-' + number + '.txt')
+#         assert len(times) == len(ys)
+#         assert np.shape(xs[0]) == (len_x, 96)  # [length, channels]
+#
+#         xs = np.reshape(xs, (len(xs) * len_x, 96))
+#         xs = trial_average(xs, axis=0)  # ave in session
+#         xs = np.reshape(xs, (-1, len_x, 96))
+#
+#         name = f.split('/')[-1].replace('.bdf', '')
+#         Parallel(n_jobs=parallel_jobs)(
+#             delayed(thread_write)(xs[i], ys[i], pos,
+#                                   pkl_path + name + '_' + str(i) + '_' + str(times[i]) + '_' + str(ys[i]))
+#             for i in tqdm(range(len(ys)), desc=' write ' + name, position=1, leave=False, colour='WHITE', ncols=80))
 
 
 if __name__ == "__main__":
@@ -157,4 +188,13 @@ if __name__ == "__main__":
     # self.image_path = path + '/stimuli'
 
     bdf_filenames = file_scanf(bdf_dir, contains='1000-1', endswith='.bdf')
-    go_through(bdf_filenames, label_dir, len_x=2048, pkl_path=path + '/pkl_trial_2048/')
+    # go_through(bdf_filenames, label_dir, len_x=2048, pkl_path=path + '/pkl_trial_2048/')
+
+    Parallel(n_jobs=12)(
+        delayed(thread_read)(
+            f, label_dir, len_x=4096, pkl_path='../../../Datasets/' + '/pkl_aep_trial_1s_4096/'
+        )
+        for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', ncols=80)
+    )
+
+

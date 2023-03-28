@@ -13,7 +13,7 @@ import torch.distributed as dist
 from torch.utils.tensorboard import SummaryWriter
 import time
 import os
-from train_test import XinTrainer
+from agent_train import XinTrainer
 from data_pipeline.dataset_szu import ListDataset
 from main_k_fold import k_fold_share
 from model.field_flow_2p1 import FieldFlow2

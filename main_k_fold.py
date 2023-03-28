@@ -10,9 +10,10 @@ from utils.my_tools import file_scanf
 from torch.utils.data import DataLoader  #, SubsetRandomSampler
 # from sklearn.model_selection import KFold
 import torch
-from train_test import XinTrainer
+from agent_train import XinTrainer
 from torch.utils.tensorboard import SummaryWriter
 import time
+import os
 import numpy as np
 from data_pipeline.dataset_szu import ListDataset
 from utils.my_tools import IterForever
@@ -48,17 +49,17 @@ def k_fold_share(path, k):
         p += 1
 
 
-device = torch.device(f"cuda:{7}")
+device = torch.device(f"cuda:{5}")
 batch_size = 64
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'AEP-lrp-ConvTsfm-50e01l64b-50e01l64b'
-path = '../../Datasets/CVPR2021-02785/pkl_aep_from_2048'
+id_exp = 'AEP-lrp-ConvTsfm-50e01l64b'
+path = '../../Datasets/pkl_aep_trial_1s_4096'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
-time_exp = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
+time_exp = '' + str(time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()))
 
 # k_fold = KFold(n_splits=k, shuffle=True)
 # filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
@@ -75,27 +76,29 @@ if __name__ == '__main__':
     #     valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
     #                               prefetch_factor=1)
     for (fold, train_files, valid_files) in k_fold_share(path, k):
+        print(len(train_files), len(valid_files))
         train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=1, shuffle=False)
         valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
         val_iterable = IterForever(valid_loader)
 
         # ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.1).cuda()
         ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=16, num_heads=4,
-                             ffd_channels=16, last_channels=16, size=32, T=63, depth=1, drop=0.2).to(device)
+                             ffd_channels=16, last_channels=16, size=20, T=50, depth=1, drop=0.2).to(device)
         # ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).cuda()
         optim_paras = [p for p in ff.parameters() if p.requires_grad]
-        optimizer = torch.optim.Adam(optim_paras, lr=lr)
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.3)  # 设定优优化器更新的时刻表
+        optimizer = torch.optim.Adam(optim_paras, lr=lr, weight_decay=0.001)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.5)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}')
         summary = SummaryWriter(log_dir='./log/' + id_exp + '/' + time_exp + '---' + str(fold) + '_fold/')
 
-        xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size, gpu_rank=0,
+        xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size, gpu_rank=0, id_exp=id_exp,
                          device=device, train_loader=train_loader, val_iterable=val_iterable, summary=summary)
         for epoch in range(1, n_epoch + 1):
             xin.train_period(epoch=epoch, accumulation=accumulation_steps)
             lr_scheduler.step()  # 更新学习率
         summary.flush()
         summary.close()
-    torch.save(ff.state_dict(), './log/checkpoint/' + id_exp + '/' + time_exp + '.pkl')
+        os.makedirs('./log/checkpoint/' + id_exp)
+        torch.save(ff.state_dict(), './log/checkpoint/' + id_exp + '/' + time_exp + '---' + str(fold) + '.pkl')
     print('done')
