@@ -6,6 +6,7 @@
  @name:
  @desc:
 """
+import einops
 import torch
 import numpy as np
 import cv2
@@ -32,19 +33,24 @@ def ignite_relprop(model, x, device, index=None):
     return model.relprop(cam=one_hot, **kwargs).detach()
 
 
-def get_heatmap(cam, save_name=None):
+def get_heatmap(cam, save_name=None, rgb=False):
+    # [h w /c]
     cam = cam.data.cpu().numpy()
     cam = (cam - cam.min()) / (cam.max() - cam.min())
-    heatmap = cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET)
-    if save_name is not None:
+    if rgb:
+        heatmap = np.uint8(255 * cam)
+        heatmap = Image.fromarray(heatmap, mode="RGB")
+    else:
+        heatmap = cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET)
         heatmap = Image.fromarray(heatmap)
+    if save_name is not None:
         heatmap.save('./log/image/' + save_name + '_heatmap.jpg')
         print('saved ' + save_name)
     return heatmap
 
 
 def get_heatmap_gif(cam, save_name=None):
-    # [t c h w]
+    # [t h w c]
     cam = cam.data.cpu().numpy()
     frames = []
     for c in cam:
@@ -53,6 +59,25 @@ def get_heatmap_gif(cam, save_name=None):
         c = Image.fromarray(c, mode="RGB")
         frames.append(c)
     imageio.mimsave('./log/image/' + save_name + '_heatmap.gif', frames)
+    print('saved ' + save_name)
+
+
+def get_heatmap_gallery(cam, save_name=None):
+    # [t h w c]
+    cam = cam.data.cpu().numpy()
+    h = np.shape(cam)[2]
+    interval = np.ones([h, 1, 3])
+    figs = []
+    for c in cam:
+        c = (c - c.min()) / (c.max() - c.min())
+        c = np.concatenate([interval, c], axis=1)  # [h w c]
+        c = np.uint8(255 * c)
+        figs.append(c)
+    figs = np.array(figs)
+    figs = einops.rearrange(figs, 't h w c -> h (t w) c')
+    figs = Image.fromarray(figs, mode="RGB")
+    figs.save('./log/image/' + save_name + '_gallery.jpg')
+    print('saved ' + save_name)
 
 
 def generate_visualization(x, cam, save_name=None):

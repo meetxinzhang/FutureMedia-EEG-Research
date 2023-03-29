@@ -7,8 +7,8 @@
  @desc:
 """
 from utils.my_tools import file_scanf
-from torch.utils.data import DataLoader  #, SubsetRandomSampler
-# from sklearn.model_selection import KFold
+from torch.utils.data import DataLoader, Subset
+from sklearn.model_selection import KFold, StratifiedKFold
 import torch
 from agent_train import XinTrainer
 from torch.utils.tensorboard import SummaryWriter
@@ -27,26 +27,26 @@ from model.conv_tsfm_lrp import ConvTransformer
 # torch.cuda.manual_seed(2022)
 
 
-def k_fold_share(path, k):
-    database = []
-    for i in range(0, 100):
-        # files_list = file_scanf(path, contains='run_'+str(i)+'_', endswith='.pkl')  # SZ
-        i = '0' + str(i) if i < 10 else str(i)
-        files_list = file_scanf(path, contains='1000-1-' + i + '_', endswith='.pkl')  # PD
-        np.random.shuffle(files_list)
-        database.append(files_list)
-
-    p = 0
-    while p < k:
-        train_set = []
-        test_set = []
-        for inset in database:
-            k_len = len(inset) // k
-            test_set += inset[p * k_len:(p + 1) * k_len]
-            train_set += inset[:p * k_len] + inset[(p + 1) * k_len:]
-            assert len(test_set) > 0
-        yield p, train_set, test_set
-        p += 1
+# def k_fold_share(path, k):
+#     database = []
+#     for i in range(0, 100):
+#         # files_list = file_scanf(path, contains='run_'+str(i)+'_', endswith='.pkl')  # SZ
+#         i = '0' + str(i) if i < 10 else str(i)
+#         files_list = file_scanf(path, contains='1000-1-' + i + '_', endswith='.pkl')  # PD
+#         np.random.shuffle(files_list)
+#         database.append(files_list)
+#
+#     p = 0
+#     while p < k:
+#         train_set = []
+#         test_set = []
+#         for inset in database:
+#             k_len = len(inset) // k
+#             test_set += inset[p * k_len:(p + 1) * k_len]
+#             train_set += inset[:p * k_len] + inset[(p + 1) * k_len:]
+#             assert len(test_set) > 0
+#         yield p, train_set, test_set
+#         p += 1
 
 
 device = torch.device(f"cuda:{5}")
@@ -56,29 +56,28 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'AEP-lrp-ConvTsfm-50e01l64b'
+id_exp = 'AEP-lrp-ConvTsfm-skl-50e01l64b'
 path = '../../Datasets/pkl_aep_trial_1s_4096'
 # path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = '' + str(time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()))
 
-# k_fold = KFold(n_splits=k, shuffle=True)
-# filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
-# dataset = ListDataset(filepaths)
+k_fold = StratifiedKFold(n_splits=k, shuffle=True)
+filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
+labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
+dataset = ListDataset(filepaths)
 
 if __name__ == '__main__':
     # torch.multiprocessing.set_start_method('spawn')
+    for fold, (train_idx, valid_idx) in enumerate(k_fold.split(X=dataset, y=labels)):
+        train_set = Subset(dataset, train_idx)
+        valid_set = Subset(dataset, valid_idx)
+        train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=4, prefetch_factor=1)
+        valid_loader = DataLoader(valid_set, batch_size=batch_size, shuffle=True, num_workers=1, prefetch_factor=1)
 
-    # for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
-    #     train_sampler = SubsetRandomSampler(train_ids)
-    #     valid_sampler = SubsetRandomSampler(valid_ids)
-    #     train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4,
-    #                               prefetch_factor=1)
-    #     valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
-    #                               prefetch_factor=1)
-    for (fold, train_files, valid_files) in k_fold_share(path, k):
-        print(len(train_files), len(valid_files))
-        train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=1, shuffle=False)
-        valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
+    # for (fold, train_files, valid_files) in k_fold_share(path, k):
+    #     print(len(train_files), len(valid_files))
+    #     train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=1, shuffle=False)
+    #     valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
         val_iterable = IterForever(valid_loader)
 
         # ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.1).cuda()

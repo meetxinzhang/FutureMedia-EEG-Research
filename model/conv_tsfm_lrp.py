@@ -334,6 +334,6 @@ class ConvTransformer(nn.Module):
         #
         cam = self.lfe.relprop(cam, ** kwargs)  # [b=1 c m m t]
         cam = rearrange(cam, 'b c h w t -> b t h w c')
-
+        # cam = torch.sum(cam, dim=1, keepdim=False)  # [b h w c]
         # cam_ch = rearrange(rollout, 'b (h w) -> b h w', h=self.p)
         return cam
