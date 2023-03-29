@@ -10,7 +10,7 @@ import sys
 import torch
 import torch.nn.functional as F
 import torch.distributed as dist
-from agent_lrp import ignite_relprop, get_heatmap
+from agent_lrp import ignite_relprop, get_heatmap_gif
 from torch.cuda.amp import autocast, GradScaler
 
 scaler = GradScaler()
@@ -97,9 +97,9 @@ class XinTrainer:
                 self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
                 self.summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
 
-                if epoch > 25 and acc >= 0.06:
-                    cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
-                    get_heatmap(cam.squeeze(0),
+            if epoch > 25 and step % 50 == 0:
+                cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
+                get_heatmap_gif(cam.squeeze(0),
                             save_name=self.id_exp + 'S' + str(self.global_step) + '_C' + str(label[0].cpu().numpy()))
 
             self.global_step += 1

@@ -18,8 +18,6 @@ from pre_process.time_frequency import three_bands
 from pre_process.aep import gen_images, azim_proj
 
 
-parallel_jobs = 6
-
 classes = {"n02106662": 0,
            "n02124075": 1,
            "n02281787": 2,
@@ -145,9 +143,9 @@ def thread_read(bdf_path, labels_dir, len_x, pkl_path):
 
     name = bdf_path.split('/')[-1].replace('.bdf', '')
 
-    Parallel(n_jobs=2)(
+    Parallel(n_jobs=3)(
         delayed(thread_write)(
-            xs[i], ys[i], pos, pkl_path + name + '_' + str(i) + '_' + str(times[i]) + '_' + str(ys[i])
+            xs[i], ys[i], pos, pkl_path + '/' + name + '_' + str(i) + '_' + str(times[i]) + '_' + str(ys[i])
         )
         for i in range(len(ys))
     )
@@ -188,11 +186,11 @@ if __name__ == "__main__":
     # self.image_path = path + '/stimuli'
 
     bdf_filenames = file_scanf(bdf_dir, contains='1000-1', endswith='.bdf')
-    # go_through(bdf_filenames, label_dir, len_x=2048, pkl_path=path + '/pkl_trial_2048/')
 
+    # go_through(bdf_filenames, label_dir, len_x=2048, pkl_path=path + '/pkl_trial_2048/')
     Parallel(n_jobs=12)(
         delayed(thread_read)(
-            f, label_dir, len_x=4096, pkl_path='../../../Datasets/' + '/pkl_aep_trial_1s_4096/'
+            f, label_dir, len_x=4096, pkl_path='../../../Datasets' + '/pkl_aep_trial_1s_4096'
         )
         for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', ncols=80)
     )

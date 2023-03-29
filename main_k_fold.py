@@ -99,6 +99,5 @@ if __name__ == '__main__':
             lr_scheduler.step()  # 更新学习率
         summary.flush()
         summary.close()
-        os.makedirs('./log/checkpoint/' + id_exp)
         torch.save(ff.state_dict(), './log/checkpoint/' + id_exp + '/' + time_exp + '---' + str(fold) + '.pkl')
     print('done')

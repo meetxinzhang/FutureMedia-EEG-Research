@@ -248,12 +248,12 @@ class ConvTransformer(nn.Module):
             CTBlock(channels=att_channels, num_heads=num_heads, ffd_c=ffd_channels, drop=drop)
             for _ in range(depth)])
 
-        p = 256
+        self.p = 256
 
         self.conv1 = layers_lrp.Conv2d(in_channels=att_channels, out_channels=last_channels // 2,
-                                       kernel_size=(p, 3), stride=(p, 1), padding=(0, 1))
+                                       kernel_size=(self.p, 3), stride=(self.p, 1), padding=(0, 1))
         self.conv2 = layers_lrp.Conv2d(in_channels=att_channels, out_channels=last_channels // 2,
-                                       kernel_size=(p, 5), stride=(p, 1), padding=(0, 2))
+                                       kernel_size=(self.p, 5), stride=(self.p, 1), padding=(0, 2))
         # self.bn = layers_lrp.BatchNorm3d(num_features=1)
         self.bn = layers_lrp.BatchNorm2d(num_features=last_channels)
         self.elu = layers_lrp.ELU()
@@ -311,18 +311,18 @@ class ConvTransformer(nn.Module):
             cam = blk.relprop(cam, **kwargs)  # [b c p t]
         # print(cam.sum(), 'tsfm')
 
-        cams_ch = []
-        for blk in self.blocks:
-            grad = blk.mha.get_attn_gradients()
-            cam_ch = blk.mha.get_attn_cam()
-            cam_ch = cam_ch[0].reshape(-1, cam_ch.shape[-1], cam_ch.shape[-1])
-            grad = grad[0].reshape(-1, grad.shape[-1], grad.shape[-1])
-            cam_ch = grad * cam_ch
-            cam_ch = cam_ch.clamp(min=0).mean(dim=0)
-            cams_ch.append(cam_ch.unsqueeze(0))
-        from modules.nn_lrp import compute_rollout_attention
-        rollout = compute_rollout_attention(cams_ch, start_layer=0)
-        cam_ch = rollout[:, 0, :]  # [b=1 p=tokens]
+        # cams_ch = []
+        # for blk in self.blocks:
+        #     grad = blk.mha.get_attn_gradients()
+        #     cam_ch = blk.mha.get_attn_cam()
+        #     cam_ch = cam_ch[0].reshape(-1, cam_ch.shape[-1], cam_ch.shape[-1])
+        #     grad = grad[0].reshape(-1, grad.shape[-1], grad.shape[-1])
+        #     cam_ch = grad * cam_ch
+        #     cam_ch = cam_ch.clamp(min=0).mean(dim=0)
+        #     cams_ch.append(cam_ch.unsqueeze(0))
+        # from modules.nn_lrp import compute_rollout_attention
+        # rollout = compute_rollout_attention(cams_ch, start_layer=0)
+        # cam_ch = rollout[:, 0, :]  # [b=1 p=tokens]
 
         # cam = torch.transpose(cam, 2, 3)  # [b c t p]
         # print(cam_ch.sum(), 'ch')
@@ -332,7 +332,8 @@ class ConvTransformer(nn.Module):
         # cam = torch.transpose(cam, 2, 3)  # [b c p t]
         # print(cam.sum(), 'last')
         #
-        # cam = self.lfe.relprop(cam, ** kwargs)  # [b=1 c m m t]
+        cam = self.lfe.relprop(cam, ** kwargs)  # [b=1 c m m t]
+        cam = rearrange(cam, 'b c h w t -> b t h w c')
 
-        cam_ch = rearrange(cam_ch, 'b (h w) -> b h w', h=16)
-        return cam_ch
+        # cam_ch = rearrange(rollout, 'b (h w) -> b h w', h=self.p)
+        return cam

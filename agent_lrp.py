@@ -11,7 +11,7 @@ import numpy as np
 import cv2
 import matplotlib.pyplot as plt
 from PIL import Image
-
+import imageio
 np.seterr(divide='ignore', invalid='ignore')
 
 
@@ -41,6 +41,18 @@ def get_heatmap(cam, save_name=None):
         heatmap.save('./log/image/' + save_name + '_heatmap.jpg')
         print('saved ' + save_name)
     return heatmap
+
+
+def get_heatmap_gif(cam, save_name=None):
+    # [t c h w]
+    cam = cam.data.cpu().numpy()
+    frames = []
+    for c in cam:
+        c = (c-c.min())/(c.max()-c.min())
+        c = np.uint8(255 * c)
+        c = Image.fromarray(c, mode="RGB")
+        frames.append(c)
+    imageio.mimsave('./log/image/' + save_name + '_heatmap.gif', frames)
 
 
 def generate_visualization(x, cam, save_name=None):
