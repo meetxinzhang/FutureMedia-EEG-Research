@@ -11,14 +11,15 @@ import torch.utils.data as tud
 import torch.multiprocessing as mp
 import torch.distributed as dist
 from torch.utils.tensorboard import SummaryWriter
+from sklearn.model_selection import StratifiedKFold
 import time
 import os
 from agent_train import XinTrainer
 from data_pipeline.dataset_szu import ListDataset
-from main_k_fold import k_fold_share
-from model.field_flow_2p1 import FieldFlow2
+# from model.field_flow_2p1 import FieldFlow2
 # from model.eeg_net import EEGNet
-from utils.my_tools import IterForever
+from model.lstm_1dcnn_mlp_syncnet import ResNet1D
+from utils.my_tools import IterForever, file_scanf2, mkdirs
 os.environ['MASTER_ADDR'] = 'localhost'
 os.environ['MASTER_PORT'] = '7890'
 # random.seed = 2022
@@ -27,20 +28,25 @@ os.environ['MASTER_PORT'] = '7890'
 
 
 # torch.cuda.set_device(7)
-batch_size = 8
-accumulation_steps = 8  # to accumulate gradient when you want to set larger batch_size but out of memory.
+batch_size = 64
+accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
 learn_rate = 0.01
 
-id_exp = 'ff2p1-cwt-trial1024-50e01l64b'
-data_path = '../../Datasets/CVPR2021-02785/pkl_trial_cwt_from_1024'
+id_exp = 'Resnet-trial1024-50e01l64b'
+data_path = '/data1/zhangwuxia/Datasets/pkl_trial_1s_1024'
 # data_path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = '' + str(time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()))
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
-devices_id = [0, 1, 2, 3, 4]
+mkdirs(['./log/image/'+id_exp+'/'+time_exp, './log/checkpoint/'+id_exp, './log/'+id_exp])
+
+filepaths = file_scanf2(path=data_path, contains=['imagenet'], endswith='.pkl')
+labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
+
+devices_id = [0, 1, 2, 3, 4, 5, 6, 7]
 main_gpu_rank = 0
-train_loaders = 1
+train_loaders = 2
 valid_loaders = 1
 
 
@@ -66,7 +72,8 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.1).cuda()
     # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
     #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
-    ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).to(device)
+    # ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).to(device)
+    ff = ResNet1D(in_channels=96, classes=40).to(device)
     ff = torch.nn.SyncBatchNorm.convert_sync_batchnorm(ff).to(device)
     ff = torch.nn.parallel.DistributedDataParallel(ff)
 
@@ -81,13 +88,12 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     print(str(gpu_rank) + ' rank is initialized')
 
     optim_paras = [p for p in ff.parameters() if p.requires_grad]
-    optimizer = torch.optim.SGD(optim_paras, lr=learn_rate, momentum=0.9, weight_decay=0.001, nesterov=True)
-    # optimizer = torch.optim.Adam(optim_paras, lr=learn_rate)
+    # optimizer = torch.optim.SGD(optim_paras, lr=learn_rate, momentum=0.9, weight_decay=0.001, nesterov=True)
+    optimizer = torch.optim.Adam(optim_paras, lr=learn_rate, weight_decay=0.001)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.4)  # 设定优优化器更新的时刻表
 
-    xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size,
-                     train_loader=train_loader, val_iterable=val_iterable,
-                     summary=summary, gpu_rank=gpu_rank, device=device)
+    xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size, gpu_rank=gpu_rank, id_exp=id_exp,
+                     device=device, train_loader=train_loader, val_iterable=val_iterable, summary=summary)
     for epoch in range(1, n_epoch + 1):
         train_sampler.set_epoch(epoch)  # to update epoch related random seed
         xin.train_period_parallel(epoch=epoch, accumulation=accumulation_steps)
@@ -103,19 +109,17 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
 
 if __name__ == '__main__':
     torch.multiprocessing.set_start_method('spawn')
-    # for fold, (train_ids, valid_ids) in enumerate(k_fold.split(dataset)):
-    #     train_sampler = SubsetRandomSampler(train_ids)
-    #     valid_sampler = SubsetRandomSampler(valid_ids)
-    #     train_loader = DataLoader(dataset, batch_size=batch_size, sampler=train_sampler, num_workers=4,
-    #                               prefetch_factor=1)
-    #     valid_loader = DataLoader(dataset, batch_size=batch_size, sampler=valid_sampler, num_workers=1,
-    #                               prefetch_factor=1)
-    for (fold, train_files, valid_files) in k_fold_share(data_path, k):
-        train_set = ListDataset(train_files)
-        valid_set = ListDataset(valid_files)
+
+    k_fold = StratifiedKFold(n_splits=k, shuffle=True)
+    dataset = ListDataset(filepaths)
+    print(len(filepaths), ' total')
+
+    for fold, (train_idx, valid_idx) in enumerate(k_fold.split(X=dataset, y=labels)):
+        train_set = tud.Subset(dataset, train_idx)
+        valid_set = tud.Subset(dataset, valid_idx)
 
         print(f'FOLD {fold}')
-        print(len(train_files), len(valid_files), '--------------------------------')
+        print(len(train_idx), len(valid_idx), '--------------------------------')
 
         process = []
         for rank, device in enumerate(devices_id):

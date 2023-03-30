@@ -8,10 +8,11 @@
 """
 
 import glob
+import os
 import platform
 import torch
-import collections
-from itertools import repeat
+# import collections
+# from itertools import repeat
 
 
 def file_scanf(path, contains, endswith, sub_ratio=1):
@@ -27,14 +28,22 @@ def file_scanf2(path, contains, endswith, sub_ratio=1):
     files = glob.glob(path + '/*')
     input_files = []
     for f in files[:int(len(files) * sub_ratio)]:
-        if not any([c in f for c in contains]):
+        if platform.system().lower() == 'windows':
+            f.replace('\\', '/')
+        if not any([c in f.split('/')[-1] for c in contains]):
             continue
         if not f.endswith(endswith):
             continue
-        if platform.system().lower() == 'windows':
-            f.replace('\\', '/')
         input_files.append(f)
     return input_files
+
+
+def mkdirs(path_list):
+    for path in path_list:
+        if os.path.exists(path):
+            pass
+        else:
+            os.makedirs(path)
 
 
 class IterForever:
@@ -65,19 +74,19 @@ class ExceptionPassing(Exception):
 
 
 # From PyTorch internals
-def _ntuple(n):
-    def parse(x):
-        if isinstance(x, collections.abc.Iterable):
-            return x
-        return tuple(repeat(x, n))
-    return parse
-
-
-to_1tuple = _ntuple(1)
-to_2tuple = _ntuple(2)
-to_3tuple = _ntuple(3)
-to_4tuple = _ntuple(4)
-to_ntuple = _ntuple
+# def _ntuple(n):
+#     def parse(x):
+#         if isinstance(x, collections.abc.Iterable):
+#             return x
+#         return tuple(repeat(x, n))
+#     return parse
+#
+#
+# to_1tuple = _ntuple(1)
+# to_2tuple = _ntuple(2)
+# to_3tuple = _ntuple(3)
+# to_4tuple = _ntuple(4)
+# to_ntuple = _ntuple
 
 
 class LabelSmoothing(torch.nn.Module):

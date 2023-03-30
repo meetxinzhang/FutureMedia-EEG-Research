@@ -6,15 +6,15 @@
  @name: 
  @desc:
 """
-from utils.my_tools import file_scanf
+from utils.my_tools import file_scanf2, mkdirs
 from torch.utils.data import DataLoader, Subset
-from sklearn.model_selection import KFold, StratifiedKFold
+from sklearn.model_selection import StratifiedKFold
 import torch
 from agent_train import XinTrainer
 from torch.utils.tensorboard import SummaryWriter
 import time
-import os
-import numpy as np
+# import os
+# import numpy as np
 from data_pipeline.dataset_szu import ListDataset
 from utils.my_tools import IterForever
 # from model.eeg_net import EEGNet
@@ -58,13 +58,15 @@ lr = 0.01
 
 id_exp = 'AEP-lrp-ConvTsfm-skl-50e01l64b'
 path = '../../Datasets/pkl_aep_trial_1s_4096'
-# path = '../../Datasets/sz_eeg/pkl_cwt_torch'
+# path = '../../Datasets/sz_eeg/pkl_aep_trial_subj2_1s_1000'
 time_exp = '' + str(time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()))
+mkdirs(['./log/image/'+id_exp+'/'+time_exp, './log/checkpoint/'+id_exp, './log/'+id_exp])
 
 k_fold = StratifiedKFold(n_splits=k, shuffle=True)
-filepaths = file_scanf(path=path, contains='i', endswith='.pkl')
+filepaths = file_scanf2(path=path, contains=['imagenet'], endswith='.pkl')
 labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
 dataset = ListDataset(filepaths)
+print(len(filepaths), ' total')
 
 if __name__ == '__main__':
     # torch.multiprocessing.set_start_method('spawn')
@@ -98,5 +100,5 @@ if __name__ == '__main__':
             lr_scheduler.step()  # 更新学习率
         summary.flush()
         summary.close()
-        torch.save(ff.state_dict(), './log/checkpoint/' + id_exp + '/' + time_exp + '---' + str(fold) + '.pkl')
+        # torch.save(ff.state_dict(), './log/checkpoint/' + id_exp + '/' + time_exp + '---' + str(fold) + '.pkl')
     print('done')
