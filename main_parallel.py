@@ -28,8 +28,8 @@ os.environ['MASTER_PORT'] = '7890'
 
 
 # torch.cuda.set_device(7)
-batch_size = 64
-accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
+batch_size = 32
+accumulation_steps = 2  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
 learn_rate = 0.01
