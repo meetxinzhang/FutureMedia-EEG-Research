@@ -12,13 +12,12 @@ import torch.multiprocessing as mp
 import torch.distributed as dist
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.model_selection import StratifiedKFold
-import time
 import os
 from agent_train import XinTrainer
 from data_pipeline.dataset_szu import ListDataset
 # from model.field_flow_2p1 import FieldFlow2
 # from model.eeg_net import EEGNet
-from model.lstm_1dcnn_mlp_syncnet import ResNet1D
+from model.lstm_1dcnn_mlp_syncnet import SyncNet
 from utils.my_tools import IterForever, file_scanf2, mkdirs
 os.environ['MASTER_ADDR'] = 'localhost'
 os.environ['MASTER_PORT'] = '7890'
@@ -28,21 +27,18 @@ os.environ['MASTER_PORT'] = '7890'
 
 
 # torch.cuda.set_device(7)
-batch_size = 32
-accumulation_steps = 2  # to accumulate gradient when you want to set larger batch_size but out of memory.
+batch_size = 64
+accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
 learn_rate = 0.01
 
-id_exp = 'Resnet-trial1024-50e01l64b'
-data_path = '/data1/zhangwuxia/Datasets/pkl_trial_1s_1024'
+id_exp = 'Sync-trial-cwt-1024-full-precision-p50e01l64b'
+# data_path = '/data1/zhangwuxia/Datasets/pkl_trial_1s_1024'
+data_path = '/data0/zhangwuxia/zx/Datasets/pkl_trial_cwt_1024'
 # data_path = '../../Datasets/sz_eeg/pkl_cwt_torch'
-time_exp = '' + str(time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()))
+time_exp = '2023-03-31--10-05'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
-mkdirs(['./log/image/'+id_exp+'/'+time_exp, './log/checkpoint/'+id_exp, './log/'+id_exp])
-
-filepaths = file_scanf2(path=data_path, contains=['imagenet'], endswith='.pkl')
-labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
 
 devices_id = [0, 1, 2, 3, 4, 5, 6, 7]
 main_gpu_rank = 0
@@ -73,7 +69,9 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
     #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
     # ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).to(device)
-    ff = ResNet1D(in_channels=96, classes=40).to(device)
+    # ff = ResNet1D(in_channels=96, classes=40).to(device)
+    # ff = MLP2layers(in_features=96, hidden_size=128, classes=40).to(device)
+    ff = SyncNet(in_channels=96, num_layers_in_fc_layers=40)
     ff = torch.nn.SyncBatchNorm.convert_sync_batchnorm(ff).to(device)
     ff = torch.nn.parallel.DistributedDataParallel(ff)
 
@@ -98,6 +96,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
         train_sampler.set_epoch(epoch)  # to update epoch related random seed
         xin.train_period_parallel(epoch=epoch, accumulation=accumulation_steps)
         lr_scheduler.step()  # 更新学习率
+        dist.barrier()
 
     if gpu_rank == main_gpu_rank:
         summary.flush()
@@ -109,6 +108,10 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
 
 if __name__ == '__main__':
     torch.multiprocessing.set_start_method('spawn')
+
+    mkdirs(['./log/image/' + id_exp + '/' + time_exp, './log/checkpoint/' + id_exp, './log/' + id_exp])
+    filepaths = file_scanf2(path=data_path, contains=['imagenet'], endswith='.pkl')
+    labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
 
     k_fold = StratifiedKFold(n_splits=k, shuffle=True)
     dataset = ListDataset(filepaths)
