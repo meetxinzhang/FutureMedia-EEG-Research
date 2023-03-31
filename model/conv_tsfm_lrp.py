@@ -259,10 +259,14 @@ class ConvTransformer(nn.Module):
         self.elu = layers_lrp.ELU()
         self.pool = layers_lrp.MaxPool2d(kernel_size=(1, 2), stride=(1, 2), padding=0)
 
-        self.l1 = layers_lrp.Linear(in_features=192, out_features=128)
-        self.l2 = layers_lrp.Linear(in_features=128, out_features=num_classes)
-        self.d1 = layers_lrp.Dropout(p=drop)
-        self.d2 = layers_lrp.Dropout(p=drop)
+        self.classifier = layers_lrp.Sequential(
+            layers_lrp.Dropout(p=drop),
+            layers_lrp.Linear(in_features=192, out_features=128),
+            layers_lrp.ReLU(),
+            layers_lrp.Dropout(p=drop),
+            layers_lrp.Linear(in_features=128, out_features=num_classes),
+            layers_lrp.Softmax(dim=-1)
+        )
 
         self.clone = layers_lrp.Clone()
         self.cat = layers_lrp.Cat()
@@ -285,15 +289,10 @@ class ConvTransformer(nn.Module):
         x = self.elu(x)
         x = self.pool(x)  # [b, F, t]
         x = rearrange(x, 'b f t -> b (f t)')
-        x = self.l1(self.d1(x))
-        x = self.l2(self.d2(x))  # [b, classes]
-        return x
+        return self.classifier(x)  # [b, classes]
 
     def relprop(self, cam, **kwargs):
-        cam = self.l2.relprop(cam, **kwargs)
-        cam = self.d2.relprop(cam, **kwargs)
-        cam = self.l1.relprop(cam, **kwargs)
-        cam = self.d2.relprop(cam, **kwargs)
+        self.classifier.relprop(cam, **kwargs)
         cam = rearrange(cam, 'b (f t) -> b f t', f=self.last_c)
         cam = self.pool.relprop(cam, **kwargs)
         cam = self.elu.relprop(cam, **kwargs)

@@ -10,39 +10,78 @@ import torch
 import torch.nn as nn
 
 
+# def _init_weights(m):
+#     if isinstance(m, nn.Linear):
+#         nn.init.normal_(m.weight, std=.002)
+#         if isinstance(m, nn.Linear) and m.bias is not None:
+#             nn.init.constant_(m.bias, 0)
+#     elif isinstance(m, nn.LayerNorm):
+#         nn.init.constant_(m.bias, 0)
+#         nn.init.constant_(m.weight, 1.0)
+#     elif isinstance(m, nn.Conv1d):
+#         nn.init.xavier_uniform_(m.weight)
+#     elif isinstance(m, nn.Conv2d):
+#         nn.init.xavier_uniform_(m.weight)
+#     elif isinstance(m, nn.GRU):
+#         nn.init.xavier_uniform_(m.weight)
+
+
 class LSTM(nn.Module):
     def __init__(self, classes, input_size=96, depth=3):
         super().__init__()
-        self.backbone = nn.GRU(input_size=input_size, hidden_size=input_size, num_layers=depth, bias=True,
+        f = 12*input_size
+        self.feature_extractor = nn.Sequential(
+            nn.Conv1d(in_channels=input_size, out_channels=f, kernel_size=15, stride=8, groups=input_size),
+            nn.LeakyReLU(),
+        )
+        self.backbone = nn.GRU(input_size=f, hidden_size=f, num_layers=depth, bias=True,
                                batch_first=True, dropout=0.2)
-        self.classifier = nn.Linear(in_features=input_size, out_features=classes)
+        self.classifier = nn.Sequential(
+            nn.Linear(in_features=depth*f, out_features=f),
+            nn.LeakyReLU(),
+            nn.Linear(in_features=f, out_features=classes),
+            nn.Softmax(dim=-1)
 
-    def forward(self, x):
-        x = self.backbone(x)
-        return self.classifier(x)
-
-
-class MLP2layers(nn.Module):
-    def __init__(self, in_features, hidden_size, classes):
-        super().__init__()
-
-        self.channel_fc = nn.Linear(in_features=in_features, out_features=hidden_size)  # [b t c->h]
-        self.time_fc = nn.Linear(in_features=hidden_size * 128, out_features=512)
-
-        self.pool = nn.AdaptiveMaxPool1d(output_size=1)
-        self.classifier = nn.Linear(in_features=512, out_features=classes)
+        )
 
     def forward(self, x):
         # [b t c]
-        # x = einops.rearrange(x, 'b c t -> b t c')
-        x = self.channel_fc(x)  # [b t h]
+        x = self.feature_extractor(x.transpose(1, 2))
+        _, hn = self.backbone(x.transpose(1, 2))
+        x = einops.rearrange(hn, 'l b f -> b (l f)')
+        return self.classifier(x)
 
-        x = x.unfold(dimension=1, size=128, step=64)  # [b t w h]
-        x = einops.rearrange(x, 'b t w h -> b t (w h)')
-        x = self.time_fc(x)  # [b t 512]
 
-        x = self.pool(torch.transpose(x, 1, 2)).squeeze(-1)
+class SlidMLP(nn.Module):
+    def __init__(self, in_features, classes, w=128, drop=0.2):
+        super().__init__()
+        self.w = w
+        self.backbone = nn.Sequential(
+            nn.Linear(in_features=int(in_features*w), out_features=int(in_features*w)),
+            nn.LeakyReLU(),
+            nn.Dropout(p=drop),
+            nn.Linear(in_features=int(in_features*w), out_features=int(in_features*w//4)),
+            nn.LeakyReLU(),
+            nn.Dropout(p=drop),
+            nn.Linear(in_features=int(in_features*w//4), out_features=int(in_features*4)),
+            nn.ReLU(),
+            nn.Linear(in_features=int(in_features*4), out_features=in_features),
+            nn.ReLU(),
+        )
 
+        self.classifier = nn.Sequential(
+            nn.Linear(in_features=672, out_features=in_features*4),
+            nn.ReLU(),
+            nn.Linear(in_features=in_features*4, out_features=classes),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        # [b t c]
+        x = x.unfold(dimension=1, size=self.w, step=self.w//2)  # [b l w c]
+        x = einops.rearrange(x, 'b t w c -> b t (w c)')
+        x = self.backbone(x)  # [b t i]
+        x = einops.rearrange(x, 'b t i -> b (t i)')
         return self.classifier(x)
 
 
@@ -108,7 +147,8 @@ class ResNet1D(torch.nn.Module):
             torch.nn.AdaptiveAvgPool1d(1)
         )
         self.classifier = torch.nn.Sequential(
-            torch.nn.Linear(2048, classes)
+            torch.nn.Linear(2048, classes),
+            nn.Softmax(dim=-1)
         )
 
     def forward(self, x):
@@ -162,6 +202,7 @@ class SyncNet(nn.Module):
             nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Linear(512, num_layers_in_fc_layers),
+            nn.Softmax(dim=-1)
         )
 
     def forward(self, x):

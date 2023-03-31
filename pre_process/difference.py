@@ -23,8 +23,8 @@ import cv2
 #     return d
 
 
-def jiang_four_ave(eeg, fold):
-    # [t, d]
+def four_ave(eeg, fold):
+    # [t, c]
     assert len(eeg) % fold == 0
     eeg = np.split(eeg, fold, axis=0)  # [fold length 96]
     eeg = np.average(eeg, axis=0)
@@ -32,8 +32,8 @@ def jiang_four_ave(eeg, fold):
     return eeg
 
 
-def jiang_delta_ave(eeg):
-    # [t d]
+def four_delta_ave(eeg):
+    # [t c]
     assert len(eeg) % 4 == 0
     eeg = np.split(eeg, 4, axis=0)  # [fold t 96]
     base = eeg[0]
@@ -47,8 +47,8 @@ def jiang_delta_ave(eeg):
     return re
 
 
-def time_delta_ave(eeg):
-    # [t d]
+def stair_delta_ave(eeg):
+    # [t c]
     assert len(eeg) % 4 == 0
     eeg = np.split(eeg, 4, axis=0)  # [fold t 96]
     d1 = eeg[1] - eeg[0]
@@ -59,6 +59,14 @@ def time_delta_ave(eeg):
 
     assert np.shape(re) == (512, 96)
     return re
+
+
+def time_delta(eeg):
+    # [t c]
+    a = eeg[1:, :]
+    b = eeg[:-2, :]
+    assert len(a) == len(b)
+    return a-b
 
 
 def dct_1d(eeg):
