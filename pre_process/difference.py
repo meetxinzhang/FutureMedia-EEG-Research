@@ -43,7 +43,7 @@ def four_delta_ave(eeg):
 
     re = (d1 + d2 + d3) / 3  # [t 96]
 
-    assert np.shape(re) == (512, 96)
+    assert np.shape(re) == (1024, 96)
     return re
 
 
@@ -64,8 +64,9 @@ def stair_delta_ave(eeg):
 def time_delta(eeg):
     # [t c]
     a = eeg[1:, :]
-    b = eeg[:-2, :]
+    b = eeg[:-1, :]
     assert len(a) == len(b)
+    assert np.shape(a) == (1024, 96)
     return a-b
 
 
