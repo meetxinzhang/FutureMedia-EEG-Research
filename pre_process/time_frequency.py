@@ -42,8 +42,8 @@ def cwt_scipy(signal):
     specs = []
     for s in signal.T:  # [c t]
         zxx = scipy.signal.cwt(s, scipy.signal.ricker, widths=np.arange(1, 31))
-        specs.append(np.flipud(zxx))
-    assert np.shape(specs) == (96, 30, 1024)
+        specs.append(np.flipud(abs(zxx)))
+    assert np.shape(specs) == (96, 30, 2048)
     return np.array(specs)  # [c f t]
 
 
@@ -89,11 +89,11 @@ if __name__ == "__main__":
     import PIL.Image as Image
 
     print(pywt.wavelist(family=None, kind='continuous'))
-    filepath = '/data0/zhangxin/Datasets/CVPR2021-02785/pkl_trial_2048/imagenet40-1000-1-00_0_10934_8.pkl'
+    filepath = '/data1/zhangwuxia/Datasets/pkl_trial_1s_1024/imagenet40-1000-1-99_79_254638_7.pkl'
     # filepath = 'G:/Datasets/SZUEEG/EEG/pkl_ave/run_1_test_hzy_66_195501_38.pkl'
     # filepath = 'G:/Datasets/SZUEEG/EEG/pkl_ave/run_1_test_hzy_4_12501_18.pkl'
     # filepath = 'G:/Datasets/SZUEEG/EEG/pkl_ave/run_1_test_hzy_88_261501_18.pkl'
-    t = np.arange(0, 2, 1.0 / 1000)
+    t = np.arange(0, 1, 1.0 / 1024)
     f = np.arange(1, 31)
     with open(filepath, 'rb') as file:
         x = pickle.load(file)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
@@ -102,10 +102,9 @@ if __name__ == "__main__":
 
         # f, t, zxx = stft_scipy(x)
 
-        # zxx = cwt_scipy(x)
-        x = np.concatenate([x, x], axis=0)
-        print('xxxx', np.shape(x))
-        f, t, zxx = spectrogram_scipy(x, fs=4096)
+        zxx = cwt_scipy(x)
+        # x = np.concatenate([x, x], axis=0)
+        # f, t, zxx = spectrogram_scipy(x, fs=4096)
 
         print(np.shape(zxx))
         plt.contourf(t, f, abs(zxx[0]))

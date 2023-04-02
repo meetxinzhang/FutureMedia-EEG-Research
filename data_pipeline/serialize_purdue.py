@@ -12,8 +12,8 @@ from tqdm import tqdm
 import numpy as np
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf2
-from pre_process.difference import trial_average, four_delta_ave
-# from pre_process.time_frequency import three_bands
+from pre_process.difference import trial_average, frame_stair_delta_ave
+from pre_process.time_frequency import cwt_scipy
 # from pre_process.aep import gen_images, azim_proj
 
 
@@ -106,7 +106,8 @@ def thread_write(x, y, pos, pkl_filename):
 
     # x = jiang_delta_ave(x)  # [2048, 96] -> [512, 96]
     # x = time_delta(x)  # [1025 96] -> [1024 96]
-    x = four_delta_ave(x)  # [4096 96] -> [1024 96]
+    # x = four_delta_ave(x)  # [4096 96] -> [1024 96]
+    # x = frame_stair_delta_ave(x)  # [2048 96] -> [512 96]
 
     # AEP
     # x = three_bands(x)  # [t=63, 3*96]
@@ -118,7 +119,7 @@ def thread_write(x, y, pos, pkl_filename):
     # _, _, x = spectrogram_scipy(x)  # [c f t]
 
     # CWT
-    # x = cwt_scipy(x)  # [c f=30 t=1024]
+    x = cwt_scipy(x)  # [c f=30 t=1024]
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -126,8 +127,8 @@ def thread_write(x, y, pos, pkl_filename):
 
 
 def thread_read(bdf_path, labels_dir, pkl_path):
-    len_x = 4096
-    bdf_reader = MNEReader(filetype='bdf', resample=2048, length=len_x, stim_channel='Status', montage=None,
+    len_x = 2048
+    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=len_x, stim_channel='Status', montage=None,
                            exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
     label_reader = LabelReader(one_hot=False)
 
@@ -145,11 +146,12 @@ def thread_read(bdf_path, labels_dir, pkl_path):
 
     name = bdf_path.split('/')[-1].replace('.bdf', '')
 
-    Parallel(n_jobs=4)(
+    Parallel(n_jobs=3)(
+
         delayed(thread_write)(
             xs[i], ys[i], pos, pkl_path + '/' + name + '_' + str(i) + '_' + str(times[i]) + '_' + str(ys[i])
         )
-        for i in range(len(ys))
+        for i in tqdm(range(len(ys)), desc=' write ', colour='RED', position=1, leave=False, ncols=80)
     )
 
 
@@ -175,9 +177,9 @@ if __name__ == "__main__":
     # go_through(bdf_filenames, label_dir, len_x=2048, pkl_path=path + '/pkl_trial_2048/')
     Parallel(n_jobs=12)(
         delayed(thread_read)(
-            f, label_dir, pkl_path='/data1/zhangwuxia/Datasets' + '/pkl_delta_base1_05s_1024'
+            f, label_dir, pkl_path='/data1/zhangwuxia/Datasets' + '/pkl_trial_cwt_2s_2048'
         )
-        for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', ncols=80)
+        for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', position=0, leave=False, ncols=80)
     )
 
 

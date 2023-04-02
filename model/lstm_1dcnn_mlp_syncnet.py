@@ -160,6 +160,11 @@ class ResNet1D(torch.nn.Module):
         return x
 
 
+def resnet50():
+    model = torch.hub.load('pytorch/vision:v0.10.0', 'resnet50', pretrained=True)
+    return model
+
+
 class SyncNet(nn.Module):
     def __init__(self, in_channels, num_layers_in_fc_layers=1024):
         super(SyncNet, self).__init__()

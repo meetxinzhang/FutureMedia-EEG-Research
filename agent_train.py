@@ -39,14 +39,17 @@ class XinTrainer:
         self.optimizer = optimizer
         self.train_loader = train_loader
         self.val_iterable = val_iterable
-        self.batch_size = batch_size
+        self.batch_size = torch.tensor(batch_size).to(device)
         self.summary = summary
         self.gpu_rank = gpu_rank
         self.device = device
         self.train_num = len(train_loader)
         self.id_exp = id_exp
+        # print(dist.is_initialized(), 'dist')
+        # print(dist.get_rank(), 'rank')
+        # print(dist.get_world_size(), 'world_size')
 
-    def train_period_parallel(self, epoch, accumulation=1, print_step=10):
+    def train_period_parallel(self, epoch, accumulation=1, print_step=2):
         method = self.train_step if accumulation == 1 else self.train_accumulate
         for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127], [b]
             if x is None and label is None:
@@ -59,21 +62,35 @@ class XinTrainer:
                 loss, acc = method(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
                 x_val, label_val = self.val_iterable.next()
                 loss_val, acc_val = self.validate(x=x_val, label=label_val)
+                dist.barrier()
 
                 if self.gpu_rank == 0:
                     torch.cuda.synchronize(self.device)  # 等待所有进程计算完毕
+                    dist.all_reduce(loss.clone(), op=dist.ReduceOp.SUM)
+                    dist.all_reduce(acc.clone(), op=dist.ReduceOp.SUM)
+                    loss /= dist.get_world_size()
+                    acc /= dist.get_world_size()
+
+                    dist.all_reduce(loss_val.clone(), op=dist.ReduceOp.SUM)
+                    dist.all_reduce(acc_val.clone(), op=dist.ReduceOp.SUM)
+                    loss_val /= dist.get_world_size()
+                    acc_val /= dist.get_world_size()
+
                     if not torch.isfinite(loss):
                         print('WARNING: non-finite loss, ending training ', loss)
                         sys.exit(1)
 
                     lr = self.optimizer.param_groups[0]['lr']
+                    loss = loss.data.numpy()
+                    acc = acc.data.numpy()
+                    loss_val = loss_val.data.numpy()
+                    acc_val = acc_val.data.numpy()
                     print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
                           format(epoch, self.n, step, self.train_num, lr, loss, acc, loss_val, acc_val))
                     self.summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
                     self.summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
                     self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
                     self.summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
-                dist.barrier()  # waite the main process
             self.global_step += 1
 
     def train_period(self, epoch, accumulation=1, print_step=10):
@@ -124,8 +141,8 @@ class XinTrainer:
 
         accuracy = None
         if cal_acc:
-            corrects = (torch.argmax(y, dim=1).data == label.data)
-            accuracy = corrects.cpu().int().sum().numpy() / self.batch_size
+            corrects = (torch.argmax(y, dim=1) == label).float().sum()
+            accuracy = torch.div(corrects, self.batch_size)
 
         return loss, accuracy
 
@@ -142,8 +159,8 @@ class XinTrainer:
 
         accuracy = None
         if cal_acc:
-            corrects = (torch.argmax(y, dim=1).data == label.data)
-            accuracy = corrects.cpu().int().sum().numpy() / self.batch_size
+            corrects = (torch.argmax(y, dim=1) == label).float().sum()
+            accuracy = torch.div(corrects, self.batch_size)
         return loss, accuracy
 
     def validate(self, x, label):
@@ -154,7 +171,7 @@ class XinTrainer:
         y = self.model(x)  # [bs, 40]
         loss = F.cross_entropy(y, label)
 
-        corrects = (torch.argmax(y, dim=1).data == label.data)
-        accuracy = corrects.cpu().int().sum().numpy() / self.batch_size
+        corrects = (torch.argmax(y, dim=1) == label).float().sum()
+        accuracy = torch.div(corrects, self.batch_size)
 
         return loss, accuracy

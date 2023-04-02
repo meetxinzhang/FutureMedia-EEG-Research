@@ -6,10 +6,12 @@
  @name: 
  @desc:
 """
+import einops
 import torch
 import pickle
 from utils.my_tools import file_scanf
 from torch.utils.data.dataloader import default_collate
+from pre_process.difference import frame_delta
 import numpy as np
 import os
 
@@ -63,7 +65,7 @@ class ListDataset(torch.utils.data.Dataset):
             # 1D-DCT
             # x = dct_1d(x)  # same with x [512 96]
             # 2D-DCT
-            # x = dct_2d(x)  # same with x
+            # x = dct_2d(x) # same with x
             # approximated dct
             # x = approximated_dct(x)  # 1/2 of x shape [4, 256 48]
 
@@ -72,15 +74,16 @@ class ListDataset(torch.utils.data.Dataset):
             # x = np.transpose(x, (1, 0,  2))  # [33, 96, 63]
 
             # cwt  [c=96 f=30 t=1024]
-            # x = x[:, :, :1000]  # [127, 85, 1000]
+            x = x[:, :, :1024]  # [127, 85, 1000]
+            x = einops.rearrange(x, 'c f t -> f c t')  # [t, f, c]
 
-            x = x[::2, :]  # [512, 96]
+            # x = x[::2, :]  # [512, 96]
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
             # x = x[:512, :]               # [512 96]
             # x = difference(x, fold=4)     # SZU, [500, 127]
             # y = y-1                  # Ziyan He created EEG form
 
-            x = np.expand_dims(x, axis=0)  # Purdue [512 96] -> [1 512 96] added channel for EEGNet
+            # x = np.expand_dims(x, axis=0)  # Purdue [512 96] -> [1 512 96] added channel for EEGNet
             # assert np.shape(x) == (63, 3, 32, 32)  # aep
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)

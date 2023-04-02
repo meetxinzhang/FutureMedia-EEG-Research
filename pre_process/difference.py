@@ -61,7 +61,25 @@ def stair_delta_ave(eeg):
     return re
 
 
-def time_delta(eeg):
+def frame_stair_delta_ave(eeg):
+    # [t c]
+    assert len(eeg) % 4 == 0
+    base = eeg[0::4, :]
+    alph = eeg[1::4, :]
+    bet = eeg[2::4, :]
+    gam = eeg[3::4, :]
+
+    d1 = alph - base
+    d2 = bet - base
+    d3 = gam - base
+
+    re = (d1 + d2 + d3) / 3  # [t 96]
+
+    assert np.shape(re) == (512, 96)
+    return re
+
+
+def frame_delta(eeg):
     # [t c]
     a = eeg[1:, :]
     b = eeg[:-1, :]

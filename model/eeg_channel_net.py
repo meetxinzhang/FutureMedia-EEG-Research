@@ -8,6 +8,7 @@
   Decoding Brain Representations by Multimodal Learning of Neural Activity and Visual Features,  IEEE TRANSACTIONS ON
   PATTERN ANALYSIS AND MACHINE INTELLIGENCE, 2020, doi: 10.1109/TPAMI.2020.2995909
 """
+import einops
 import torch
 import torch.nn as nn
 import math
@@ -23,6 +24,7 @@ class ConvLayer2D(nn.Sequential):
         self.add_module('drop', nn.Dropout2d(0.2))
 
     def forward(self, x):
+        print(x.size(), 'qqqqq')
         return super().forward(x)
 
 
@@ -47,6 +49,7 @@ class TemporalBlock(nn.Module):
         ])
 
     def forward(self, x):
+        # f c t
         features = []
 
         for layer in self.layers:
@@ -125,8 +128,7 @@ class FeaturesExtractor(nn.Module):
                  num_spatial_layers, spatial_stride, num_residual_blocks, down_kernel, down_stride):
         super().__init__()
 
-        self.tempor
-        al_block = TemporalBlock(
+        self.temporal_block = TemporalBlock(
             in_channels, temp_channels, num_temporal_layers, temporal_kernel, temporal_stride, temporal_dilation_list,
             input_width
         )
@@ -164,7 +166,7 @@ class FeaturesExtractor(nn.Module):
         return out
 
 
-class Model(nn.Module):
+class EEGChannelNet(nn.Module):
     """The model for EEG classification.
     Input: tensor=[channel, time].
     The model performs different 2D to extract temporal e spatial information.
@@ -178,7 +180,7 @@ class Model(nn.Module):
         embedding_size: size of the embedding vector
         input_width: width of the input tensor (necessary to compute classifier input size)
         input_height: height of the input tensor (necessary to compute classifier input size)
-        temporal_dilation_list: list of dilations for temporal convolutions, second term must be even
+        temporal_dilation_list: list of dilation for temporal convolutions, second term must be even
         temporal_kernel: size of the temporal kernel, second term must be even (default: (1, 32))
         temporal_stride: size of the temporal stride, control temporal output size (default: (1, 2))
         num_temp_layers: number of temporal block layers
@@ -190,7 +192,7 @@ class Model(nn.Module):
         """
 
     def __init__(self, in_channels=1, temp_channels=10, out_channels=50, num_classes=40, embedding_size=1000,
-                 input_width=440, input_height=128, temporal_dilation_list=[(1, 1), (1, 2), (1, 4), (1, 8), (1, 16)],
+                 input_width=440, input_height=128, temporal_dilation_list=[(1, 1), (1, 2), (1, 4), (1, 8)],
                  temporal_kernel=(1, 33), temporal_stride=(1, 2),
                  num_temp_layers=4,
                  num_spatial_layers=4, spatial_stride=(2, 1), num_residual_blocks=4, down_kernel=3, down_stride=2):
@@ -210,9 +212,12 @@ class Model(nn.Module):
             nn.Linear(encoding_size, embedding_size),
             nn.ReLU(True),
             nn.Linear(embedding_size, num_classes),
+            nn.Softmax(dim=-1)
         )
 
     def forward(self, x):
+        # [c=96 f=30 t=1024]
+        x = einops.rearrange(x, 'c f t -> f c t')
         out = self.encoder(x)
         out = out.view(x.size(0), -1)
         out = self.classifier(out)
