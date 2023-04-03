@@ -17,7 +17,7 @@ import os
 from agent_train import XinTrainer
 from data_pipeline.dataset_szu import ListDataset
 # from model.field_flow_2p1 import FieldFlow2
-from model.eeg_net import EEGNet
+# from model.eeg_net import EEGNet
 # from model.lstm_1dcnn_mlp_syncnet import ResNet1D
 # from model.eeg_channel_net import EEGChannelNet
 from model.resnet_arcface import resnet50 as resnet2d
@@ -25,23 +25,26 @@ from utils.my_tools import IterForever, file_scanf2, mkdirs
 
 os.environ['MASTER_ADDR'] = 'localhost'
 os.environ['MASTER_PORT'] = '7890'
+# os.environ['NCCL_LL_THRESHOLD'] = '0'
+# os.environ['NCCL_P2P_DISABLE'] = '1'
+# os.environ['NCCL_IB_DISABLE'] = '1'
 # random.seed = 2022
 # torch.manual_seed(2022)
 # torch.cuda.manual_seed(2022)
 
 id_exp = 'ResNet50_2D-trial-cwt-1024-p50e01l64b'
-# data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_2s_2048'
-data_path = '/data0/zhangwuxia/zx/Datasets/pkl_trial_cwt_1024'
+data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024'
+# data_path = '/data0/zhangwuxia/zx/Datasets/pkl_trial_cwt_1024'
 # data_path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = '2023-04-03--15-08'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
-device_list = [0, 1, 2, 3, 4, 5, 6, 7]
+device_list = [0, 1, 2, 3]
 main_gpu_rank = 0
 train_loaders = 4
 valid_loaders = 2
 
-batch_size = 32
+batch_size = 16
 accumulation_steps = 2  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
@@ -67,14 +70,14 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
 
     # ff = EEGChannelNet(input_height=96, input_width=1024, in_channels=30, num_classes=40)
     # ff = LSTM(classes=40, input_size=96, depth=3)
-    ff = EEGNet(classes_num=40, in_channels=30, electrodes=96, drop_out=0.1).to(the_device)
+    # ff = EEGNet(classes_num=40, in_channels=30, electrodes=96, drop_out=0.1).to(the_device)
     # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
     #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
     # ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).to(the_device)
     # ff = ResNet1D(in_channels=96, classes=40).to(the_device)
     # ff = MLP2layers(in_features=96, hidden_size=128, classes=40).to(the_device)
     # ff = SyncNet(in_channels=96, num_layers_in_fc_layers=40)
-    # ff = resnet2d(pretrained=False, n_classes=40, input_channels=30).to(the_device)
+    ff = resnet2d(pretrained=False, n_classes=40, input_channels=30).to(the_device)
     ff = torch.nn.SyncBatchNorm.convert_sync_batchnorm(ff).to(the_device)
     ff = torch.nn.parallel.DistributedDataParallel(ff)
 

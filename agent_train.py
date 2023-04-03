@@ -50,7 +50,7 @@ class XinTrainer:
         # print(dist.get_rank(), 'rank')
         # print(dist.get_world_size(), 'world_size')
 
-    def train_period_parallel(self, epoch, accumulation=1, print_step=1):
+    def train_period_parallel(self, epoch, accumulation=1, print_step=10):
         method = self.train_step if accumulation == 1 else self.train_accumulate
         for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127],
             assert len(label) == self.batch_size
@@ -58,10 +58,10 @@ class XinTrainer:
                 continue
 
             if step % print_step != 0:
-                _, _ = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
+                _, _ = method(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
 
             else:
-                loss, acc = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
+                loss, acc = method(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
                 x_val, label_val = self.val_iterable.next()
                 loss_val, acc_val = self.validate(x=x_val, label=label_val)
 

@@ -160,26 +160,32 @@ def thread_process_pkl(pkl_path, save_path):
         x = pickle.load(f)  # [b c f t]
         y = int(pickle.load(f))
 
-    with open(save_path + '.pkl', 'wb') as file:
+    x = x[:, :, :1024]  # [127, 85, 1000]
+    name = pkl_path.split('/')[-1].replace('.pkl', '')
+
+    with open(save_path + '/' + name + '.pkl', 'wb') as file:
         pickle.dump(x, file)
         pickle.dump(y, file)
 
 
 if __name__ == "__main__":
-    # path = '../../../Datasets/CVPR2021-02785'
     path = '/data0/hossam/1-EEG_repeate/1-Dataset/CVPR2021-02785'
     bdf_dir = path + '/data'
     label_dir = path + '/design'
     # self.image_path = path + '/stimuli'
 
-    bdf_filenames = file_scanf2(bdf_dir, contains=['1000-1'], endswith='.bdf')
-
-    # go_through(bdf_filenames, label_dir, len_x=2048, pkl_path=path + '/pkl_trial_2048/')
-    Parallel(n_jobs=12)(
-        delayed(thread_read)(
-            f, label_dir, pkl_path='/data1/zhangwuxia/Datasets' + '/pkl_cwt_2s_2048'
-        )
-        for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', position=0, leave=False, ncols=80)
+    pkl_filenames = file_scanf2('/data1/zhangwuxia/Datasets/pkl_trial_cwt_2s_2048', contains=['1000-1'], endswith='.pkl')
+    Parallel(n_jobs=64)(
+        delayed(thread_process_pkl)(
+            f, save_path='/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024')
+        for f in tqdm(pkl_filenames, desc=' read ', colour='WHITE', position=0, leave=False, ncols=80)
     )
+
+    # bdf_filenames = file_scanf2(bdf_dir, contains=['1000-1'], endswith='.bdf')
+    # Parallel(n_jobs=12)(
+    #     delayed(thread_read)(
+    #         f, label_dir, pkl_path='/data1/zhangwuxia/Datasets' + '/pkl_cwt_2s_2048')
+    #     for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', position=0, leave=True, ncols=80)
+    # )
 
 
