@@ -31,12 +31,13 @@ scaler = GradScaler()
 
 
 class XinTrainer:
-    def __init__(self, n_epoch, model, optimizer, train_loader, val_iterable, batch_size, id_exp,
-                 summary, gpu_rank, device):
+    def __init__(self, n_epoch, model, optimizer, train_loader, val_iterable, batch_size, lr_shecduler,
+                 id_exp, summary, gpu_rank, device):
         self.global_step = 0
         self.n = n_epoch
         self.model = model
         self.optimizer = optimizer
+        self.lr_scheduler = lr_shecduler
         self.train_loader = train_loader
         self.val_iterable = val_iterable
         self.batch_size = torch.tensor(batch_size).to(device)
@@ -49,42 +50,38 @@ class XinTrainer:
         # print(dist.get_rank(), 'rank')
         # print(dist.get_world_size(), 'world_size')
 
-    def train_period_parallel(self, epoch, accumulation=1, print_step=2):
+    def train_period_parallel(self, epoch, accumulation=1, print_step=1):
         method = self.train_step if accumulation == 1 else self.train_accumulate
-        for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127], [b]
+        for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127],
+            assert len(label) == self.batch_size
             if x is None and label is None:
                 continue
 
             if step % print_step != 0:
-                _, _ = method(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
+                _, _ = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
 
             else:
-                loss, acc = method(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
+                loss, acc = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
                 x_val, label_val = self.val_iterable.next()
                 loss_val, acc_val = self.validate(x=x_val, label=label_val)
-                dist.barrier()
+
+                dist.all_reduce(loss, op=dist.ReduceOp.SUM)
+                dist.all_reduce(acc, op=dist.ReduceOp.SUM)
+                loss /= dist.get_world_size()
+                acc /= dist.get_world_size()
+
+                dist.all_reduce(loss_val, op=dist.ReduceOp.SUM)
+                dist.all_reduce(acc_val, op=dist.ReduceOp.SUM)
+                loss_val /= dist.get_world_size()
+                acc_val /= dist.get_world_size()
 
                 if self.gpu_rank == 0:
-                    torch.cuda.synchronize(self.device)  # 等待所有进程计算完毕
-                    dist.all_reduce(loss.clone(), op=dist.ReduceOp.SUM)
-                    dist.all_reduce(acc.clone(), op=dist.ReduceOp.SUM)
-                    loss /= dist.get_world_size()
-                    acc /= dist.get_world_size()
-
-                    dist.all_reduce(loss_val.clone(), op=dist.ReduceOp.SUM)
-                    dist.all_reduce(acc_val.clone(), op=dist.ReduceOp.SUM)
-                    loss_val /= dist.get_world_size()
-                    acc_val /= dist.get_world_size()
-
+                    self.lr_scheduler.step(loss_val)
                     if not torch.isfinite(loss):
                         print('WARNING: non-finite loss, ending training ', loss)
                         sys.exit(1)
 
                     lr = self.optimizer.param_groups[0]['lr']
-                    loss = loss.data.numpy()
-                    acc = acc.data.numpy()
-                    loss_val = loss_val.data.numpy()
-                    acc_val = acc_val.data.numpy()
                     print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
                           format(epoch, self.n, step, self.train_num, lr, loss, acc, loss_val, acc_val))
                     self.summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
@@ -92,6 +89,10 @@ class XinTrainer:
                     self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
                     self.summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
             self.global_step += 1
+
+        if self.gpu_rank == 0:
+            self.summary.flush()
+            self.summary.close()
 
     def train_period(self, epoch, accumulation=1, print_step=10):
         method = self.train_step if accumulation == 1 else self.train_accumulate
@@ -132,7 +133,7 @@ class XinTrainer:
             loss = F.cross_entropy(y, label) / accumulation
 
         scaler.scale(loss).backward()  # scale gradient and perform backward pass
-        # scaler.unscale_(optimizer)  # before gradient clipping the optimizer parameters must be unscaled.
+        # scaler.unscale_(self.optimizer)  # before gradient clipping the optimizer parameters must be unscaled.
         # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)  # perform optimization step
 
         if (step + 1) % accumulation == 0:

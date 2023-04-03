@@ -140,9 +140,9 @@ def thread_read(bdf_path, labels_dir, pkl_path):
     assert len(times) == len(ys)
     assert np.shape(xs[0]) == (len_x, 96)  # [length, channels]
 
-    xs = np.reshape(xs, (len(xs) * len_x, 96))
-    xs = trial_average(xs, axis=0)  # ave in session
-    xs = np.reshape(xs, (-1, len_x, 96))
+    # xs = np.reshape(xs, (len(xs) * len_x, 96))
+    # xs = trial_average(xs, axis=0)  # ave in session
+    # xs = np.reshape(xs, (-1, len_x, 96))
 
     name = bdf_path.split('/')[-1].replace('.bdf', '')
 
@@ -177,7 +177,7 @@ if __name__ == "__main__":
     # go_through(bdf_filenames, label_dir, len_x=2048, pkl_path=path + '/pkl_trial_2048/')
     Parallel(n_jobs=12)(
         delayed(thread_read)(
-            f, label_dir, pkl_path='/data1/zhangwuxia/Datasets' + '/pkl_trial_cwt_2s_2048'
+            f, label_dir, pkl_path='/data1/zhangwuxia/Datasets' + '/pkl_cwt_2s_2048'
         )
         for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', position=0, leave=False, ncols=80)
     )
