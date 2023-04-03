@@ -78,7 +78,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # ff = MLP2layers(in_features=96, hidden_size=128, classes=40).to(the_device)
     # ff = SyncNet(in_channels=96, num_layers_in_fc_layers=40)
     ff = resnet2d(pretrained=False, n_classes=40, input_channels=30).to(the_device)
-    ff = torch.nn.SyncBatchNorm.convert_sync_batchnorm(ff).to(the_device)
+    # ff = torch.nn.SyncBatchNorm.convert_sync_batchnorm(ff).to(the_device)
     ff = torch.nn.parallel.DistributedDataParallel(ff)
 
     summary = None

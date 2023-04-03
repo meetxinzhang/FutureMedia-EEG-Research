@@ -92,7 +92,7 @@ class ResNet(nn.Module):
         self.layer2 = self._make_layer(block, 128, num_layer[1], 2)
         self.layer3 = self._make_layer(block, 256, num_layer[2], 2)
         self.layer4 = self._make_layer(block, 512, num_layer[3], 2)
-        self.avgpool = nn.AvgPool2d(kernel_size=(3, 32), stride=1)
+        self.avgpool = nn.AvgPool2d(kernel_size=(3, 16), stride=1)
         self.fc = nn.Linear(block.expansion * 512, n_classes)
         self.softmax = nn.Softmax(dim=-1)
 

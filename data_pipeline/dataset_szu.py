@@ -74,7 +74,7 @@ class ListDataset(torch.utils.data.Dataset):
             # x = np.transpose(x, (1, 0,  2))  # [33, 96, 63]
 
             # cwt  [c=96 f=30 t=1024]
-            # x = x[:, :, :1024]  # [127, 85, 1000]
+            x = x[:, :, :512]  # [127, 85, 1000]
             # x = einops.rearrange(x, 'c f t -> f c t')  # [t, f, c]
 
             # x = x[::2, :]  # [512, 96]
