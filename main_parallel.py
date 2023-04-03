@@ -20,7 +20,7 @@ from data_pipeline.dataset_szu import ListDataset
 from model.eeg_net import EEGNet
 # from model.lstm_1dcnn_mlp_syncnet import ResNet1D
 # from model.eeg_channel_net import EEGChannelNet
-from model.resnet_arcface import resnet18 as resnet2d
+from model.resnet_arcface import resnet50 as resnet2d
 from utils.my_tools import IterForever, file_scanf2, mkdirs
 
 os.environ['MASTER_ADDR'] = 'localhost'
@@ -29,11 +29,11 @@ os.environ['MASTER_PORT'] = '7890'
 # torch.manual_seed(2022)
 # torch.cuda.manual_seed(2022)
 
-id_exp = 'ResNet18_2D-trial-cwt-1024-p50e01l64b'
-# data_path = '/data1/zhangwuxia/Datasets/pkl_cwt_2s_2048'
+id_exp = 'ResNet50_2D-trial-cwt-1024-p50e01l64b'
+# data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_2s_2048'
 data_path = '/data0/zhangwuxia/zx/Datasets/pkl_trial_cwt_1024'
 # data_path = '../../Datasets/sz_eeg/pkl_cwt_torch'
-time_exp = '2023-04-02--11-39'
+time_exp = '2023-04-03--15-08'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
 device_list = [0, 1, 2, 3, 4, 5, 6, 7]

@@ -75,8 +75,9 @@ class XinTrainer:
                 loss_val /= dist.get_world_size()
                 acc_val /= dist.get_world_size()
 
+                self.lr_scheduler.step(loss_val)
+
                 if self.gpu_rank == 0:
-                    self.lr_scheduler.step(loss_val)
                     if not torch.isfinite(loss):
                         print('WARNING: non-finite loss, ending training ', loss)
                         sys.exit(1)
@@ -88,6 +89,7 @@ class XinTrainer:
                     self.summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
                     self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
                     self.summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
+            dist.barrier()
             self.global_step += 1
 
         if self.gpu_rank == 0:
