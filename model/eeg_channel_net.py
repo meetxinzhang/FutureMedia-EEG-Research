@@ -24,7 +24,6 @@ class ConvLayer2D(nn.Sequential):
         self.add_module('drop', nn.Dropout2d(0.2))
 
     def forward(self, x):
-        print(x.size(), 'qqqqq')
         return super().forward(x)
 
 
@@ -168,7 +167,7 @@ class FeaturesExtractor(nn.Module):
 
 class EEGChannelNet(nn.Module):
     """The model for EEG classification.
-    Input: tensor=[channel, time].
+    Input: tensor=[embedding, electrode, time].
     The model performs different 2D to extract temporal e spatial information.
     The output is a vector of classes where the maximum value is the predicted class.
     Args:
@@ -193,8 +192,7 @@ class EEGChannelNet(nn.Module):
 
     def __init__(self, in_channels=1, temp_channels=10, out_channels=50, num_classes=40, embedding_size=1000,
                  input_width=440, input_height=128, temporal_dilation_list=[(1, 1), (1, 2), (1, 4), (1, 8)],
-                 temporal_kernel=(1, 33), temporal_stride=(1, 2),
-                 num_temp_layers=4,
+                 temporal_kernel=(1, 33), temporal_stride=(1, 2), num_temp_layers=4,
                  num_spatial_layers=4, spatial_stride=(2, 1), num_residual_blocks=4, down_kernel=3, down_stride=2):
         super().__init__()
 
@@ -207,6 +205,7 @@ class EEGChannelNet(nn.Module):
 
         encoding_size = \
             self.encoder(torch.zeros(1, in_channels, input_height, input_width)).contiguous().view(-1).size()[0]
+        # print(self.encoder(torch.zeros(1, in_channels, input_height, input_width)).size(), 'encoder_size')
 
         self.classifier = nn.Sequential(
             nn.Linear(encoding_size, embedding_size),
@@ -216,8 +215,8 @@ class EEGChannelNet(nn.Module):
         )
 
     def forward(self, x):
-        # [c=96 f=30 t=1024]
-        x = einops.rearrange(x, 'c f t -> f c t')
+        # [c=96 f=30 t=1024]   Raw: [1 512 96]
+        x = einops.rearrange(x, 'b f t c ->b f c t')
         out = self.encoder(x)
         out = out.view(x.size(0), -1)
         out = self.classifier(out)
