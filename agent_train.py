@@ -56,6 +56,7 @@ class XinTrainer:
         epoch_loss_val = []
         epoch_acc = []
         epoch_acc_val = []
+        ws = dist.get_world_size()
         for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127],
             assert len(label) == self.batch_size
             if x is None and label is None:
@@ -69,41 +70,39 @@ class XinTrainer:
                 x_val, label_val = self.val_iterable.next()
                 loss_val, acc_val = self.validate(x=x_val, label=label_val)
 
-                dist.all_reduce(loss, op=dist.ReduceOp.SUM, async_op=True)
-                dist.all_reduce(acc, op=dist.ReduceOp.SUM, async_op=True)
-                loss /= dist.get_world_size()
-                acc /= dist.get_world_size()
+                dist.all_reduce(loss, op=dist.ReduceOp.SUM)
+                dist.all_reduce(acc, op=dist.ReduceOp.SUM)
+                loss = loss.item() / ws
+                acc = acc.item() / ws
 
-                dist.all_reduce(loss_val, op=dist.ReduceOp.SUM, async_op=True)
-                dist.all_reduce(acc_val, op=dist.ReduceOp.SUM, async_op=True)
-                loss_val /= dist.get_world_size()
-                acc_val /= dist.get_world_size()
+                dist.all_reduce(loss_val, op=dist.ReduceOp.SUM)
+                dist.all_reduce(acc_val, op=dist.ReduceOp.SUM)
+                loss_val = loss_val.item() / ws
+                acc_val = acc_val.item() / ws
 
                 # self.lr_scheduler.step(loss_val)
 
                 if self.gpu_rank == 0:
-                    if not torch.isfinite(loss):
-                        print('WARNING: non-finite loss, ending training ', loss.item())
-                        sys.exit(1)
-
+                    # if not torch.isfinite(loss):
+                    #     print('WARNING: non-finite loss, ending training ', loss)
+                    #     sys.exit(1)
                     lr = self.optimizer.param_groups[0]['lr']
                     print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
-                          format(epoch, self.n, step, self.train_num, lr, loss.item(), acc, loss_val.item(), acc_val))
-                    epoch_loss.append(loss.item())
+                          format(epoch, self.n, step, self.train_num, lr, loss, acc, loss_val, acc_val))
+                    epoch_loss.append(loss)
                     epoch_acc.append(acc)
-                    epoch_loss_val.append(loss_val.item())
+                    epoch_loss_val.append(loss_val)
                     epoch_acc_val.append(acc_val)
-
                 dist.barrier()
             # step end
         # epoch end
         if self.gpu_rank == 0:
             for i in range(len(epoch_loss)):
-                self.summary.add_scalar(tag='TrainLoss', scalar_value=epoch_loss[i], global_step=(i+1)*print_step)
-                self.summary.add_scalar(tag='TrainAcc', scalar_value=epoch_acc[i], global_step=(i+1)*print_step)
-                self.summary.add_scalar(tag='ValLoss', scalar_value=epoch_loss_val[i], global_step=(i+1)*print_step)
-                self.summary.add_scalar(tag='ValAcc', scalar_value=epoch_acc_val[i], global_step=(i+1)*print_step)
-            self.summary.flush()
+                global_step = (i+1)*print_step
+                self.summary.add_scalar(tag='TrainLoss', scalar_value=epoch_loss[i].cpu(), global_step=global_step)
+                self.summary.add_scalar(tag='TrainAcc', scalar_value=epoch_acc[i].cpu(), global_step=global_step)
+                self.summary.add_scalar(tag='ValLoss', scalar_value=epoch_loss_val[i].cpu(), global_step=global_step)
+                self.summary.add_scalar(tag='ValAcc', scalar_value=epoch_acc_val[i].cpu(), global_step=global_step)
         dist.barrier()
         self.lr_scheduler.step()
 

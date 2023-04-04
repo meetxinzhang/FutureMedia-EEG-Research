@@ -25,24 +25,24 @@ from utils.my_tools import IterForever, file_scanf2, mkdirs
 
 os.environ['MASTER_ADDR'] = 'localhost'
 os.environ['MASTER_PORT'] = '7890'
-os.environ['NCCL_LL_THRESHOLD'] = '0'
-os.environ['NCCL_P2P_DISABLE'] = '1'
-os.environ['NCCL_IB_DISABLE'] = '1'
+# os.environ['NCCL_LL_THRESHOLD'] = '0'
+# os.environ['NCCL_P2P_DISABLE'] = '1'
+# os.environ['NCCL_IB_DISABLE'] = '1'
 # random.seed = 2022
 # torch.manual_seed(2022)
 # torch.cuda.manual_seed(2022)
 
-id_exp = 'EEGChannelNet-delta-base1-trial-1024-05s-p50e01l64b'
-# data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024'
-data_path = '/data1/zhangwuxia/Datasets/pkl_delta_base1_05s_1024'
+id_exp = 'EEGChannelNet-trial-cwt-05s-512-p50e01l64b'
+data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024'
+# data_path = '/data1/zhangwuxia/Datasets/pkl_delta_base1_05s_1024'
 # data_path = '../../Datasets/sz_eeg/pkl_cwt_torch'
-time_exp = '2023-04-04--13-08'
+time_exp = '2023-04-04--19-08'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
 device_list = [0, 1, 2, 3, 4, 5, 6, 7]
 main_gpu_rank = 0
-train_loaders = 3
-valid_loaders = 2
+train_loaders = 20
+valid_loaders = 10
 
 batch_size = 16
 accumulation_steps = 2  # to accumulate gradient when you want to set larger batch_size but out of memory.
@@ -51,9 +51,9 @@ k = 5
 learn_rate = 0.01
 
 
-def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_dataset: ListDataset):
+def main_func(gpu_rank, fold_rank, train_dataset: ListDataset, valid_dataset: ListDataset):
     dist.init_process_group(backend='nccl', init_method='env://', world_size=len(device_list), rank=gpu_rank)
-    the_device = torch.device(f"cuda:{device_id}")
+    the_device = torch.device(f"cuda:{dist.get_rank()}")
     torch.cuda.set_device(the_device)
     dist.barrier()
 
@@ -68,7 +68,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     valid_loader = tud.DataLoader(valid_dataset, batch_sampler=valid_b_s, pin_memory=True, num_workers=valid_loaders)
     val_iterable = IterForever(valid_loader)
 
-    ff = EEGChannelNet(in_channels=1, input_height=96, input_width=512, num_classes=40,
+    ff = EEGChannelNet(in_channels=30, input_height=96, input_width=512, num_classes=40,
                        num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
     # ff = LSTM(classes=40, input_size=96, depth=3)
     # ff = EEGNet(classes_num=40, in_channels=30, electrodes=96, drop_out=0.1).to(the_device)
@@ -106,6 +106,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
         xin.train_period_parallel(epoch=epoch, accumulation=accumulation_steps)
 
     if gpu_rank == main_gpu_rank:
+        summary.flush()
         summary.close()
         if os.path.exists(init_state):
             os.remove(init_state)
@@ -130,13 +131,13 @@ if __name__ == '__main__':
         print(f'FOLD {fold}')
         print(len(train_idx), len(valid_idx), '--------------------------------')
 
-        process = []
-        for rank, device in enumerate(device_list):
-            p = mp.Process(target=main_func, args=(rank, device, fold, train_set, valid_set))
-            p.start()
-            process.append(p)
-        for p in process:
-            p.join()
-        # mp.spawn(main_func, nprocs=2, args=(0, fold, train_set, valid_set))
+        # process = []
+        # for rank, device in enumerate(device_list):
+        #     p = mp.Process(target=main_func, args=(rank, device, fold, train_set, valid_set))
+        #     p.start()
+        #     process.append(p)
+        # for p in process:
+        #     p.join()
+        mp.spawn(main_func, nprocs=8, args=(fold, train_set, valid_set))
 
         print('done')

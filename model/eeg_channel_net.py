@@ -215,8 +215,7 @@ class EEGChannelNet(nn.Module):
         )
 
     def forward(self, x):
-        # [c=96 f=30 t=1024]   Raw: [1 512 96]
-        x = einops.rearrange(x, 'b f t c ->b f c t')
+        # x = einops.rearrange(x, 'b f t c ->b f c t')
         out = self.encoder(x)
         out = out.view(x.size(0), -1)
         out = self.classifier(out)
