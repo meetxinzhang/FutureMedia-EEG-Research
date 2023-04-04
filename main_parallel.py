@@ -20,31 +20,31 @@ from data_pipeline.dataset_szu import ListDataset
 # from model.eeg_net import EEGNet
 # from model.lstm_1dcnn_mlp_syncnet import ResNet1D
 # from model.eeg_channel_net import EEGChannelNet
-from model.resnet_arcface import resnet50 as resnet2d
+from model.resnet_arcface import resnet18 as resnet2d
 from utils.my_tools import IterForever, file_scanf2, mkdirs
 
 os.environ['MASTER_ADDR'] = 'localhost'
 os.environ['MASTER_PORT'] = '7890'
-# os.environ['NCCL_LL_THRESHOLD'] = '0'
-# os.environ['NCCL_P2P_DISABLE'] = '1'
-# os.environ['NCCL_IB_DISABLE'] = '1'
+os.environ['NCCL_LL_THRESHOLD'] = '0'
+os.environ['NCCL_P2P_DISABLE'] = '1'
+os.environ['NCCL_IB_DISABLE'] = '1'
 # random.seed = 2022
 # torch.manual_seed(2022)
 # torch.cuda.manual_seed(2022)
 
-id_exp = 'ResNet50_2D-trial-cwt-1024-p50e01l64b'
+id_exp = 'ResNet18_2D-trial-cwt-1024-p50e01l64b'
 data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024'
 # data_path = '/data0/zhangwuxia/zx/Datasets/pkl_trial_cwt_1024'
 # data_path = '../../Datasets/sz_eeg/pkl_cwt_torch'
 time_exp = '2023-04-03--15-08'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
-device_list = [0, 1, 2, 3]
+device_list = [0, 1]
 main_gpu_rank = 0
 train_loaders = 4
 valid_loaders = 2
 
-batch_size = 16
+batch_size = 32
 accumulation_steps = 2  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
@@ -78,7 +78,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # ff = MLP2layers(in_features=96, hidden_size=128, classes=40).to(the_device)
     # ff = SyncNet(in_channels=96, num_layers_in_fc_layers=40)
     ff = resnet2d(pretrained=False, n_classes=40, input_channels=30).to(the_device)
-    # ff = torch.nn.SyncBatchNorm.convert_sync_batchnorm(ff).to(the_device)
+    ff = torch.nn.SyncBatchNorm.convert_sync_batchnorm(ff).to(the_device)
     ff = torch.nn.parallel.DistributedDataParallel(ff)
 
     summary = None
@@ -93,9 +93,10 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     optim_paras = [p for p in ff.parameters() if p.requires_grad]
     # optimizer = torch.optim.SGD(optim_paras, lr=learn_rate, momentum=0.9, weight_decay=0.001, nesterov=True)
     optimizer = torch.optim.Adam(optim_paras, lr=learn_rate, weight_decay=0.001)
-    lr_scheduler = torch_lr.ReduceLROnPlateau(optimizer, mode='min', factor=0.001, patience=10, verbose=True,
-                                              threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0.001,
-                                              eps=1e-08)
+    # lr_scheduler = torch_lr.ReduceLROnPlateau(optimizer, mode='min', factor=0.001, patience=10, verbose=True,
+    #                                           threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0.001,
+    #                                           eps=1e-08)
+    lr_scheduler = torch_lr.StepLR(optimizer, step_size=10, gamma=0.6, last_epoch=-1)
 
     xin = XinTrainer(n_epoch=n_epoch, model=ff, train_loader=train_loader, val_iterable=val_iterable,
                      optimizer=optimizer, batch_size=batch_size, lr_shecduler=lr_scheduler,
@@ -105,6 +106,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
         xin.train_period_parallel(epoch=epoch, accumulation=accumulation_steps)
 
     if gpu_rank == main_gpu_rank:
+        summary.close()
         if os.path.exists(init_state):
             os.remove(init_state)
     dist.destroy_process_group()
