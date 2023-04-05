@@ -17,9 +17,9 @@ import os
 from agent_train import XinTrainer
 from data_pipeline.dataset_szu import ListDataset
 # from model.field_flow_2p1 import FieldFlow2
-# from model.eeg_net import EEGNet
+from model.eeg_net import EEGNet
 # from model.lstm_1dcnn_mlp_syncnet import ResNet1D
-from model.eeg_channel_net import EEGChannelNet
+# from model.eeg_channel_net import EEGChannelNet
 # from model.resnet_arcface import resnet18 as resnet2d
 from utils.my_tools import IterForever, file_scanf2, mkdirs
 
@@ -32,11 +32,11 @@ os.environ['MASTER_PORT'] = '7890'
 # torch.manual_seed(2022)
 # torch.cuda.manual_seed(2022)
 
-id_exp = 'EEGChannelNet-trial-cwt-05s-512-p50e01l64b'
-data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024'
+id_exp = 'EEGNet-trial-cwt-05s-500-SZ-p50e01l64b'
+# data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024'
 # data_path = '/data1/zhangwuxia/Datasets/pkl_delta_base1_05s_1024'
-# data_path = '../../Datasets/sz_eeg/pkl_cwt_torch'
-time_exp = '2023-04-04--19-08'
+data_path = '/data1/zhangwuxia/Datasets/SZEEG2022/pkl_trial_cwt_1s_1000'
+time_exp = '2023-04-05--23-08'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
 device_list = [0, 1, 2, 3, 4, 5, 6, 7]
@@ -45,7 +45,7 @@ train_loaders = 20
 valid_loaders = 10
 
 batch_size = 16
-accumulation_steps = 2  # to accumulate gradient when you want to set larger batch_size but out of memory.
+accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
 learn_rate = 0.01
@@ -53,7 +53,7 @@ learn_rate = 0.01
 
 def main_func(gpu_rank, fold_rank, train_dataset: ListDataset, valid_dataset: ListDataset):
     dist.init_process_group(backend='nccl', init_method='env://', world_size=len(device_list), rank=gpu_rank)
-    the_device = torch.device(f"cuda:{dist.get_rank()}")
+    the_device = torch.device(f"cuda:{gpu_rank}")
     torch.cuda.set_device(the_device)
     dist.barrier()
 
@@ -68,10 +68,10 @@ def main_func(gpu_rank, fold_rank, train_dataset: ListDataset, valid_dataset: Li
     valid_loader = tud.DataLoader(valid_dataset, batch_sampler=valid_b_s, pin_memory=True, num_workers=valid_loaders)
     val_iterable = IterForever(valid_loader)
 
-    ff = EEGChannelNet(in_channels=30, input_height=96, input_width=512, num_classes=40,
-                       num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
+    # ff = EEGChannelNet(in_channels=30, input_height=96, input_width=512, num_classes=40,
+    #                  num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
     # ff = LSTM(classes=40, input_size=96, depth=3)
-    # ff = EEGNet(classes_num=40, in_channels=30, electrodes=96, drop_out=0.1).to(the_device)
+    ff = EEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.2).to(the_device)
     # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
     #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
     # ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).to(the_device)
@@ -93,10 +93,10 @@ def main_func(gpu_rank, fold_rank, train_dataset: ListDataset, valid_dataset: Li
     optim_paras = [p for p in ff.parameters() if p.requires_grad]
     # optimizer = torch.optim.SGD(optim_paras, lr=learn_rate, momentum=0.9, weight_decay=0.001, nesterov=True)
     optimizer = torch.optim.Adam(optim_paras, lr=learn_rate, weight_decay=0.001)
-    # lr_scheduler = torch_lr.ReduceLROnPlateau(optimizer, mode='min', factor=0.001, patience=10, verbose=True,
-    #                                           threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0.001,
-    #                                           eps=1e-08)
-    lr_scheduler = torch_lr.StepLR(optimizer, step_size=10, gamma=0.7, last_epoch=-1)
+    lr_scheduler = torch_lr.ReduceLROnPlateau(optimizer, mode='min', factor=0.001, patience=10, verbose=True,
+                                              threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0.001,
+                                              eps=1e-08)
+    # lr_scheduler = torch_lr.StepLR(optimizer, step_size=10, gamma=0.7, last_epoch=-1)
 
     xin = XinTrainer(n_epoch=n_epoch, model=ff, train_loader=train_loader, val_iterable=val_iterable,
                      optimizer=optimizer, batch_size=batch_size, lr_shecduler=lr_scheduler,
@@ -117,7 +117,7 @@ if __name__ == '__main__':
     torch.multiprocessing.set_start_method('spawn')
 
     mkdirs(['./log/image/' + id_exp + '/' + time_exp, './log/checkpoint/' + id_exp, './log/' + id_exp])
-    filepaths = file_scanf2(path=data_path, contains=['imagenet'], endswith='.pkl')
+    filepaths = file_scanf2(path=data_path, contains=['run'], endswith='.pkl')
     labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
 
     k_fold = StratifiedKFold(n_splits=k, shuffle=True)

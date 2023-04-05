@@ -120,6 +120,7 @@ def thread_write(x, y, pos, pkl_filename):
 
     # CWT
     x = cwt_scipy(x)  # [c f=30 t=1024]
+    assert np.shape(x) == (96, 30, 1024)
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -151,7 +152,7 @@ def thread_read(bdf_path, labels_dir, pkl_path):
         delayed(thread_write)(
             xs[i], ys[i], pos, pkl_path + '/' + name + '_' + str(i) + '_' + str(times[i]) + '_' + str(ys[i])
         )
-        for i in tqdm(range(len(ys)), desc=' write ', colour='RED', position=1, leave=False, ncols=80)
+        for i in tqdm(range(len(ys)), desc=' write ', colour='RED', position=0, leave=False, ncols=80)
     )
 
 
@@ -178,7 +179,7 @@ if __name__ == "__main__":
     Parallel(n_jobs=64)(
         delayed(thread_process_pkl)(
             f, save_path='/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024')
-        for f in tqdm(pkl_filenames, desc=' read ', colour='WHITE', position=0, leave=False, ncols=80)
+        for f in tqdm(pkl_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )
 
     # bdf_filenames = file_scanf2(bdf_dir, contains=['1000-1'], endswith='.bdf')
