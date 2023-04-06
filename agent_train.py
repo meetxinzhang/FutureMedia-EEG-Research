@@ -12,6 +12,8 @@ import torch.nn.functional as F
 import torch.distributed as dist
 from agent_lrp import ignite_relprop, get_heatmap_gallery
 from torch.cuda.amp import autocast, GradScaler
+from joblib import Parallel, delayed
+from tqdm import tqdm
 
 scaler = GradScaler()
 
@@ -51,11 +53,11 @@ class XinTrainer:
         # print(dist.get_world_size(), 'world_size')
 
     def train_period_parallel(self, epoch, accumulation=1, print_step=10):
-        method = self.train_step if accumulation == 1 else self.train_accumulate
         epoch_loss = []
         epoch_loss_val = []
         epoch_acc = []
         epoch_acc_val = []
+        idx = []
         ws = dist.get_world_size()
         for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127],
             assert len(label) == self.batch_size
@@ -63,28 +65,24 @@ class XinTrainer:
                 continue
 
             if step % print_step != 0:
-                _, _ = method(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
+                _, _ = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
 
             else:
-                loss, acc = method(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
+                loss, acc = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
                 x_val, label_val = self.val_iterable.next()
                 loss_val, acc_val = self.validate(x=x_val, label=label_val)
-
-                dist.all_reduce(loss, op=dist.ReduceOp.SUM)
-                dist.all_reduce(acc, op=dist.ReduceOp.SUM)
+                print(self.gpu_rank, '-')
+                dist.reduce(loss, op=dist.ReduceOp.SUM, dst=0)
+                dist.reduce(acc, op=dist.ReduceOp.SUM, dst=0)
                 loss = loss.item() / ws
                 acc = acc.item() / ws
 
-                dist.all_reduce(loss_val, op=dist.ReduceOp.SUM)
-                dist.all_reduce(acc_val, op=dist.ReduceOp.SUM)
-                self.lr_scheduler.step(loss_val)
+                dist.reduce(loss_val, op=dist.ReduceOp.SUM, dst=0)
+                dist.reduce(acc_val, op=dist.ReduceOp.SUM, dst=0)
                 loss_val = loss_val.item() / ws
                 acc_val = acc_val.item() / ws
 
                 if self.gpu_rank == 0:
-                    # if not torch.isfinite(loss):
-                    #     print('WARNING: non-finite loss, ending training ', loss)
-                    #     sys.exit(1)
                     lr = self.optimizer.param_groups[0]['lr']
                     print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
                           format(epoch, self.n, step, self.train_num, lr, loss, acc, loss_val, acc_val))
@@ -92,18 +90,18 @@ class XinTrainer:
                     epoch_acc.append(acc)
                     epoch_loss_val.append(loss_val)
                     epoch_acc_val.append(acc_val)
-                dist.barrier()
+                    idx.append(self.global_step)
+                self.global_step += 1
             # step end
         # epoch end
+        self.lr_scheduler.step()
         if self.gpu_rank == 0:
             for i in range(len(epoch_loss)):
-                global_step = (i+1)*print_step
-                self.summary.add_scalar(tag='TrainLoss', scalar_value=epoch_loss[i], global_step=global_step)
-                self.summary.add_scalar(tag='TrainAcc', scalar_value=epoch_acc[i], global_step=global_step)
-                self.summary.add_scalar(tag='ValLoss', scalar_value=epoch_loss_val[i], global_step=global_step)
-                self.summary.add_scalar(tag='ValAcc', scalar_value=epoch_acc_val[i], global_step=global_step)
-        dist.barrier()
-        # self.lr_scheduler.step()
+                self.summary.add_scalar(tag='TrainLoss', scalar_value=epoch_loss[i], global_step=idx[i])
+                self.summary.add_scalar(tag='TrainAcc', scalar_value=epoch_acc[i], global_step=idx[i])
+                self.summary.add_scalar(tag='ValLoss', scalar_value=epoch_loss_val[i], global_step=idx[i])
+                self.summary.add_scalar(tag='ValAcc', scalar_value=epoch_acc_val[i], global_step=idx[i])
+                self.summary.flush()
 
     def train_period(self, epoch, accumulation=1, print_step=10):
         method = self.train_step if accumulation == 1 else self.train_accumulate
@@ -129,7 +127,8 @@ class XinTrainer:
             if epoch > 25 and step % 50 == 0:
                 cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
                 get_heatmap_gallery(cam.squeeze(0),
-                            save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(label[0].cpu().numpy()))
+                                    save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
+                                        label[0].cpu().numpy()))
 
             self.global_step += 1
 

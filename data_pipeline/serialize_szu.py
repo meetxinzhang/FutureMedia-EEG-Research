@@ -84,13 +84,13 @@ def thread_read(label_file, pkl_path):
 
 if __name__ == "__main__":
     # path = 'G:/Datasets/SZFace2/EEG/10-17'
-    path = '/data1/zhangwuxia/Datasets/SZEEG2022/Raw'
-    label_filenames = file_scanf2(path, contains=['subject2'], endswith='.Markers')
+    path = '/data1/zhangwuxia/Datasets/SZEEG2023/Raw'
+    label_filenames = file_scanf2(path, contains=['subject3'], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
-    Parallel(n_jobs=6)(
+    Parallel(n_jobs=12)(
         delayed(thread_read)(
-            f, pkl_path=path + '/../pkl_trial_cwt_1s_1000'
+            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_1s_1000'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

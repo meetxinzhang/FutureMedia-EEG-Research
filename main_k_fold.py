@@ -17,9 +17,9 @@ import time
 # import numpy as np
 from data_pipeline.dataset_szu import ListDataset
 from utils.my_tools import IterForever
-# from model.eeg_net import EEGNet
+from model.eeg_net import EEGNet
 # from model.eeg_net import ComplexEEGNet
-from model.conv_tsfm_lrp import ConvTransformer
+# from model.conv_tsfm_lrp import ConvTransformer
 # from model.field_flow_2p1 import FieldFlow2
 
 # random.seed = 2022
@@ -56,14 +56,14 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'AEP-lrp-ConvTsfm-skl-50e01l64b'
-path = '../../Datasets/pkl_aep_trial_1s_4096'
-# path = '../../Datasets/sz_eeg/pkl_aep_trial_subj2_1s_1000'
-time_exp = '' + str(time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime()))
+id_exp = 'EEGNet-trial-cwt-05s-512-SZ23-p50e01l64b'
+# path = '../../Datasets/pkl_aep_trial_1s_4096'
+path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_1s_1000'
+time_exp = '2023-04-06--20-55'
 mkdirs(['./log/image/'+id_exp+'/'+time_exp, './log/checkpoint/'+id_exp, './log/'+id_exp])
 
 k_fold = StratifiedKFold(n_splits=k, shuffle=True)
-filepaths = file_scanf2(path=path, contains=['imagenet'], endswith='.pkl')
+filepaths = file_scanf2(path=path, contains=['subject3'], endswith='.pkl')
 labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
 dataset = ListDataset(filepaths)
 print(len(filepaths), ' total')
@@ -74,7 +74,7 @@ if __name__ == '__main__':
         train_set = Subset(dataset, train_idx)
         valid_set = Subset(dataset, valid_idx)
         train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, num_workers=4, prefetch_factor=1)
-        valid_loader = DataLoader(valid_set, batch_size=batch_size, shuffle=True, num_workers=1, prefetch_factor=1)
+        valid_loader = DataLoader(valid_set, batch_size=batch_size, shuffle=True, num_workers=2, prefetch_factor=1)
 
     # for (fold, train_files, valid_files) in k_fold_share(path, k):
     #     print(len(train_files), len(valid_files))
@@ -82,9 +82,9 @@ if __name__ == '__main__':
     #     valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
         val_iterable = IterForever(valid_loader)
 
-        # ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.1).cuda()
-        ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=16, num_heads=4,
-                             ffd_channels=16, last_channels=16, size=20, T=50, depth=1, drop=0.2).to(device)
+        ff = EEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.2).to(device)
+        # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=16, num_heads=4,
+        #                      ffd_channels=16, last_channels=16, size=20, T=50, depth=1, drop=0.2).to(device)
         # ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).cuda()
         optim_paras = [p for p in ff.parameters() if p.requires_grad]
         optimizer = torch.optim.Adam(optim_paras, lr=lr, weight_decay=0.001)
@@ -93,11 +93,11 @@ if __name__ == '__main__':
         print(f'FOLD {fold}')
         summary = SummaryWriter(log_dir='./log/' + id_exp + '/' + time_exp + '---' + str(fold) + '_fold/')
 
-        xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size, gpu_rank=0, id_exp=id_exp,
-                         device=device, train_loader=train_loader, val_iterable=val_iterable, summary=summary)
+        xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size, gpu_rank=0,
+                         id_exp=id_exp, device=device, train_loader=train_loader, val_iterable=val_iterable,
+                         summary=summary, lr_shecduler=lr_scheduler)
         for epoch in range(1, n_epoch + 1):
             xin.train_period(epoch=epoch, accumulation=accumulation_steps)
-            lr_scheduler.step()  # 更新学习率
         summary.flush()
         summary.close()
         # torch.save(ff.state_dict(), './log/checkpoint/' + id_exp + '/' + time_exp + '---' + str(fold) + '.pkl')
