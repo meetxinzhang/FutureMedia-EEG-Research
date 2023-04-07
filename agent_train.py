@@ -69,7 +69,6 @@ class XinTrainer:
                 loss, acc = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
                 x_val, label_val = self.val_iterable.next()
                 loss_val, acc_val = self.validate(x=x_val, label=label_val)
-                print(self.gpu_rank, '-')
                 dist.reduce(loss, op=dist.ReduceOp.SUM, dst=0)
                 dist.reduce(acc, op=dist.ReduceOp.SUM, dst=0)
                 loss = loss.item() / ws

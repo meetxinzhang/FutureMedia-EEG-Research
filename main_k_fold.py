@@ -16,7 +16,6 @@ import time
 # import os
 # import numpy as np
 from data_pipeline.dataset_szu import ListDataset
-from utils.my_tools import IterForever
 # from model.eeg_net import EEGNet
 from model.eeg_net import ComplexEEGNet
 # from model.conv_tsfm_lrp import ConvTransformer
@@ -56,7 +55,7 @@ n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'EEGNet-trial-cwt-05s-512-SZ23-p50e01l64b'
+id_exp = 'ComEEGNet-trial-cwt-05s-512-SZ23-p50e01l64b'
 # path = '../../Datasets/pkl_aep_trial_1s_4096'
 path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_1s_1000'
 time_exp = '2023-04-06--20-55'

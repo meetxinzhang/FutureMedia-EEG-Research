@@ -40,7 +40,7 @@ data_path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_1s_1000'
 time_exp = '2023-04-07--20-55'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
-device_list = [0, 1, 2, 3, 4, 5, 7]
+device_list = [0, 1, 2, 3, 4]
 main_gpu_rank = 0
 train_loaders = 3
 valid_loaders = 2
@@ -69,7 +69,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # valid_loader = tud.DataLoader(valid_dataset, batch_sampler=valid_b_s, pin_memory=True, num_workers=valid_loaders)
     train_loader = DataLoaderX(local_rank=device_id, dataset=train_dataset, batch_sampler=train_b_s, pin_memory=True,
                                num_workers=train_loaders)
-    valid_loader = DataLoaderX(local_rank=device_id, dataset=valid_dataset, batch_sampler=train_b_s, pin_memory=True,
+    valid_loader = DataLoaderX(local_rank=device_id, dataset=valid_dataset, batch_sampler=valid_b_s, pin_memory=True,
                                num_workers=valid_loaders)
 
     # ff = EEGChannelNet(in_channels=30, input_height=96, input_width=512, num_classes=40,
@@ -85,8 +85,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # ff = SyncNet(in_channels=96, num_layers_in_fc_layers=40)
     # ff = resnet2d(pretrained=False, n_classes=40, input_channels=30).to(the_device)
     ff = torch.nn.SyncBatchNorm.convert_sync_batchnorm(ff).to(the_device)
-    ff = torch.nn.parallel.DistributedDataParallel(ff, broadcast_buffers=False, device_ids=[device_id],
-                                                   find_unused_parameters=True)
+    ff = torch.nn.parallel.DistributedDataParallel(ff, broadcast_buffers=False, device_ids=[device_id])
 
     summary = None
     if gpu_rank == main_gpu_rank:
