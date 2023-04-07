@@ -37,19 +37,19 @@ id_exp = 'ComEEGNet-trial-cwt-05s-512-SZ23-p50e01l64b'
 # data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024'
 # data_path = '/data1/zhangwuxia/Datasets/pkl_delta_base1_05s_1024'
 data_path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_1s_1000'
-time_exp = '2023-04-07--20-55'
+time_exp = '2023-04-07--20-56'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
-device_list = [0, 1, 2, 3, 4]
+device_list = [0, 1, 2, 3, 4, 5]
 main_gpu_rank = 0
-train_loaders = 3
-valid_loaders = 2
+train_loaders = 2
+valid_loaders = 1
 
 batch_size = 32
-accumulation_steps = 2  # to accumulate gradient when you want to set larger batch_size but out of memory.
+accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
-learn_rate = 0.01
+learn_rate = 0.06
 
 
 def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_dataset: ListDataset):
@@ -85,7 +85,8 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # ff = SyncNet(in_channels=96, num_layers_in_fc_layers=40)
     # ff = resnet2d(pretrained=False, n_classes=40, input_channels=30).to(the_device)
     ff = torch.nn.SyncBatchNorm.convert_sync_batchnorm(ff).to(the_device)
-    ff = torch.nn.parallel.DistributedDataParallel(ff, broadcast_buffers=False, device_ids=[device_id])
+    ff = torch.nn.parallel.DistributedDataParallel(ff, broadcast_buffers=False, device_ids=[device_id],
+                                                   output_device=device_id)
 
     summary = None
     if gpu_rank == main_gpu_rank:

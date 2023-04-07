@@ -48,7 +48,7 @@ from model.eeg_net import ComplexEEGNet
 #         p += 1
 
 
-device = torch.device(f"cuda:{5}")
+device = torch.device(f"cuda:{7}")
 batch_size = 64
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
