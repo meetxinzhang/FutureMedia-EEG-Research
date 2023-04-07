@@ -12,9 +12,7 @@ import torch.nn.functional as F
 import torch.distributed as dist
 from agent_lrp import ignite_relprop, get_heatmap_gallery
 from torch.cuda.amp import autocast, GradScaler
-from joblib import Parallel, delayed
-from tqdm import tqdm
-
+from utils.my_tools import IterForever
 scaler = GradScaler()
 
 
@@ -33,7 +31,7 @@ scaler = GradScaler()
 
 
 class XinTrainer:
-    def __init__(self, n_epoch, model, optimizer, train_loader, val_iterable, batch_size, lr_shecduler,
+    def __init__(self, n_epoch, model, optimizer, train_loader, val_loader, batch_size, lr_shecduler,
                  id_exp, summary, gpu_rank, device):
         self.global_step = 0
         self.n = n_epoch
@@ -41,7 +39,7 @@ class XinTrainer:
         self.optimizer = optimizer
         self.lr_scheduler = lr_shecduler
         self.train_loader = train_loader
-        self.val_iterable = val_iterable
+        self.val_iterable = IterForever(val_loader)
         self.batch_size = torch.tensor(batch_size).to(device)
         self.summary = summary
         self.gpu_rank = gpu_rank
@@ -53,11 +51,11 @@ class XinTrainer:
         # print(dist.get_world_size(), 'world_size')
 
     def train_period_parallel(self, epoch, accumulation=1, print_step=10):
-        epoch_loss = []
-        epoch_loss_val = []
-        epoch_acc = []
-        epoch_acc_val = []
-        idx = []
+        # epoch_loss = []
+        # epoch_loss_val = []
+        # epoch_acc = []
+        # epoch_acc_val = []
+        # idx = []
         ws = dist.get_world_size()
         for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127],
             assert len(label) == self.batch_size
@@ -86,22 +84,22 @@ class XinTrainer:
                     lr = self.optimizer.param_groups[0]['lr']
                     print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
                           format(epoch, self.n, step, self.train_num, lr, loss, acc, loss_val, acc_val))
-                    epoch_loss.append(loss)
-                    epoch_acc.append(acc)
-                    epoch_loss_val.append(loss_val)
-                    epoch_acc_val.append(acc_val)
-                    idx.append(self.global_step)
+                    # epoch_loss.append(loss)
+                    # epoch_acc.append(acc)
+                    # epoch_loss_val.append(loss_val)
+                    # epoch_acc_val.append(acc_val)
+                    # idx.append(self.global_step)
                 self.global_step += 1
             # step end
         # epoch end
         self.lr_scheduler.step()
-        if self.gpu_rank == 0:
-            for i in range(len(epoch_loss)):
-                self.summary.add_scalar(tag='TrainLoss', scalar_value=epoch_loss[i], global_step=idx[i])
-                self.summary.add_scalar(tag='TrainAcc', scalar_value=epoch_acc[i], global_step=idx[i])
-                self.summary.add_scalar(tag='ValLoss', scalar_value=epoch_loss_val[i], global_step=idx[i])
-                self.summary.add_scalar(tag='ValAcc', scalar_value=epoch_acc_val[i], global_step=idx[i])
-                self.summary.flush()
+        # if self.gpu_rank == 0:
+        #     for i in range(len(epoch_loss)):
+        #         self.summary.add_scalar(tag='TrainLoss', scalar_value=epoch_loss[i], global_step=idx[i])
+        #         self.summary.add_scalar(tag='TrainAcc', scalar_value=epoch_acc[i], global_step=idx[i])
+        #         self.summary.add_scalar(tag='ValLoss', scalar_value=epoch_loss_val[i], global_step=idx[i])
+        #         self.summary.add_scalar(tag='ValAcc', scalar_value=epoch_acc_val[i], global_step=idx[i])
+        #         self.summary.flush()
 
     def train_period(self, epoch, accumulation=1, print_step=10):
         method = self.train_step if accumulation == 1 else self.train_accumulate

@@ -17,8 +17,8 @@ import time
 # import numpy as np
 from data_pipeline.dataset_szu import ListDataset
 from utils.my_tools import IterForever
-from model.eeg_net import EEGNet
-# from model.eeg_net import ComplexEEGNet
+# from model.eeg_net import EEGNet
+from model.eeg_net import ComplexEEGNet
 # from model.conv_tsfm_lrp import ConvTransformer
 # from model.field_flow_2p1 import FieldFlow2
 
@@ -80,9 +80,8 @@ if __name__ == '__main__':
     #     print(len(train_files), len(valid_files))
     #     train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=1, shuffle=False)
     #     valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
-        val_iterable = IterForever(valid_loader)
 
-        ff = EEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.2).to(device)
+        ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.2).to(device)
         # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=16, num_heads=4,
         #                      ffd_channels=16, last_channels=16, size=20, T=50, depth=1, drop=0.2).to(device)
         # ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).cuda()
@@ -94,7 +93,7 @@ if __name__ == '__main__':
         summary = SummaryWriter(log_dir='./log/' + id_exp + '/' + time_exp + '---' + str(fold) + '_fold/')
 
         xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size, gpu_rank=0,
-                         id_exp=id_exp, device=device, train_loader=train_loader, val_iterable=val_iterable,
+                         id_exp=id_exp, device=device, train_loader=train_loader, val_loader=valid_loader,
                          summary=summary, lr_shecduler=lr_scheduler)
         for epoch in range(1, n_epoch + 1):
             xin.train_period(epoch=epoch, accumulation=accumulation_steps)
