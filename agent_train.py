@@ -101,15 +101,14 @@ class XinTrainer:
             self.summary.flush()
 
     def train_period(self, epoch, accumulation=1, print_step=10):
-        method = self.train_step if accumulation == 1 else self.train_accumulate
         for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127], [b]
             if x is None and label is None:
                 continue
 
             if step % print_step != 0:
-                _, _ = method(x, label, step=step, accumulation=accumulation, cal_acc=False)
+                _, _ = self.train_accumulate(x, label, step=step, accumulation=accumulation, cal_acc=False)
             else:
-                loss, acc = method(x, label, step=step, accumulation=accumulation, cal_acc=True)
+                loss, acc = self.train_accumulate(x, label, step=step, accumulation=accumulation, cal_acc=True)
                 x_val, label_val = self.val_iterable.next()
                 loss_val, acc_val = self.validate(x=x_val, label=label_val)
 
@@ -121,11 +120,11 @@ class XinTrainer:
                 self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
                 self.summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
 
-            if epoch > 25 and step % 50 == 0:
-                cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
-                get_heatmap_gallery(cam.squeeze(0),
-                                    save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
-                                        label[0].cpu().numpy()))
+            # if epoch > 25 and step % 50 == 0:
+            #     cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
+            #     get_heatmap_gallery(cam.squeeze(0),
+            #                         save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
+            #                             label[0].cpu().numpy()))
 
             self.global_step += 1
 

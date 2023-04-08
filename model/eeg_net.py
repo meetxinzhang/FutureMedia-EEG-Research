@@ -34,8 +34,7 @@ class ComplexEEGNet(nn.Module):
             ),  # output shape (63, C, T)
             nn.BatchNorm2d(128),  # output shape (63, C, T)
             nn.ELU(),
-            nn.MaxPool2d(kernel_size=(1, 2)),  # (63, C, T/2)
-            nn.Dropout(drop_out),  # output shape (128, 1, T//4)
+            nn.AvgPool2d(kernel_size=(1, 2)),  # (63, C, T/2)
 
             nn.ZeroPad2d((8, 7, 0, 0)),  # left, right, top, bottom of 2D img
             nn.Conv2d(
@@ -46,7 +45,7 @@ class ComplexEEGNet(nn.Module):
             ),  # output shape (64, C, T)
             nn.BatchNorm2d(128),  # output shape (64, C, T)
             nn.ELU(),
-            nn.MaxPool2d(kernel_size=(1, 2))  # (63, C, T/2)
+            nn.AvgPool2d(kernel_size=(1, 2))  # (63, C, T/2)
         )
 
         self.block_2 = nn.Sequential(
@@ -60,7 +59,6 @@ class ComplexEEGNet(nn.Module):
             nn.BatchNorm2d(256),  # output shape (128, 1, T//2)
             nn.ELU(),
             nn.AvgPool2d((1, 2)),  # output shape (128, 1, T//4)
-            nn.Dropout(drop_out),  # output shape (128, 1, T//4)
 
             nn.ZeroPad2d((7, 8, 0, 0)),
             nn.Conv2d(
@@ -72,8 +70,7 @@ class ComplexEEGNet(nn.Module):
             ),  # output shape (64, 1, T//4)
             nn.BatchNorm2d(256),  # output shape (64, 1, T//8)
             nn.ELU(),
-            nn.AvgPool2d((1, 2)),  # output shape (64, 1, T//16)
-            nn.Dropout(drop_out),
+            nn.AvgPool2d((1, 2))  # output shape (64, 1, T//16)
         )
 
         self.block_3 = nn.Sequential(
@@ -96,7 +93,6 @@ class ComplexEEGNet(nn.Module):
             nn.BatchNorm2d(64),  # output shape (64, 1, T//8)
             nn.ELU(),
             nn.AvgPool2d((1, 2)),  # output shape (64, 1, T//16)
-            nn.Dropout(drop_out),
 
             nn.Conv2d(
                 in_channels=64,  # input shape (64, 1, T//16)
@@ -106,8 +102,7 @@ class ComplexEEGNet(nn.Module):
             ),  # output shape (16, 1, T//16)
             nn.BatchNorm2d(64),  # output shape (16, 1, T//16)
             nn.ELU(),
-            nn.AvgPool2d((1, 2)),  # output shape (16, 1, T//32)
-            nn.Dropout(drop_out)
+            nn.AvgPool2d((1, 2))  # output shape (16, 1, T//32)
         )
 
         self.classifier = nn.Sequential(

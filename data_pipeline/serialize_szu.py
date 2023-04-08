@@ -37,7 +37,8 @@ def thread_write(x, y, pos, pkl_filename):
     """Writes and dumps the processed pkl file for each stimulus(or called subject).
     [time, channels=127], y
     """
-    assert np.shape(x) == (1000, 127)
+    assert np.shape(x) == (3000, 127)
+    x = x[1000:, :]
 
     # AEP
     # x = three_bands(x)  # [t=63, 3*96]
@@ -55,7 +56,7 @@ def thread_write(x, y, pos, pkl_filename):
 
     # CWT
     x = cwt_scipy(x)  # [c f=30 t=1000]
-    assert np.shape(x) == (127, 30, 1000)
+    assert np.shape(x) == (127, 30, 2000)
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -63,17 +64,19 @@ def thread_write(x, y, pos, pkl_filename):
 
 
 def thread_read(label_file, pkl_path):
-    edf_reader = MNEReader(filetype='edf', method='manual', length=1000, montage='brainproducts-RNP-BA-128')
+    edf_reader = MNEReader(filetype='edf', method='manual', length=3000)  #, montage='brainproducts-RNP-BA-128')
 
     stim, y = ziyan_read(label_file)  # [frame_point], [class]
     x = edf_reader.get_set(file_path=label_file.replace('.Markers', '.edf'), stim_list=stim)
     pos = edf_reader.get_pos()
     assert len(x) == len(y)
-    assert np.shape(x[0]) == (1000, 127)
+    assert np.shape(x[0]) == (3000, 127)
+    x = x[:-1]  # remove the last one of (2499, 127)
+    y = y[:-1]
 
     x = einops.rearrange(x, 'b t c -> (b t) c')
     x = trial_average(x, axis=0)
-    x = einops.rearrange(x, '(b t) c -> b t c', t=1000)
+    x = einops.rearrange(x, '(b t) c -> b t c', t=3000)
 
     name = label_file.split('/')[-1].replace('.Markers', '')
     Parallel(n_jobs=6)(
@@ -88,9 +91,9 @@ if __name__ == "__main__":
     label_filenames = file_scanf2(path, contains=['subject3'], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
-    Parallel(n_jobs=12)(
+    Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_1s_1000'
+            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_2-3s_2000'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

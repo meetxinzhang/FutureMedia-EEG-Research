@@ -160,19 +160,12 @@ class MNEReader(object):
 
 
 if __name__ == '__main__':
-    b = MNEReader(method='stim', resample=1024)
-    sample = b.get_set()[0]  # [b=1, c=96, t=2048]
-
-    # Ws = mne.time_frequency.morlet(sfreq=1024, freqs=np.array([10, 20]), n_cycles=2)
-    # tfr = mne.time_frequency.tfr.cwt(X=sample, Ws=Ws, decim=1)
-
-    from pre_process.time_frequency import cwt_pywt
-
-    signal = sample[0, :]  # [t,]
-    # spec = signal2spectrum(signal)
-    spec = cwt_pywt(signal=signal)  # [f, t]
-
-    # specs = cwt_on_sample(sample)  # [c, 2, 512]
+    # b = MNEReader(method='stim', resample=1024)
+    # sample = b.get_set()[0]  # [b=1, c=96, t=2048]
+    from serialize_szu import ziyan_read
+    edf_reader = MNEReader(filetype='edf', method='manual', length=1000, montage='brainproducts-RNP-BA-128')
+    stim, y = ziyan_read('label_file')  # [frame_point], [class]
+    x = edf_reader.get_set(file_path=label_file.replace('.Markers', '.edf'), stim_list=stim)
 
 
 # def edf_reader(path='E:/Datasets/set1_2022.10.13/test1016_hzy_one_set-edf.edf'):

@@ -47,7 +47,7 @@ valid_loaders = 1
 
 batch_size = 32
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
-n_epoch = 50
+n_epoch = 100
 k = 5
 learn_rate = 0.06
 
@@ -76,7 +76,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     #                  num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
     # ff = LSTM(classes=40, input_size=96, depth=3)
     # ff = EEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(the_device)
-    ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.2).to(the_device)
+    ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(the_device)
     # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
     #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
     # ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).to(the_device)
@@ -102,7 +102,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # lr_scheduler = torch_lr.ReduceLROnPlateau(optimizer, mode='min', factor=0.7, patience=10, verbose=True,
     #                                           threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0.001,
     #                                           eps=1e-08)
-    lr_scheduler = torch_lr.StepLR(optimizer, step_size=10, gamma=0.7, last_epoch=-1)
+    lr_scheduler = torch_lr.StepLR(optimizer, step_size=20, gamma=0.7, last_epoch=-1)
 
     xin = XinTrainer(n_epoch=n_epoch, model=ff, train_loader=train_loader, val_loader=valid_loader,
                      optimizer=optimizer, batch_size=batch_size, lr_shecduler=lr_scheduler,
