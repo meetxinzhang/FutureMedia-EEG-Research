@@ -25,11 +25,11 @@ class ComplexEEGNet(nn.Module):
         self.block_1 = nn.Sequential(
             # Pads the input tensor boundaries with zero
             # left, right, up, bottom
-            nn.ZeroPad2d((16, 15, 0, 0)),  # left, right, top, bottom of 2D img
+            nn.ZeroPad2d((8, 7, 0, 0)),  # left, right, top, bottom of 2D img
             nn.Conv2d(
                 in_channels=in_channels,  # input shape (1, C, T)
                 out_channels=128,  # num_filters
-                kernel_size=(1, 32),  # filter size
+                kernel_size=(1, 16),  # filter size
                 bias=False
             ),  # output shape (63, C, T)
             nn.BatchNorm2d(128),  # output shape (63, C, T)
@@ -83,11 +83,11 @@ class ComplexEEGNet(nn.Module):
             nn.BatchNorm2d(64),  # output shape (16, 1, T//16)
             nn.ELU(),
 
-            nn.ZeroPad2d((7, 8, 0, 0)),
+            nn.ZeroPad2d((4, 3, 0, 0)),
             nn.Conv2d(
                 in_channels=64,  # input shape (128, 1, T//8)
                 out_channels=64,  # num_filters
-                kernel_size=(1, 15),  # filter size
+                kernel_size=(1, 7),  # filter size
                 bias=False,
             ),  # output shape (64, 1, T//4)
             nn.BatchNorm2d(64),  # output shape (64, 1, T//8)

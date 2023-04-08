@@ -51,13 +51,13 @@ from model.eeg_net import ComplexEEGNet
 device = torch.device(f"cuda:{7}")
 batch_size = 64
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
-n_epoch = 50
+n_epoch = 100
 k = 5
 lr = 0.01
 
-id_exp = 'ComEEGNet-trial-cwt-1-1p5s-512-SZ23-p50e01l64b'
+id_exp = 'ComEEGNet-trial-2p5s-512-SZ23'
 # path = '../../Datasets/pkl_aep_trial_1s_4096'
-path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_2-3s_2000'
+path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_3000'
 time_exp = '2023-04-08--12-23'
 mkdirs(['./log/image/'+id_exp+'/'+time_exp, './log/checkpoint/'+id_exp, './log/'+id_exp])
 
@@ -80,13 +80,13 @@ if __name__ == '__main__':
     #     train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=1, shuffle=False)
     #     valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
 
-        ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(device)
+        ff = ComplexEEGNet(classes_num=40, in_channels=1, electrodes=127, drop_out=0.1).to(device)
         # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=16, num_heads=4,
         #                      ffd_channels=16, last_channels=16, size=20, T=50, depth=1, drop=0.2).to(device)
         # ff = FieldFlow2(channels=96, early_drop=0.2, late_drop=0.1).cuda()
         optim_paras = [p for p in ff.parameters() if p.requires_grad]
-        optimizer = torch.optim.Adam(optim_paras, lr=lr, weight_decay=0.001)
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.6)  # 设定优优化器更新的时刻表
+        optimizer = torch.optim.SGD(optim_paras, lr=lr, weight_decay=0.001, momentum=0.9)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.7)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}')
         summary = SummaryWriter(log_dir='./log/' + id_exp + '/' + time_exp + '---' + str(fold) + '_fold/')

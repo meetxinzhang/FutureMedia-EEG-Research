@@ -177,7 +177,7 @@ class SyncNet(nn.Module):
             nn.Conv2d(in_channels=in_channels, out_channels=64, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             nn.BatchNorm2d(64),
             nn.ReLU(inplace=True),
-            nn.MaxPool2d(kernel_size=(1, 1), stride=(1, 1)),
+            nn.MaxPool2d(kernel_size=(3, 3), stride=(1, 2)),
 
             nn.Conv2d(64, 128, kernel_size=(3, 3), stride=(1, 1), padding=(1, 1)),
             nn.BatchNorm2d(128),
@@ -187,10 +187,12 @@ class SyncNet(nn.Module):
             nn.Conv2d(128, 256, kernel_size=(3, 3), padding=(1, 1)),
             nn.BatchNorm2d(256),
             nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=(3, 3), stride=(2, 2)),
 
             nn.Conv2d(256, 128, kernel_size=(3, 3), padding=(1, 1)),
             nn.BatchNorm2d(128),
             nn.ReLU(inplace=True),
+            nn.MaxPool2d(kernel_size=(3, 3), stride=(2, 2)),
 
             nn.Conv2d(128, 128, kernel_size=(3, 3), padding=(1, 1)),
             nn.BatchNorm2d(128),
@@ -199,11 +201,11 @@ class SyncNet(nn.Module):
 
             nn.Conv2d(128, 64, kernel_size=(5, 4), padding=(0, 0)),
             nn.BatchNorm2d(64),
-            nn.ReLU(),
+            nn.ReLU()
         )
 
         self.fc_aud = nn.Sequential(
-            nn.Linear(145152, 512),
+            nn.Linear(7680, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
             nn.Linear(512, num_layers_in_fc_layers),

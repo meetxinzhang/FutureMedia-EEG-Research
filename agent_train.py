@@ -127,6 +127,7 @@ class XinTrainer:
             #                             label[0].cpu().numpy()))
 
             self.global_step += 1
+        self.lr_scheduler.step()
 
     def train_accumulate(self, x, label, step, accumulation, cal_acc=False):
         x = x.to(self.device)

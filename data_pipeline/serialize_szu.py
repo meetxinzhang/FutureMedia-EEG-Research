@@ -38,7 +38,7 @@ def thread_write(x, y, pos, pkl_filename):
     [time, channels=127], y
     """
     assert np.shape(x) == (3000, 127)
-    x = x[1000:, :]
+    # x = x[1000:, :]
 
     # AEP
     # x = three_bands(x)  # [t=63, 3*96]
@@ -55,8 +55,8 @@ def thread_write(x, y, pos, pkl_filename):
     #     specs.append(spectrum)
 
     # CWT
-    x = cwt_scipy(x)  # [c f=30 t=1000]
-    assert np.shape(x) == (127, 30, 2000)
+    # x = cwt_scipy(x)  # [c f=30 t=1000]
+    # assert np.shape(x) == (127, 30, 2000)
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -93,7 +93,7 @@ if __name__ == "__main__":
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_2-3s_2000'
+            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_3000'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )
