@@ -29,6 +29,7 @@ grads = {}
 def save_grad(name):
     def hook(grad):
         grads[name] = grad
+
     return hook
 
 
@@ -39,44 +40,47 @@ class FieldFlow2(nn.Module):
 
         self.extra = nn.Sequential(
             LinearConv2D(input_channels=channels, out_channels=channels * 4, groups=channels,
-                         embedding=30, kernel_width=7, kernel_stride=1,
+                         embedding=30, kernel_width=15, kernel_stride=1,
                          activate_height=2, activate_stride=2, padding=[3, 3, 1, 1]),  # b o f t
-            nn.AvgPool2d(kernel_size=(1, 6), stride=(1, 6)),  # b o f/2 t/3
+            nn.AvgPool2d(kernel_size=(1, 3), stride=(1, 3)),  # b o f/2 t/3
             nn.Dropout(p=early_drop),
             nn.BatchNorm2d(num_features=channels * 4),
 
             LinearConv2D(input_channels=channels * 4, out_channels=channels * 12, groups=channels,
-                         embedding=16, kernel_width=5, kernel_stride=1,
-                         activate_height=16, activate_stride=1, padding=[2, 2, 0, 0]),  # b o 1 t/9
-            nn.AvgPool2d(kernel_size=(1, 3), stride=(1, 3)),  # b o f/4 t/18
+                         embedding=16, kernel_width=7, kernel_stride=3,
+                         activate_height=16, activate_stride=1, padding=[3, 3, 0, 0]),  # b o 1 t/9
+            # nn.AvgPool2d(kernel_size=(1, 3), stride=(1, 3)),  # b o f/4 t/18
             nn.Dropout(p=early_drop)
         )
+        # self.lc1 = LinearConv2D(input_channels=channels, out_channels=channels * 4, groups=channels,
+        #                         embedding=30, kernel_width=15, kernel_stride=1,
+        #                         activate_height=2, activate_stride=2, padding=[3, 3, 1, 1])  # b o f t
+        # self.p1 = nn.AvgPool2d(kernel_size=(1, 3), stride=(1, 3))
+        # self.lc2 = LinearConv2D(input_channels=channels * 4, out_channels=channels * 12, groups=channels,
+        #                         embedding=16, kernel_width=7, kernel_stride=3,
+        #                         activate_height=16, activate_stride=1, padding=[3, 3, 0, 0])
 
         self.classifier = nn.Sequential(
-            nn.Linear(in_features=1152, out_features=256),
+            nn.Linear(in_features=1524, out_features=512),
             nn.ReLU(),
             nn.Dropout(p=late_drop),
-            nn.Linear(in_features=256, out_features=40),
+            nn.Linear(in_features=512, out_features=40),
             nn.Softmax(dim=-1)
         )
 
         # b c f t
-        self.time_token = nn.Parameter(torch.zeros(1, 1, channels*12))  # [1, 1, d]
+        self.time_token = nn.Parameter(torch.zeros(1, 1, channels * 12))  # [1, 1, d]
         self.tf_blocks = nn.ModuleList([
-            Block(tokens=57, dim=1152, num_heads=8, mlp_dilator=2, rel_pos=True, drop=late_drop, attn_drop=0)
-            for _ in range(1)])
+            Block(tokens=57, dim=1524, num_heads=12, mlp_dilator=2, rel_pos=True, drop=late_drop, attn_drop=0)
+            for _ in range(2)])
 
     def forward(self, x):
         # Our:[b c=127 f=85 t=500]  Purdue:[b 96 30 1024]
-        # x = self.lc1(x)
-        # x = self.p1(x)  # [b 384 16 170]
-        # x = self.bn1(self.drop1(x))
-        #
-        # x = self.lc3(x)  # [b 1152 1 56]
-        # x = self.p3(x)
-        # x = self.drop1(x)
-        x = self.extra(x)
+        # x = self.lc1(x)  # [b 508 16 504]
+        # x = self.p1(x)  # [b 508 16 168]
+        # x = self.lc2(x)  # [b 1524 1 56]
 
+        x = self.extra(x)
         x = x.squeeze()  # [b 768 56]
         b = x.size()[0]
 

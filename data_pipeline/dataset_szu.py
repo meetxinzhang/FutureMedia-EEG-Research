@@ -83,7 +83,7 @@ class ListDataset(torch.utils.data.Dataset):
             y = y-1                  # Ziyan He created EEG form
 
             # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
-            x = einops.rearrange(x, 'c f t -> f c t')  # EEGChannelNet, EEGNet
+            # x = einops.rearrange(x, 'c f t -> f c t')  # EEGChannelNet, EEGNet
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
         # return torch.tensor(x, dtype=torch.float).permute(1, 2, 0).unsqueeze(0), torch.tensor(y, dtype=torch.long)
