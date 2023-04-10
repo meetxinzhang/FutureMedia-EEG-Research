@@ -33,7 +33,7 @@ os.environ['MASTER_PORT'] = '7890'
 # torch.manual_seed(2022)
 # torch.cuda.manual_seed(2022)
 
-id_exp = 'ff2p1-SZ23-trial-cwt-05s-512-p50e01l64b'
+id_exp = 'ff2p1-SZ23-trial-cwt-0p5s-512-p50e01l64b'
 # data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024'
 # data_path = '/data1/zhangwuxia/Datasets/pkl_delta_base1_05s_1024'
 data_path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_1s_1000'
@@ -75,10 +75,10 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     #                  num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
     # ff = LSTM(classes=40, input_size=96, depth=3)
     # ff = EEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(the_device)
-    # ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(the_device)
+    ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(the_device)
     # ff = ConvTransformer(num_classes=40, in_channels=3, hid_channels=8, num_heads=2,
     #                      ffd_channels=16, deep_channels=16, size=32, T=63, depth=1, drop=0.2).cuda()
-    ff = FieldFlow2(channels=127, early_drop=0.2, late_drop=0.1).to(the_device)
+    # ff = FieldFlow2(channels=127, early_drop=0.2, late_drop=0.1).to(the_device)
     # ff = ResNet1D(in_channels=96, classes=40).to(the_device)
     # ff = MLP2layers(in_features=96, hidden_size=128, classes=40).to(the_device)
     # ff = SyncNet(in_channels=30, num_layers_in_fc_layers=40)
