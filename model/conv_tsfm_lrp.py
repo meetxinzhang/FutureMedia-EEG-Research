@@ -261,13 +261,13 @@ class ConvTransformer(nn.Module):
         self.pool = layers_lrp.MaxPool2d(kernel_size=(1, 2), stride=(1, 2), padding=0)
 
         # self.classifier = layers_lrp.Sequential(
-            # layers_lrp.Dropout(p=drop),
-            # layers_lrp.Linear(in_features=192, out_features=128),
-            # layers_lrp.ReLU(),
-            # layers_lrp.Linear(in_features=128, out_features=num_classes),
-            # layers_lrp.Softmax(dim=-1)
+        # layers_lrp.Dropout(p=drop),
+        # layers_lrp.Linear(in_features=192, out_features=128),
+        # layers_lrp.ReLU(),
+        # layers_lrp.Linear(in_features=128, out_features=num_classes),
+        # layers_lrp.Softmax(dim=-1)
         # )
-        self.arc_eeg = ArcEEG(dim=128, num_classes=40, margin=0.3, easy_margin=True, requires_grad=True)
+        self.arc_eeg = ArcEEG(dim=128, num_classes=40, margin=0.9, easy_margin=True, requires_grad=True)
         self.softmax = layers_lrp.Softmax(dim=-1)
 
         self.clone = layers_lrp.Clone()
@@ -335,7 +335,7 @@ class ConvTransformer(nn.Module):
         # cam = torch.transpose(cam, 2, 3)  # [b c p t]
         # print(cam.sum(), 'last')
         #
-        cam = self.lfe.relprop(cam, ** kwargs)  # [b=1 c m m t]
+        cam = self.lfe.relprop(cam, **kwargs)  # [b=1 c m m t]
         cam = rearrange(cam, 'b c h w t -> b t h w c')
         # cam = torch.sum(cam, dim=1, keepdim=False)  # [b h w c]
         # cam_ch = rearrange(rollout, 'b (h w) -> b h w', h=self.p)

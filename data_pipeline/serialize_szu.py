@@ -41,10 +41,10 @@ def thread_write(x, y, pos, pkl_filename):
     # x = x[1000:, :]
 
     # AEP
-    x = three_bands(x)  # [t=24, 3*127]
-    locs_2d = np.array([azim_proj(e) for e in pos])
-    x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=1, W, H]
-    assert np.shape(x) == (24, 3, 20, 20)
+    # x = three_bands(x)  # [t=24, 3*127]
+    # locs_2d = np.array([azim_proj(e) for e in pos])
+    # x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=1, W, H]
+    # assert np.shape(x) == (24, 3, 20, 20)
 
     # time-spectrum
     # x = downsample(x, ratio=4)
@@ -55,8 +55,8 @@ def thread_write(x, y, pos, pkl_filename):
     #     specs.append(spectrum)
 
     # CWT
-    # x = cwt_scipy(x)  # [c f=30 t=1000]
-    # assert np.shape(x) == (127, 30, 512)
+    x = cwt_scipy(x)  # [c f=30 t=1000]
+    assert np.shape(x) == (127, 30, 512)
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -73,9 +73,9 @@ def thread_read(label_file, pkl_path):
     # x = x[:-1]  # For SZ2023, remove the last one of (2499, 127)
     # y = y[:-1]
 
-    # x = einops.rearrange(x, 'b t c -> (b t) c')
-    # x = trial_average(x, axis=0)
-    # x = einops.rearrange(x, '(b t) c -> b t c', t=512)
+    x = einops.rearrange(x, 'b t c -> (b t) c')
+    x = trial_average(x, axis=0)
+    x = einops.rearrange(x, '(b t) c -> b t c', t=512)
 
     name = label_file.split('/')[-1].replace('.Markers', '')
     Parallel(n_jobs=6)(
@@ -86,13 +86,13 @@ def thread_read(label_file, pkl_path):
 
 if __name__ == "__main__":
     # path = 'G:/Datasets/SZFace2/EEG/10-17'
-    path = '/data1/zhangwuxia/Datasets/SZEEG2022/Raw'
-    label_filenames = file_scanf2(path, contains=['subject1', 'hzy', 'test1016'], endswith='.Markers')
+    path = '/data1/zhangwuxia/Datasets/SZEEG2023/Raw'
+    label_filenames = file_scanf2(path, contains=['run'], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2022/pkl_aep_color_subj1_05s'
+            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_05s_512'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

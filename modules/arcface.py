@@ -65,8 +65,15 @@ class ArcEEG(nn.Module):
         self.s = scale
         self.easy_margin = easy_margin
 
-        self.weight = nn.Parameter(torch.FloatTensor(self.c, self.d), requires_grad=requires_grad)
+        self.weight = nn.Parameter(torch.FloatTensor(self.c, 512), requires_grad=requires_grad)
         nn.init.xavier_uniform_(self.weight)
+
+        self.embedding = nn.Sequential(
+            nn.Dropout(p=0.1),
+            nn.Linear(in_features=dim, out_features=256),
+            nn.ReLU(),
+            nn.Linear(in_features=256, out_features=512)
+        )
 
         self.cos_m = torch.cos(self.m)
         self.sin_m = torch.sin(self.m)
@@ -77,6 +84,7 @@ class ArcEEG(nn.Module):
         # [b f t]  [b,]
         x = x.unfold(dimension=-1, size=8, step=4)  # [b c t s]
         x = einops.rearrange(x, "b f t s -> b t (f s)")
+        x = self.embedding(x)  # [b t 512]
         b, t, _ = x.size()
 
         if self.training:
@@ -94,22 +102,23 @@ class ArcEEG(nn.Module):
             # x = torch.mul(x, mask)  # [b t fs] * [b t 1] = [b t fs]
 
             # ArcFace
-            cosine = F.linear(F.normalize(x), F.normalize(self.weight))  # [b fs]*[c fs]
-            sine = torch.sqrt((1.0 - torch.pow(cosine, 2)).clamp(0, 1))
-            phi = cosine * self.cos_m - sine * self.sin_m  # cos(θ+m) = cos θ cos m − sin θ sin m
-
-            if self.easy_margin:
-                phi = torch.where(cosine > 0, phi, cosine)
-            else:
-                # Since cos(θ+m) is lower than cos(θ) when θ in [0, π − m], the constraint is more stringent for
-                # classification.
-                phi = torch.where(cosine > self.th, phi, cosine - self.mm)
-
-            # output = cosine * 1.0  # make backward works
-            one_hot = torch.zeros(cosine.size()).to(x.device)  # [b class]
-            one_hot.scatter_(1, y.view(-1, 1).long().to(x.device), 1)
-            output = (one_hot * phi) + ((1.0 - one_hot) * cosine)  # torch.where(out_i = {x_i if condition_i else y_i)
-            output *= self.s
+            cosine = F.linear(F.normalize(x), F.normalize(self.weight))  # [b fs]*[c fs]=[b c]
+            # sine = torch.sqrt((1.0 - torch.pow(cosine, 2)).clamp(0, 1))
+            # phi = cosine * self.cos_m - sine * self.sin_m  # cos(θ+m) = cos θ cos m − sin θ sin m
+            #
+            # if self.easy_margin:
+            #     phi = torch.where(cosine > 0, phi, cosine)
+            # else:
+            #     # Since cos(θ+m) is lower than cos(θ) when θ in [0, π − m], the constraint is more stringent for
+            #     # classification.
+            #     phi = torch.where(cosine > self.th, phi, cosine - self.mm)
+            #
+            # # output = cosine * 1.0  # make backward works
+            # one_hot = torch.zeros(cosine.size()).to(x.device)  # [b class]
+            # one_hot.scatter_(1, y.view(-1, 1).long().to(x.device), 1)
+            # output = (one_hot * phi) + ((1.0 - one_hot) * cosine)  # torch.where(out_i = {x_i if condition_i else y_i)
+            # output *= self.s
+            output = cosine*self.s
         else:
             multi_supports = F.linear(F.normalize(x), F.normalize(self.weight)).squeeze(-1)  # [b t fs]*[c fs]=[b t c]
             # TODO more strategies
