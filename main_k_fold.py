@@ -54,10 +54,10 @@ n_epoch = 100
 k = 5
 lr = 0.01
 
-id_exp = 'conv-tfsm-SZ22-aep-color-subj1-0p5s-24'
+id_exp = 'conv-tfsm-acreeg-SZ22-aep-color-subj1-0p5s-24'
 # path = '../../Datasets/pkl_aep_trial_1s_4096'
 path = '/data1/zhangwuxia/Datasets/SZEEG2022/pkl_aep_color_subj1_05s'
-time_exp = '2023-04-11--13-00'
+time_exp = '2023-04-11--16-00'
 mkdirs(['./log/image/'+id_exp+'/'+time_exp, './log/checkpoint/'+id_exp, './log/'+id_exp])
 
 k_fold = StratifiedKFold(n_splits=k, shuffle=True)
@@ -80,7 +80,7 @@ if __name__ == '__main__':
 
         # ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(device)
         ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
-                             ffd_channels=64, last_channels=16, size=20, T=24, depth=2, drop=0.2).to(device)
+                             ffd_channels=64, last_channels=16, time=24, depth=2, drop=0.2).to(device)
         # ff = FieldFlow1p2(channels=30, electrodes=127, time=512, early_drop=0.2, late_drop=0.05).to(device)
         optim_paras = [p for p in ff.parameters() if p.requires_grad]
         optimizer = torch.optim.SGD(optim_paras, lr=lr, weight_decay=0.001, momentum=0.9)

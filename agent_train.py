@@ -129,7 +129,6 @@ class XinTrainer:
             self.global_step += 1
         self.lr_scheduler.step()
 
-
     def train_accumulate(self, x, label, step, accumulation, cal_acc=False):
         x = x.to(self.device)
         label = label.to(self.device)
@@ -137,7 +136,7 @@ class XinTrainer:
         # forward pass with `autocast` context manager
         with autocast(enabled=True):
             self.model.train()
-            y = self.model(x)  # [bs, 40]
+            y = self.model(x, label)  # [bs, 40]
             loss = F.cross_entropy(y, label) / accumulation
 
         scaler.scale(loss).backward()  # scale gradient and perform backward pass
@@ -177,7 +176,7 @@ class XinTrainer:
         label = label.to(self.device)
 
         self.model.eval()
-        y = self.model(x)  # [bs, 40]
+        y = self.model(x, label)  # [bs, 40]
         loss = F.cross_entropy(y, label)
 
         corrects = (torch.argmax(y, dim=1) == label).float().sum()
