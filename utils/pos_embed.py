@@ -85,8 +85,7 @@ def rel_pos_emb_1d(q, rel_emb, shared_heads):
    Same functionality as RelPosEmb1D
    Args:
        q: a 4d tensor of shape [batch, heads, tokens, dim]
-       rel_emb: a 2D or 3D tensor
-       of shape [ 2*tokens-1 , dim] or [ heads, 2*tokens-1 , dim]
+       rel_emb: a 2D or 3D tensor of shape [ 2*tokens-1 , dim] or [ heads, 2*tokens-1 , dim]
    """
     try:
         if shared_heads:
@@ -94,7 +93,8 @@ def rel_pos_emb_1d(q, rel_emb, shared_heads):
         else:
             emb = torch.einsum('b h t d, h r d -> b h t r', q, rel_emb)
     except RuntimeError as e:
-        print('!!!\n   Please check the tokens and dim_head in RelPosEmb1DAISummer class object')
+        print('!!!\n  pos_embed: line 97. Please check the tokens and dim_head in RelPosEmb1DAISummer class object')
+        print(e)
         emb = None
     return rel_to_abs(emb)
 

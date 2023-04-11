@@ -33,10 +33,10 @@ os.environ['MASTER_PORT'] = '7890'
 # torch.manual_seed(2022)
 # torch.cuda.manual_seed(2022)
 
-id_exp = 'ff2p1-SZ23-trial-cwt-0p5s-512-p50e01l64b'
+id_exp = 'ff2p1-SZ22-trial-cwt-0p5s-512-p50e01l64b'
 # data_path = '/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024'
 # data_path = '/data1/zhangwuxia/Datasets/pkl_delta_base1_05s_1024'
-data_path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_1s_1000'
+data_path = '/data1/zhangwuxia/Datasets/SZEEG2022/pkl_trial_cwt_1s_1000'
 time_exp = '2023-04-09--16-09'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 

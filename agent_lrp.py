@@ -30,7 +30,7 @@ def ignite_relprop(model, x, device, index=None):
     # TODO auto-validate per batch
     model.zero_grad()
     mask.backward(retain_graph=True)  # generate partial-gradients
-    return model.relprop(cam=one_hot, **kwargs).detach()
+    return model.relprop(cam=one_hot.unsqueeze(0), **kwargs).detach()
 
 
 def get_heatmap(cam, save_name=None, rgb=False):

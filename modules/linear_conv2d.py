@@ -54,8 +54,11 @@ class LinearConv2D(nn.Module):
         self.conv2d = nn.Conv2d(in_channels=self.d, out_channels=1,
                                 kernel_size=(activate_height, self.w),
                                 stride=(activate_stride, 1), padding='valid', bias=False).requires_grad_(False)
+        self.ensure_init()
+        # self.relu = nn.LeakyReLU()
+
+    def ensure_init(self):
         nn.init.constant_(self.conv2d.weight, 1)
-        self.relu = nn.LeakyReLU()
 
     def _linear_mul_broadcasting(self, x, w, b=None):
         x = x.unsqueeze(-4).expand(-1, -1, -1, self.n, -1, -1, -1)  # [b t g 1->n d f w]
@@ -92,7 +95,8 @@ class LinearConv2D(nn.Module):
                 y = pad_vertical(y)
 
             y = self.conv2d(y)  # [m 1 f w/w]  [m 1 f 1]
-            y = self.relu(y).squeeze(1).squeeze(-1)  # [m f]
+            # y = self.relu(y).squeeze(1).squeeze(-1)  # [m f]
+            y = y.squeeze(1).squeeze(-1)
             y = einops.rearrange(y, '(b t o) f -> b o f t', b=b, t=t, o=self.o)
 
         except RuntimeError:  # Out of memory, For loop ops replaced.
@@ -108,7 +112,8 @@ class LinearConv2D(nn.Module):
             if pad_vertical is not None:
                 y = pad_vertical(y)
             y = self.conv2d(y)  # [m 1 f w/w]  [m 1 f 1]
-            y = self.relu(y).squeeze(1).squeeze(-1)  # [m f]
+            # y = self.relu(y).squeeze(1).squeeze(-1)  # [m f]
+            y = y.squeeze(1).squeeze(-1)
             y = einops.rearrange(y, '(b t o) f -> b o f t', b=mini_b, t=t, o=self.o)
 
             rest = len(x)
@@ -120,7 +125,8 @@ class LinearConv2D(nn.Module):
                 if pad_vertical is not None:
                     temp = pad_vertical(temp)
                 temp = self.conv2d(temp)  # [m 1 f w/w]  [m 1 f 1]
-                temp = self.relu(temp).squeeze(1).squeeze(-1)  # [m f]
+                # temp = self.relu(temp).squeeze(1).squeeze(-1)  # [m f]
+                temp = temp.squeeze(1).squeeze(-1)
                 temp = einops.rearrange(temp, '(b t o) f -> b o f t', b=mini_b, t=t, o=self.o)
 
                 y = torch.cat((y, temp), dim=0)  # [mini_b++ o f t]

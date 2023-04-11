@@ -120,7 +120,7 @@ class XinTrainer:
                 self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
                 self.summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
 
-            # if epoch > 25 and step % 50 == 0:
+            # if epoch > 50 and step % 50 == 0:
             #     cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
             #     get_heatmap_gallery(cam.squeeze(0),
             #                         save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
@@ -128,6 +128,7 @@ class XinTrainer:
 
             self.global_step += 1
         self.lr_scheduler.step()
+
 
     def train_accumulate(self, x, label, step, accumulation, cal_acc=False):
         x = x.to(self.device)

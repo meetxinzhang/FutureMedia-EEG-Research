@@ -30,7 +30,7 @@ class LocFeaExtractor(nn.Module):
 
         self.bn = layers_lrp.BatchNorm3d(num_features=hid_channels)
         self.elu = layers_lrp.ELU()
-        self.pool = layers_lrp.MaxPool3d(kernel_size=(1, 1, 2), stride=(1, 1, 2), padding=0)
+        # self.pool = layers_lrp.MaxPool3d(kernel_size=(1, 1, 2), stride=(1, 1, 2), padding=0)
 
     def forward(self, x):
         # [b, 1, M, M, T]
@@ -41,14 +41,14 @@ class LocFeaExtractor(nn.Module):
 
         x = self.bn(x)
         x = self.elu(x)
-        x = self.pool(x)  # [b, c, m, m, T/2]
+        # x = self.pool(x)  # [b, c, m, m, T/2]
         self.m_cache = x.shape[2]
         x = rearrange(x, 'b c m n t -> b c (m n) t')
         return x
 
     def relprop(self, cam, **kwargs):
         cam = rearrange(cam, 'b c (m n) t -> b c m n t', m=self.m_cache)
-        cam = self.pool.relprop(cam, **kwargs)
+        # cam = self.pool.relprop(cam, **kwargs)
         cam = self.elu.relprop(cam, **kwargs)
         cam = self.bn.relprop(cam, **kwargs)
         [cam3, cam5] = self.cat.relprop(cam, **kwargs)
@@ -106,7 +106,7 @@ class MHA(nn.Module):
         # scale factor
         self.scale = self.d ** -0.5
 
-        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=256, dim_head=100, heads=None)  # print q for size at 90 line
+        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=256, dim_head=192, heads=None)  # print q for size at 90 line
 
         self.conv_qkv = layers_lrp.Conv2d(in_channels=channels, out_channels=3 * channels, kernel_size=(1, 1),
                                           stride=(1, 1))
@@ -236,14 +236,14 @@ class CTBlock(nn.Module):
 
 
 class ConvTransformer(nn.Module):
-    def __init__(self, num_classes, in_channels, att_channels=8, num_heads=2,
-                 ffd_channels=16, last_channels=64, size=32, T=500, depth=2, drop=0.2):
+    def __init__(self, num_classes, in_channels, att_channels=16, num_heads=2,
+                 ffd_channels=32, last_channels=64, size=32, T=500, depth=2, drop=0.2):
         super().__init__()
         self.last_c = last_channels
         self.lfe = LocFeaExtractor(in_channels=in_channels, hid_channels=att_channels)
 
-        self.channel_token = nn.Parameter(torch.eye(n=att_channels, m=T // 2)).unsqueeze(0).unsqueeze(
-            2)  # [1, c, 1, T/2]
+        # self.channel_token = nn.Parameter(torch.eye(n=att_channels, m=T//2)).unsqueeze(0).unsqueeze(2)  # [1, c, 1, T/2]
+        self.channel_token = nn.Parameter(torch.eye(n=att_channels, m=T)).unsqueeze(0).unsqueeze(2)  # [1, c, 1, T/2]
         self.blocks = nn.ModuleList([
             CTBlock(channels=att_channels, num_heads=num_heads, ffd_c=ffd_channels, drop=drop)
             for _ in range(depth)])
@@ -292,7 +292,7 @@ class ConvTransformer(nn.Module):
         return self.classifier(x)  # [b, classes]
 
     def relprop(self, cam, **kwargs):
-        self.classifier.relprop(cam, **kwargs)
+        cam = self.classifier.relprop(cam, **kwargs)
         cam = rearrange(cam, 'b (f t) -> b f t', f=self.last_c)
         cam = self.pool.relprop(cam, **kwargs)
         cam = self.elu.relprop(cam, **kwargs)

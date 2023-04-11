@@ -37,14 +37,14 @@ def thread_write(x, y, pos, pkl_filename):
     """Writes and dumps the processed pkl file for each stimulus(or called subject).
     [time, channels=127], y
     """
-    assert np.shape(x) == (3000, 127)
+    assert np.shape(x) == (512, 127)
     # x = x[1000:, :]
 
     # AEP
-    # x = three_bands(x)  # [t=63, 3*96]
-    # locs_2d = np.array([azim_proj(e) for e in pos])
-    # x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=1, W, H]
-    # assert np.shape(x) == (10, 3, 20, 20)
+    x = three_bands(x)  # [t=24, 3*127]
+    locs_2d = np.array([azim_proj(e) for e in pos])
+    x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=1, W, H]
+    assert np.shape(x) == (24, 3, 20, 20)
 
     # time-spectrum
     # x = downsample(x, ratio=4)
@@ -56,7 +56,7 @@ def thread_write(x, y, pos, pkl_filename):
 
     # CWT
     # x = cwt_scipy(x)  # [c f=30 t=1000]
-    # assert np.shape(x) == (127, 30, 2000)
+    # assert np.shape(x) == (127, 30, 512)
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -64,19 +64,18 @@ def thread_write(x, y, pos, pkl_filename):
 
 
 def thread_read(label_file, pkl_path):
-    edf_reader = MNEReader(filetype='edf', method='manual', length=3000)  #, montage='brainproducts-RNP-BA-128')
+    edf_reader = MNEReader(filetype='edf', method='manual', length=512, montage='brainproducts-RNP-BA-128')
 
     stim, y = ziyan_read(label_file)  # [frame_point], [class]
     x = edf_reader.get_set(file_path=label_file.replace('.Markers', '.edf'), stim_list=stim)
     pos = edf_reader.get_pos()
     assert len(x) == len(y)
-    assert np.shape(x[0]) == (3000, 127)
-    x = x[:-1]  # remove the last one of (2499, 127)
-    y = y[:-1]
+    # x = x[:-1]  # For SZ2023, remove the last one of (2499, 127)
+    # y = y[:-1]
 
-    x = einops.rearrange(x, 'b t c -> (b t) c')
-    x = trial_average(x, axis=0)
-    x = einops.rearrange(x, '(b t) c -> b t c', t=3000)
+    # x = einops.rearrange(x, 'b t c -> (b t) c')
+    # x = trial_average(x, axis=0)
+    # x = einops.rearrange(x, '(b t) c -> b t c', t=512)
 
     name = label_file.split('/')[-1].replace('.Markers', '')
     Parallel(n_jobs=6)(
@@ -87,13 +86,13 @@ def thread_read(label_file, pkl_path):
 
 if __name__ == "__main__":
     # path = 'G:/Datasets/SZFace2/EEG/10-17'
-    path = '/data1/zhangwuxia/Datasets/SZEEG2023/Raw'
-    label_filenames = file_scanf2(path, contains=['subject3'], endswith='.Markers')
+    path = '/data1/zhangwuxia/Datasets/SZEEG2022/Raw'
+    label_filenames = file_scanf2(path, contains=['subject1', 'hzy', 'test1016'], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_3000'
+            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2022/pkl_aep_color_subj1_05s'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

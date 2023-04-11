@@ -43,7 +43,7 @@ def four_delta_ave(eeg):
 
     re = (d1 + d2 + d3) / 3  # [t 96]
 
-    assert np.shape(re) == (1024, 96)
+    # assert np.shape(re) == (1024, 96)
     return re
 
 
@@ -86,6 +86,17 @@ def frame_delta(eeg):
     assert len(a) == len(b)
     assert np.shape(a) == (1024, 96)
     return a-b
+
+
+def noise_deactivate(eeg, threshold=0.1):
+    # [t=512 c]
+    ave = np.mean(eeg, axis=0)
+    std = np.std(eeg, axis=0)
+
+    re = eeg[:-1, :]
+    re[np.abs(re) < threshold] = 0
+    assert np.shape(re) == (512, 96)
+    return re
 
 
 def dct_1d(eeg):

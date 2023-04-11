@@ -24,18 +24,26 @@ def collate_(batch):  # [b, 2], [x, y]
 
 
 class SZUDataset(torch.utils.data.Dataset):
-    def __init__(self, path, condition='run_', endswith='.pkl'):
-        self.filepaths = file_scanf(path, contains=condition, endswith=endswith)
+    def __init__(self, path_list):
+        self.path_list = path_list
 
     def __len__(self):  # called by torch.utils.data.DataLoader
-        return len(self.filepaths)
+        return len(self.path_list)
 
     def __getitem__(self, idx):
-        filepath = self.filepaths[idx]
+        filepath = self.path_list[idx]
+        if os.path.getsize(filepath) <= 0:
+            print('EOFError: Ran out of input')
+            print(filepath)
+            return
         with open(filepath, 'rb') as f:
-            x = pickle.load(f)       # SZU: [t=2000, channels=127], Purdue: [512, 96]
+            x = pickle.load(f)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
             y = int(pickle.load(f))
 
+            y = y - 1  # Ziyan He created EEG form
+
+            # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
+            # x = einops.rearrange(x, 'c f t -> f c t')  # EEGChannelNet, EEGNet
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
 

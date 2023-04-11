@@ -39,17 +39,20 @@ class FieldFlow2(nn.Module):
         self.c = channels
 
         self.extra = nn.Sequential(
-            LinearConv2D(input_channels=channels, out_channels=channels * 4, groups=channels,
-                         embedding=30, kernel_width=15, kernel_stride=1,
-                         activate_height=2, activate_stride=2, padding=[3, 3, 1, 1]),  # b o f t
+            LinearConv2D(input_channels=channels, out_channels=channels * 6, groups=channels,
+                         embedding=30, kernel_width=1, kernel_stride=1,
+                         activate_height=2, activate_stride=2, padding=[0, 0, 1, 1]),  # b o f t
+            nn.BatchNorm2d(num_features=channels * 6),
+            nn.ELU(),
             nn.AvgPool2d(kernel_size=(1, 3), stride=(1, 3)),  # b o f/2 t/3
             nn.Dropout(p=early_drop),
-            nn.BatchNorm2d(num_features=channels * 4),
 
-            LinearConv2D(input_channels=channels * 4, out_channels=channels * 12, groups=channels,
-                         embedding=16, kernel_width=7, kernel_stride=3,
-                         activate_height=16, activate_stride=1, padding=[3, 3, 0, 0]),  # b o 1 t/9
-            # nn.AvgPool2d(kernel_size=(1, 3), stride=(1, 3)),  # b o f/4 t/18
+            LinearConv2D(input_channels=channels * 6, out_channels=channels * 96, groups=channels,
+                         embedding=16, kernel_width=3, kernel_stride=1,
+                         activate_height=16, activate_stride=1, padding=[1, 1, 0, 0]),  # b o 1 t/9
+            nn.BatchNorm2d(num_features=channels * 96),
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=(1, 3), stride=(1, 3)),
             nn.Dropout(p=early_drop)
         )
         # self.lc1 = LinearConv2D(input_channels=channels, out_channels=channels * 4, groups=channels,
@@ -60,19 +63,18 @@ class FieldFlow2(nn.Module):
         #                         embedding=16, kernel_width=7, kernel_stride=3,
         #                         activate_height=16, activate_stride=1, padding=[3, 3, 0, 0])
 
-        self.classifier = nn.Sequential(
-            nn.Linear(in_features=1524, out_features=512),
-            nn.ReLU(),
-            nn.Dropout(p=late_drop),
-            nn.Linear(in_features=512, out_features=40),
-            nn.Softmax(dim=-1)
-        )
-
         # b c f t
         self.time_token = nn.Parameter(torch.zeros(1, 1, channels * 12))  # [1, 1, d]
         self.tf_blocks = nn.ModuleList([
             Block(tokens=57, dim=1524, num_heads=12, mlp_dilator=2, rel_pos=True, drop=late_drop, attn_drop=0)
             for _ in range(2)])
+
+        self.classifier = nn.Sequential(
+            nn.Linear(in_features=1524, out_features=512),
+            nn.ReLU(),
+            nn.Linear(in_features=512, out_features=40),
+            nn.Softmax(dim=-1)
+        )
 
     def forward(self, x):
         # Our:[b c=127 f=85 t=500]  Purdue:[b 96 30 1024]
