@@ -23,7 +23,8 @@ def azim_proj(pos):
     Computes the Azimuthal Equidistant Projection of input point in 3D Cartesian Coordinates.
     Imagine a plane being placed against (tangent to) a globe. If
     a light source inside the globe projects the graticule onto
-    the plane the result would be a planar, or azimuthal, map
+    the plane t
+he result would be a planar, or azimuthal, map
     projection.
     :param pos: position in 3D Cartesian coordinates
     :return: projected coordinates using Azimuthal Equidistant Projection

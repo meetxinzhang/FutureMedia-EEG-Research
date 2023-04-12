@@ -145,7 +145,7 @@ class XinTrainer:
         if (step + 1) % accumulation == 0:
             scaler.unscale_(self.optimizer)  # before gradient clipping, the optimizer parameters must be unscaled.
             # optim_paras = [p for p in self.model.parameters() if p.requires_grad]
-            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1, norm_type=2)
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=10, norm_type=2)
             # perform optimization step
             scaler.step(self.optimizer)
             scaler.update()
