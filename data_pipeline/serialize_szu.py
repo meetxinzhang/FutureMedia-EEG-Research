@@ -37,8 +37,8 @@ def thread_write(x, y, pos, pkl_filename):
     """Writes and dumps the processed pkl file for each stimulus(or called subject).
     [time, channels=127], y
     """
+    x = x[300:, :]
     assert np.shape(x) == (512, 127)
-    # x = x[1000:, :]
 
     # AEP
     # x = three_bands(x)  # [t=24, 3*127]
@@ -64,7 +64,7 @@ def thread_write(x, y, pos, pkl_filename):
 
 
 def thread_read(label_file, pkl_path):
-    edf_reader = MNEReader(filetype='edf', method='manual', length=512, montage='brainproducts-RNP-BA-128')
+    edf_reader = MNEReader(filetype='edf', method='manual', length=812, montage='brainproducts-RNP-BA-128')
 
     stim, y = ziyan_read(label_file)  # [frame_point], [class]
     x = edf_reader.get_set(file_path=label_file.replace('.Markers', '.edf'), stim_list=stim)
@@ -75,7 +75,7 @@ def thread_read(label_file, pkl_path):
 
     x = einops.rearrange(x, 'b t c -> (b t) c')
     x = trial_average(x, axis=0)
-    x = einops.rearrange(x, '(b t) c -> b t c', t=512)
+    x = einops.rearrange(x, '(b t) c -> b t c', t=812)
 
     name = label_file.split('/')[-1].replace('.Markers', '')
     Parallel(n_jobs=6)(
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_05s_512'
+            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_last300ms_05s_512'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

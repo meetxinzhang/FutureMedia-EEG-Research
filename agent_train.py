@@ -137,15 +137,19 @@ class XinTrainer:
         with autocast(enabled=True):
             self.model.train()
             y = self.model(x)  # [bs, 40]
-            loss = F.cross_entropy(y, label) / accumulation
+            loss = F.cross_entropy(y, label)
+            loss = loss / accumulation
 
         scaler.scale(loss).backward()  # scale gradient and perform backward pass
-        # scaler.unscale_(self.optimizer)  # before gradient clipping the optimizer parameters must be unscaled.
-        # torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)  # perform optimization step
 
         if (step + 1) % accumulation == 0:
+            scaler.unscale_(self.optimizer)  # before gradient clipping, the optimizer parameters must be unscaled.
+            # optim_paras = [p for p in self.model.parameters() if p.requires_grad]
+            torch.nn.utils.clip_grad_norm_(self.model.parameters(), max_norm=1, norm_type=2)
+            # perform optimization step
             scaler.step(self.optimizer)
             scaler.update()
+            self.optimizer.zero_grad()
 
         accuracy = None
         if cal_acc:

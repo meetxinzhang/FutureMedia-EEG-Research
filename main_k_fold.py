@@ -50,14 +50,14 @@ from model.eeg_net import ComplexEEGNet
 device = torch.device(f"cuda:{7}")
 batch_size = 32
 accumulation_steps = 2  # to accumulate gradient when you want to set larger batch_size but out of memory.
-n_epoch = 100
+n_epoch = 50
 k = 5
 lr = 0.01
 
-id_exp = 'ComEEGNet-SZ23-trial-cwt-0p5s-512'
+id_exp = 'ComEEGNet-SZ23-trial-cwt-last300ms-0p5s-512'
 # path = '../../Datasets/pkl_aep_trial_1s_4096'
-path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_05s_512'
-time_exp = '2023-04-11--22-52'
+path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_last300ms_05s_512'
+time_exp = '2023-04-12--9-11'
 mkdirs(['./log/image/'+id_exp+'/'+time_exp, './log/checkpoint/'+id_exp, './log/'+id_exp])
 
 k_fold = StratifiedKFold(n_splits=k, shuffle=True)
@@ -83,8 +83,8 @@ if __name__ == '__main__':
         #                      ffd_channels=64, last_channels=16, time=24, depth=2, drop=0.2).to(device)
         # ff = FieldFlow1p2(channels=30, electrodes=127, time=512, early_drop=0.2, late_drop=0.05).to(device)
         optim_paras = [p for p in ff.parameters() if p.requires_grad]
-        optimizer = torch.optim.AdamW(optim_paras, lr=lr, weight_decay=0.001)
-        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=20, gamma=0.7)  # 设定优优化器更新的时刻表
+        optimizer = torch.optim.SGD(optim_paras, lr=lr, weight_decay=0.001, momentum=0.9)
+        lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.7)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}', len(train_idx), len(valid_idx))
         summary = SummaryWriter(log_dir='./log/' + id_exp + '/' + time_exp + '---' + str(fold) + '_fold/')
