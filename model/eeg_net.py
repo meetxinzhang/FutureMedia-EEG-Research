@@ -31,19 +31,37 @@ class ComplexEEGNet(nn.Module):
             nn.Conv2d(in_channels=ci, out_channels=ci*3, kernel_size=(1, 1), groups=3, bias=False),
             nn.BatchNorm2d(ci * 3),
             nn.ELU(),
+            # nn.Conv2d(in_channels=ci*3, out_channels=ci*3, kernel_size=(1, 1), bias=False),
+            # nn.BatchNorm2d(ci*3),
+            # nn.ELU()
+        )
 
-            nn.Conv2d(in_channels=ci*3, out_channels=ci*6, kernel_size=(1, 1), bias=False),
-            nn.BatchNorm2d(ci*6),
+        self.time_block1 = nn.Sequential(
+            nn.ZeroPad2d((1, 1, 0, 0)),  # left, right, top, bottom of 2D img
+            nn.Conv2d(in_channels=ci*3, out_channels=128, kernel_size=(1, 3), bias=False),
+            nn.BatchNorm2d(128),  # output shape (63, C, T)
+            nn.ELU(),
+            nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
+
+            nn.ZeroPad2d((1, 1, 0, 0)),  # left, right, top, bottom of 2D img
+            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=(1, 3), bias=False),
+            nn.BatchNorm2d(128),  # output shape (63, C, T)
+            nn.ELU(),
+            nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
+        )
+        self.time_residue1 = nn.Sequential(
+            nn.Conv2d(in_channels=ci*3, out_channels=128, kernel_size=(1, 1), stride=(1, 4)),
+            nn.BatchNorm2d(128),
             nn.ELU()
         )
 
         self.ch_block = nn.Sequential(
-            nn.Conv2d(in_channels=ci*6, out_channels=512, kernel_size=(electrodes, 1), bias=False),
+            nn.Conv2d(in_channels=128, out_channels=512, kernel_size=(electrodes, 1), bias=False),
             nn.BatchNorm2d(512),  # output shape (128, 1, T//2)
             nn.ELU(),
         )
 
-        self.time_block1 = nn.Sequential(
+        self.time_block2 = nn.Sequential(
             nn.ZeroPad2d((1, 1, 0, 0)),  # left, right, top, bottom of 2D img
             nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=(1, 3), groups=512, bias=False),
             nn.BatchNorm2d(1024),  # output shape (63, C, T)
@@ -56,27 +74,8 @@ class ComplexEEGNet(nn.Module):
             nn.ELU(),
             nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
         )
-        self.time_residue1 = nn.Sequential(
-            nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=(1, 1), stride=(1, 4)),
-            nn.BatchNorm2d(1024),
-            nn.ELU()
-        )
-
-        self.time_block2 = nn.Sequential(
-            nn.ZeroPad2d((1, 1, 0, 0)),  # left, right, top, bottom of 2D img
-            nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=(1, 3), groups=512, bias=False),
-            nn.BatchNorm2d(1024),  # output shape (63, C, T)
-            nn.ELU(),
-            nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
-
-            nn.ZeroPad2d((1, 1, 0, 0)),  # left, right, top, bottom of 2D img
-            nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=(1, 3), groups=512, bias=False),
-            nn.BatchNorm2d(1024),  # output shape (63, C, T)
-            nn.ELU(),
-            nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
-        )
         self.time_residue2 = nn.Sequential(
-            nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=(1, 1), stride=(1, 4)),
+            nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=(1, 1), stride=(1, 4)),
             nn.BatchNorm2d(1024),
             nn.ELU()
         )
@@ -93,11 +92,12 @@ class ComplexEEGNet(nn.Module):
     def forward(self, x):
         # f c t
         x = self.freq_block(x)
-        x = self.ch_block(x)
 
         x1 = self.time_block1(x)
         x2 = self.time_residue1(x.clone())
         x = x1 + x2
+
+        x = self.ch_block(x)
 
         x1 = self.time_block2(x)
         x2 = self.time_residue2(x.clone())
@@ -165,7 +165,7 @@ class EEGNet(nn.Module):
             nn.Dropout(drop_out)
         )
 
-        self.out = nn.Linear(192, classes_num)
+        self.out = nn.Linear(448, classes_num)
 
     def forward(self, x):
         # f c t needed

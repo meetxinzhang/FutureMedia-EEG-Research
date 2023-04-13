@@ -5,12 +5,11 @@
  @time: 2022/10/16 10:47
  @desc:
 """
-import pywt
-import numpy as np
-import einops
 import matplotlib.pyplot as plt
+import pywt
 import scipy
 import torch
+import numpy as np
 
 
 def stft_scipy(signal, nperseg=64):
@@ -54,19 +53,22 @@ def stft_torch(signal, n_fft=78, hop_length=20):
     return y_real.numpy()  # [f, t]
 
 
-# def cwt_pywt(signal, wavelet='morl'):
-#     # fc = pywt.central_frequency(wavelet)  # 计算小波函数的中心频率
-#     # cparam = 2 * fc * totalscal  # 常数c
-#     # # 可以用 *f = scale2frequency(wavelet, scale)/sampling_period 来确定物理频率大小。f的单位是赫兹，采样周期的单位为秒。
-#     # scales = cparam / np.arange(totalscal+1, 1, -1)  # 为使转换后的频率序列是一等差序列，尺度序列必须取为这一形式（也即小波尺度）
-#
-#     dt = 0.001  # 1000Hz
-#     fs = 1 / dt
-#     interested = np.array(range(40, 0, -1))
-#     frequencies = interested / fs  # normalize
-#     scale = pywt.frequency2scale(wavelet=wavelet, freq=frequencies)
-#     cwtmatr, f = pywt.cwt(data=signal, scales=scale, wavelet=wavelet, sampling_period=0.001)
-#     return abs(cwtmatr), f  # [f, t], [f,]
+def cwt_pywt(signal, wavelet='morl'):
+    specs = []
+    for s in signal.T:  # [c t]
+        # fc = pywt.central_frequency(wavelet)  # 计算小波函数的中心频率
+        # cparam = 2 * fc * totalscal  # 常数c
+        # # 可以用 *f = scale2frequency(wavelet, scale)/sampling_period 来确定物理频率大小。f的单位是赫兹，采样周期的单位为秒。
+        # scales = cparam / np.arange(totalscal+1, 1, -1)  # 为使转换后的频率序列是一等差序列，尺度序列必须取为这一形式（也即小波尺度）
+
+        fs = 1000  # Hz
+        # dt = 1 / fs
+        interested = np.array(range(33, 0, -1))
+        frequencies = interested / fs  # normalize
+        scale = pywt.frequency2scale(wavelet=wavelet, freq=frequencies)
+        cwtmatr, _ = pywt.cwt(data=s, scales=scale, wavelet=wavelet, sampling_period=0.001)
+        specs.append(abs(cwtmatr))
+    return np.array(specs)  # [c f t]
 
 
 # def cwt_on_sample(sample):

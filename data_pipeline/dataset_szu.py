@@ -82,13 +82,13 @@ class ListDataset(torch.utils.data.Dataset):
             # x = np.transpose(x, (1, 0,  2))  # [33, 96, 63]
 
             # cwt  [c=96 f=30 t=1024]
-            x = x[:, :, :512]  # PD
+            # x = x[:, :, :512]  # PD
 
             # x = x[::2, :]  # [512, 96]
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
             # x = x[2000:2512, :]               # [512 96]
             # x = difference(x, fold=4)     # SZU, [500, 127]
-            y = y-1                  # Ziyan He created EEG form
+            # y = y-1                  # Ziyan He created EEG form
 
             # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
             x = einops.rearrange(x, 'c f t -> f c t')  # EEGChannelNet, EEGNet
