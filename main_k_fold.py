@@ -48,16 +48,16 @@ from model.eeg_net import EEGNet
 
 
 device = torch.device(f"cuda:{7}")
-batch_size = 32
-accumulation_steps = 2  # to accumulate gradient when you want to set larger batch_size but out of memory.
-n_epoch = 50
+batch_size = 16
+accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
+n_epoch = 100
 k = 5
 lr = 0.01
 
-id_exp = 'ComEEGNet2-SZ23-trial-cwt-1-2s-1000'
+id_exp = 'EEGNet-SZ22-trial-1s-1000'
 # path = '../../Datasets/pkl_aep_trial_1s_4096'
-path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_1-2s_1000'
-time_exp = '2023-04-12--21-11'
+path = '/data1/zhangwuxia/Datasets/SZEEG2022/pkl_trial_subj1_1s_1000'
+time_exp = '2023-04-13--16-11'
 mkdirs(['./log/image/'+id_exp+'/'+time_exp, './log/checkpoint/'+id_exp, './log/'+id_exp])
 
 k_fold = StratifiedKFold(n_splits=k, shuffle=True)
@@ -82,9 +82,9 @@ if __name__ == '__main__':
         # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
         #                      ffd_channels=64, last_channels=16, time=24, depth=2, drop=0.2).to(device)
         # ff = FieldFlow1p2(channels=30, electrodes=127, time=512, early_drop=0.2, late_drop=0.05).to(device)
-        ff = EEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.2).to(device)
+        ff = EEGNet(classes_num=40, in_channels=1, electrodes=127, drop_out=0.2).to(device)
         optim_paras = [p for p in ff.parameters() if p.requires_grad]
-        optimizer = torch.optim.SGD(optim_paras, lr=lr, weight_decay=0.001)
+        optimizer = torch.optim.SGD(optim_paras, lr=lr, weight_decay=0.001, momentum=0.9)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.4)  # 设定优优化器更新的时刻表
 
         print(f'FOLD {fold}', len(train_idx), len(valid_idx))
@@ -92,7 +92,7 @@ if __name__ == '__main__':
 
         xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size, gpu_rank=0,
                          id_exp=id_exp, device=device, train_loader=train_loader, val_loader=valid_loader,
-                         summary=summary, lr_shecduler=lr_scheduler)
+                         summary=summary, lr_scheduler=lr_scheduler)
         for epoch in range(1, n_epoch + 1):
             xin.train_period(epoch=epoch, accumulation=accumulation_steps)
         summary.close()

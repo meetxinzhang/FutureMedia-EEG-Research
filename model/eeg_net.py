@@ -161,11 +161,11 @@ class EEGNet(nn.Module):
             nn.BatchNorm2d(16),  # output shape (16, 1, T//4)
             nn.ELU(),
             nn.AvgPool2d((1, 8)),  # output shape (16, 1, T//32)
-            # nn.AvgPool2d((1, 2)),  # 1111111111111 short T
+            # nn.AvgPool2d((1, 4)),  # 1111111111111 short T
             nn.Dropout(drop_out)
         )
 
-        self.out = nn.Linear(448, classes_num)
+        self.out = nn.Linear(432, classes_num)
 
     def forward(self, x):
         # f c t needed

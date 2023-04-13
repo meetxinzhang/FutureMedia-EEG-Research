@@ -37,7 +37,7 @@ def thread_write(x, y, pos, pkl_filename):
     """Writes and dumps the processed pkl file for each stimulus(or called subject).
     [time, channels=127], y
     """
-    x = x[1000:, :]
+    # x = x[1000:, :]
     assert np.shape(x) == (1000, 127)
 
     # AEP
@@ -56,8 +56,8 @@ def thread_write(x, y, pos, pkl_filename):
 
     # CWT
     # x = cwt_scipy(x)  # [c f=30 t=1000]
-    x = cwt_pywt(x)  # [c f=33 t=1000]
-    assert np.shape(x) == (127, 33, 1000)
+    # x = cwt_pywt(x)  # [c f=33 t=1000]
+    # assert np.shape(x) == (127, 30, 1000)
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -65,7 +65,7 @@ def thread_write(x, y, pos, pkl_filename):
 
 
 def thread_read(label_file, pkl_path):
-    edf_reader = MNEReader(filetype='edf', method='manual', length=2000, montage='brainproducts-RNP-BA-128')
+    edf_reader = MNEReader(filetype='edf', method='manual', length=1000, montage='brainproducts-RNP-BA-128')
 
     stim, y = ziyan_read(label_file)  # [frame_point], [class]
     x = edf_reader.get_set(file_path=label_file.replace('.Markers', '.edf'), stim_list=stim)
@@ -76,7 +76,7 @@ def thread_read(label_file, pkl_path):
 
     x = einops.rearrange(x, 'b t c -> (b t) c')
     x = trial_average(x, axis=0)
-    x = einops.rearrange(x, '(b t) c -> b t c', t=2000)
+    x = einops.rearrange(x, '(b t) c -> b t c', t=1000)
 
     name = label_file.split('/')[-1].replace('.Markers', '')
     Parallel(n_jobs=6)(
@@ -87,13 +87,13 @@ def thread_read(label_file, pkl_path):
 
 if __name__ == "__main__":
     # path = 'G:/Datasets/SZFace2/EEG/10-17'
-    path = '/data1/zhangwuxia/Datasets/SZEEG2023/Raw'
-    label_filenames = file_scanf2(path, contains=['run'], endswith='.Markers')
+    path = '/data1/zhangwuxia/Datasets/SZEEG2022/Raw'
+    label_filenames = file_scanf2(path, contains=['subject1', 'hzy', 'test1016'], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_pywt_1-2s_1000'
+            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2022/pkl_trial_subj1_1s_1000'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

@@ -31,15 +31,16 @@ scaler = GradScaler()
 
 
 class XinTrainer:
-    def __init__(self, n_epoch, model, optimizer, train_loader, val_loader, batch_size, lr_shecduler,
+    def __init__(self, n_epoch, model, optimizer, train_loader, val_loader, batch_size, lr_scheduler,
                  id_exp, summary, gpu_rank, device):
         self.global_step = 0
         self.n = n_epoch
         self.model = model
         self.optimizer = optimizer
-        self.lr_scheduler = lr_shecduler
+        self.lr_scheduler = lr_scheduler
         self.train_loader = train_loader
-        self.val_iterable = IterForever(val_loader)
+        self.val_loader = val_loader
+        # self.val_iterable = IterForever(val_loader)
         self.batch_size = torch.tensor(batch_size).to(device)
         self.summary = summary
         self.gpu_rank = gpu_rank
@@ -52,9 +53,7 @@ class XinTrainer:
 
     def train_period_parallel(self, epoch, accumulation=1, print_step=10):
         epoch_loss = []
-        epoch_loss_val = []
         epoch_acc = []
-        epoch_acc_val = []
         idx = []
         ws = dist.get_world_size()
         for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127],
@@ -63,41 +62,58 @@ class XinTrainer:
                 continue
 
             if step % print_step != 0:
-                _, _ = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
+                _, _ = self.train_step_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
 
             else:
-                loss, acc = self.train_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
-                x_val, label_val = self.val_iterable.next()
-                loss_val, acc_val = self.validate(x=x_val, label=label_val)
+                loss, acc = self.train_step_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
                 dist.reduce(loss, op=dist.ReduceOp.SUM, dst=0)
                 dist.reduce(acc, op=dist.ReduceOp.SUM, dst=0)
-                loss = loss.item() / ws
-                acc = acc.item() / ws
-
-                dist.reduce(loss_val, op=dist.ReduceOp.SUM, dst=0)
-                dist.reduce(acc_val, op=dist.ReduceOp.SUM, dst=0)
-                loss_val = loss_val.item() / ws
-                acc_val = acc_val.item() / ws
 
                 if self.gpu_rank == 0:
+                    loss = loss.item() / ws
+                    acc = acc.item() / ws
                     lr = self.optimizer.param_groups[0]['lr']
-                    print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
-                          format(epoch, self.n, step, self.train_num, lr, loss, acc, loss_val, acc_val))
+                    print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f}'.
+                          format(epoch, self.n, step, self.train_num, lr, loss, acc))
                     epoch_loss.append(loss)
                     epoch_acc.append(acc)
-                    epoch_loss_val.append(loss_val)
-                    epoch_acc_val.append(acc_val)
                     idx.append(self.global_step)
                 self.global_step += 1
             # step end
         # epoch end
         self.lr_scheduler.step()
+
         if self.gpu_rank == 0:
             for i in range(len(epoch_loss)):
                 self.summary.add_scalar(tag='TrainLoss', scalar_value=epoch_loss[i], global_step=idx[i])
                 self.summary.add_scalar(tag='TrainAcc', scalar_value=epoch_acc[i], global_step=idx[i])
-                self.summary.add_scalar(tag='ValLoss', scalar_value=epoch_loss_val[i], global_step=idx[i])
-                self.summary.add_scalar(tag='ValAcc', scalar_value=epoch_acc_val[i], global_step=idx[i])
+            self.summary.flush()
+
+    def validate_epoch_parallel(self, epoch):
+        ws = dist.get_world_size()
+        epoch_loss_val = torch.tensor(0).float().to(self.device)
+        epoch_acc_val = torch.tensor(0).float().to(self.device)
+        n = len(self.val_loader)
+        for step, (x_val, label_val) in enumerate(self.val_loader):
+            x_val = x_val.to(self.device)
+            label_val = label_val.to(self.device)
+            loss_val, acc_val = self.validate_step_accumulate(x=x_val, label=label_val)
+            epoch_loss_val += loss_val.item()
+            epoch_acc_val += acc_val.item()
+
+        epoch_acc_val = epoch_acc_val / n
+        epoch_loss_val = epoch_loss_val / n
+
+        dist.barrier()
+        dist.reduce(epoch_loss_val, op=dist.ReduceOp.SUM, dst=0)
+        dist.reduce(epoch_acc_val, op=dist.ReduceOp.SUM, dst=0)
+
+        if self.gpu_rank == 0:
+            epoch_loss_val /= ws
+            epoch_acc_val /= ws
+            print(' val epoch:{} val_loss={:.5f} val_acc={:.5f}'.format(epoch, epoch_loss_val, epoch_acc_val))
+            self.summary.add_scalar(tag='ValLoss', scalar_value=epoch_loss_val, global_step=epoch)
+            self.summary.add_scalar(tag='ValAcc', scalar_value=epoch_acc_val, global_step=epoch)
             self.summary.flush()
 
     def train_period(self, epoch, accumulation=1, print_step=10):
@@ -106,30 +122,25 @@ class XinTrainer:
                 continue
 
             if step % print_step != 0:
-                _, _ = self.train_accumulate(x, label, step=step, accumulation=accumulation, cal_acc=False)
+                _, _ = self.train_step_accumulate(x, label, step=step, accumulation=accumulation, cal_acc=False)
             else:
-                loss, acc = self.train_accumulate(x, label, step=step, accumulation=accumulation, cal_acc=True)
-                x_val, label_val = self.val_iterable.next()
-                loss_val, acc_val = self.validate(x=x_val, label=label_val)
+                loss, acc = self.train_step_accumulate(x, label, step=step, accumulation=accumulation, cal_acc=True)
 
                 lr = self.optimizer.param_groups[0]['lr']
-                print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f} val_loss={:.5f} val_acc={:.5f}'.
-                      format(epoch, self.n, step, self.train_num, lr, loss, acc, loss_val, acc_val))
+                print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f}'.
+                      format(epoch, self.n, step, self.train_num, lr, loss, acc))
                 self.summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
                 self.summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
-                self.summary.add_scalar(tag='ValLoss', scalar_value=loss_val, global_step=self.global_step)
-                self.summary.add_scalar(tag='ValAcc', scalar_value=acc_val, global_step=self.global_step)
 
             # if epoch > 50 and step % 50 == 0:
             #     cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
             #     get_heatmap_gallery(cam.squeeze(0),
             #                         save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
             #                             label[0].cpu().numpy()))
-
             self.global_step += 1
         self.lr_scheduler.step()
 
-    def train_accumulate(self, x, label, step, accumulation, cal_acc=False):
+    def train_step_accumulate(self, x, label, step, accumulation, cal_acc=False):
         x = x.to(self.device)
         label = label.to(self.device)
 
@@ -158,32 +169,32 @@ class XinTrainer:
 
         return loss, accuracy
 
-    def train_step(self, x, label, step, accumulation, cal_acc=False):
+    def validate_step_accumulate(self, x, label):
         x = x.to(self.device)
         label = label.to(self.device)
-
-        self.model.train()
-        self.optimizer.zero_grad()
-        y = self.model(x)  # [bs, 40]
-        loss = F.cross_entropy(y, label)
-        loss.backward()
-        self.optimizer.step()
-
-        accuracy = None
-        if cal_acc:
-            corrects = (torch.argmax(y, dim=1) == label).float().sum()
-            accuracy = torch.div(corrects, self.batch_size)
-        return loss, accuracy
-
-    def validate(self, x, label):
-        x = x.to(self.device)
-        label = label.to(self.device)
-
-        self.model.eval()
-        y = self.model(x)  # [bs, 40]
-        loss = F.cross_entropy(y, label)
+        with autocast(enabled=True):
+            self.model.eval()
+            y = self.model(x)  # [bs, 40]
+            loss = F.cross_entropy(y, label)
 
         corrects = (torch.argmax(y, dim=1) == label).float().sum()
         accuracy = torch.div(corrects, self.batch_size)
 
         return loss, accuracy
+
+    # def train_step(self, x, label, step, accumulation, cal_acc=False):
+    #     x = x.to(self.device)
+    #     label = label.to(self.device)
+    #
+    #     self.model.train()
+    #     self.optimizer.zero_grad()
+    #     y = self.model(x)  # [bs, 40]
+    #     loss = F.cross_entropy(y, label)
+    #     loss.backward()
+    #     self.optimizer.step()
+    #
+    #     accuracy = None
+    #     if cal_acc:
+    #         corrects = (torch.argmax(y, dim=1) == label).float().sum()
+    #         accuracy = torch.div(corrects, self.batch_size)
+    #     return loss, accuracy
