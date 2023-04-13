@@ -40,8 +40,8 @@ init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
 device_list = [0, 1, 2, 3, 4, 5]
 main_gpu_rank = 0
-train_loaders = 8
-valid_loaders = 8
+train_loaders = 6
+valid_loaders = 6
 
 batch_size = 16
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.

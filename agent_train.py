@@ -6,13 +6,11 @@
  @name: 
  @desc:
 """
-import sys
 import torch
 import torch.nn.functional as F
 import torch.distributed as dist
-from agent_lrp import ignite_relprop, get_heatmap_gallery
+# from agent_lrp import ignite_relprop, get_heatmap_gallery
 from torch.cuda.amp import autocast, GradScaler
-from utils.my_tools import IterForever
 scaler = GradScaler()
 
 
@@ -95,8 +93,6 @@ class XinTrainer:
         epoch_acc_val = torch.tensor(0).float().to(self.device)
         n = len(self.val_loader)
         for step, (x_val, label_val) in enumerate(self.val_loader):
-            x_val = x_val.to(self.device)
-            label_val = label_val.to(self.device)
             loss_val, acc_val = self.validate_step_accumulate(x=x_val, label=label_val)
             epoch_loss_val += loss_val.item()
             epoch_acc_val += acc_val.item()
@@ -139,6 +135,22 @@ class XinTrainer:
             #                             label[0].cpu().numpy()))
             self.global_step += 1
         self.lr_scheduler.step()
+
+    def val_period(self, epoch):
+        epoch_loss_val = torch.tensor(0).float().to(self.device)
+        epoch_acc_val = torch.tensor(0).float().to(self.device)
+        n = len(self.val_loader)
+        for step, (x_val, label_val) in enumerate(self.val_loader):
+            loss_val, acc_val = self.validate_step_accumulate(x=x_val, label=label_val)
+            epoch_loss_val += loss_val.item()
+            epoch_acc_val += acc_val.item()
+
+        epoch_acc_val = epoch_acc_val / n
+        epoch_loss_val = epoch_loss_val / n
+        print(' val epoch:{} val_loss={:.5f} val_acc={:.5f}'.format(epoch, epoch_loss_val, epoch_acc_val))
+        self.summary.add_scalar(tag='ValLoss', scalar_value=epoch_loss_val, global_step=epoch)
+        self.summary.add_scalar(tag='ValAcc', scalar_value=epoch_acc_val, global_step=epoch)
+        self.summary.flush()
 
     def train_step_accumulate(self, x, label, step, accumulation, cal_acc=False):
         x = x.to(self.device)
