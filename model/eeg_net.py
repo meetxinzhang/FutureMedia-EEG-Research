@@ -165,7 +165,7 @@ class EEGNet(nn.Module):
             nn.Dropout(drop_out)
         )
 
-        self.out = nn.Linear(432, classes_num)
+        self.out = nn.Linear(192, classes_num)
 
     def forward(self, x):
         # f c t needed

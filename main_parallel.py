@@ -29,21 +29,21 @@ os.environ['MASTER_PORT'] = '7890'
 # os.environ['NCCL_LL_THRESHOLD'] = '0'
 # os.environ['NCCL_P2P_DISABLE'] = '1'
 # os.environ['NCCL_IB_DISABLE'] = '1'
-torch.manual_seed(2023)
-torch.cuda.manual_seed(2023)
+torch.manual_seed(2022)
+torch.cuda.manual_seed(2022)
 
-id_exp = 'EEGNet-SZ-trial-subj1-cwt-1s-1000'
+id_exp = 'EEGNet-SZ-trial-subj1-cwt-05s-512-8bs'
 data_path = '/data1/zhangwuxia/Datasets/SZEEG2022/pkl_trial_cwt_subj1_1s_1000'
 # data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_cwt_1s_1024'
-time_exp = '2023-04-13--18-00'
+time_exp = '2023-04-14--20-40'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
 device_list = [0, 1, 2, 3, 4, 5]
 main_gpu_rank = 0
-train_loaders = 6
-valid_loaders = 6
+train_loaders = 8
+valid_loaders = 8
 
-batch_size = 16
+batch_size = 8
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 100
 k = 5
@@ -99,7 +99,8 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # lr_scheduler = torch_lr.ReduceLROnPlateau(optimizer, mode='min', factor=0.7, patience=10, verbose=True,
     #                                           threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0.001,
     #                                           eps=1e-08)
-    lr_scheduler = torch_lr.StepLR(optimizer, step_size=10, gamma=0.4, last_epoch=-1)
+    lr_scheduler = torch_lr.StepLR(optimizer, step_size=
+    10, gamma=0.4, last_epoch=-1)
 
     xin = XinTrainer(n_epoch=n_epoch, model=ff, train_loader=train_loader, val_loader=valid_loader,
                      optimizer=optimizer, batch_size=batch_size, lr_scheduler=lr_scheduler,
@@ -107,9 +108,9 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     for epoch in range(1, n_epoch + 1):
         train_sampler.set_epoch(epoch)  # to update epoch related random seed
         xin.train_period_parallel(epoch=epoch, accumulation=accumulation_steps)
-        if epoch % 5 == 0:
-            valid_sampler.set_epoch(epoch)
-            xin.validate_epoch_parallel(epoch=epoch)
+        # if epoch % 1 == 0:
+        valid_sampler.set_epoch(epoch)
+        xin.validate_epoch_parallel(epoch=epoch)
 
     if gpu_rank == main_gpu_rank:
         summary.flush()
