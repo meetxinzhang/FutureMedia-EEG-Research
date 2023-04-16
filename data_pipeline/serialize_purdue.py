@@ -18,7 +18,8 @@ from pre_process.time_frequency import cwt_scipy
 
 
 classes = {"n02106662": 0,
-           "n02124075": 1,
+           ""
+           "": 1,
            "n02281787": 2,
            "n02389026": 3,
            "n02492035": 4,

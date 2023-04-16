@@ -29,13 +29,13 @@ os.environ['MASTER_PORT'] = '7890'
 # os.environ['NCCL_LL_THRESHOLD'] = '0'
 # os.environ['NCCL_P2P_DISABLE'] = '1'
 # os.environ['NCCL_IB_DISABLE'] = '1'
-torch.manual_seed(2022)
-torch.cuda.manual_seed(2022)
+torch.manual_seed(1994)
+torch.cuda.manual_seed(1994)
 
-id_exp = 'EEGNet-SZ-trial-subj1-cwt-05s-512-8bs'
+id_exp = 'EEGNet-SZ-trial-subj1-cwt-1s-1000-8bs'
 data_path = '/data1/zhangwuxia/Datasets/SZEEG2022/pkl_trial_cwt_subj1_1s_1000'
 # data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_cwt_1s_1024'
-time_exp = '2023-04-14--20-40'
+time_exp = '2023-04-16--22-22'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
 device_list = [0, 1, 2, 3, 4, 5]
@@ -99,8 +99,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # lr_scheduler = torch_lr.ReduceLROnPlateau(optimizer, mode='min', factor=0.7, patience=10, verbose=True,
     #                                           threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0.001,
     #                                           eps=1e-08)
-    lr_scheduler = torch_lr.StepLR(optimizer, step_size=
-    10, gamma=0.4, last_epoch=-1)
+    lr_scheduler = torch_lr.StepLR(optimizer, step_size=10, gamma=0.4, last_epoch=-1)
 
     xin = XinTrainer(n_epoch=n_epoch, model=ff, train_loader=train_loader, val_loader=valid_loader,
                      optimizer=optimizer, batch_size=batch_size, lr_scheduler=lr_scheduler,
@@ -129,7 +128,7 @@ if __name__ == '__main__':
     filepaths = file_scanf2(path=data_path, contains=['run'], endswith='.pkl')
     labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
 
-    k_fold = StratifiedKFold(n_splits=k, shuffle=True, random_state=2023)
+    k_fold = StratifiedKFold(n_splits=k, shuffle=True, random_state=1994)
     dataset = ListDataset(filepaths)
     print(len(filepaths), ' total')
 

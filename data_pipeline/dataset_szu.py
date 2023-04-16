@@ -82,7 +82,7 @@ class ListDataset(torch.utils.data.Dataset):
             # x = np.transpose(x, (1, 0,  2))  # [33, 96, 63]
 
             # cwt  [c=96 f=30 t=1024]
-            x = x[:, :, :512]
+            # x = x[:, :, :512]
 
             # x = x[::2, :]  # [512, 96]
             # x = downsample(x, ratio=4)  # SZU, [500, 127]

@@ -41,7 +41,7 @@ class ComplexEEGNet(nn.Module):
             nn.Conv2d(in_channels=ci*3, out_channels=128, kernel_size=(1, 3), bias=False),
             nn.BatchNorm2d(128),  # output shape (63, C, T)
             nn.ELU(),
-            nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
+            # nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
 
             nn.ZeroPad2d((1, 1, 0, 0)),  # left, right, top, bottom of 2D img
             nn.Conv2d(in_channels=128, out_channels=128, kernel_size=(1, 3), bias=False),
@@ -165,7 +165,30 @@ class EEGNet(nn.Module):
             nn.Dropout(drop_out)
         )
 
-        self.out = nn.Linear(192, classes_num)
+        self.block_4 = nn.Sequential(
+            nn.ZeroPad2d((4, 3, 0, 0)),
+            nn.Conv2d(
+                in_channels=16,  # input shape (16, 1, T//4)
+                out_channels=16,  # num_filters
+                kernel_size=(1, 7),  # filter size
+                # kernel_size=(1, 3),  # 1111111111111 short T
+                groups=16,
+                bias=False
+            ),  # output shape (16, 1, T//4)
+            nn.Conv2d(
+                in_channels=16,  # input shape (16, 1, T//4)
+                out_channels=16,  # num_filters
+                kernel_size=(1, 1),  # filter size
+                bias=False
+            ),  # output shape (16, 1, T//4)
+            nn.BatchNorm2d(16),  # output shape (16, 1, T//4)
+            nn.ELU(),
+            nn.MaxPool2d((1, 2)),  # output shape (16, 1, T//32)
+            # nn.AvgPool2d((1, 4)),  # 1111111111111 short T
+            nn.Dropout(drop_out)
+        )
+
+        self.out = nn.Linear(224, classes_num)
 
     def forward(self, x):
         # f c t needed
@@ -173,6 +196,7 @@ class EEGNet(nn.Module):
         x = self.block_1(x)
         x = self.block_2(x)
         x = self.block_3(x)
+        x = self.block_4(x)
 
         x = x.view(x.size(0), -1)
         x = self.out(x)
