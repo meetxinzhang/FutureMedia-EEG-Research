@@ -62,14 +62,25 @@ def get_heatmap_gif(cam, save_name=None):
     print('saved ' + save_name)
 
 
-def get_heatmap_gallery(cam, save_name=None):
-    # [t h w c]
-    cam = cam.data.cpu().numpy()
-    h = np.shape(cam)[2]
+def get_heatmap_gallery(cam, x, save_name=None):
+    # [t h w c] cpu
+    x = einops.rearrange(x, 't c h w -> t h w c')
+    line = torch.ones([24, 1, 20, 3])
+    # x = (x - x.min()) / (x.max() - x.min())
+    # cam = (cam - cam.min()) / (cam.max() - cam.min())
+    cam = torch.cat([cam, line,  x], dim=1)
+
+    cam = cam.data.numpy()  # cpu
+    h = np.shape(cam)[1]
     interval = np.ones([h, 1, 3])
     figs = []
     for c in cam:
-        c = (c - c.min()) / (c.max() - c.min())
+        # c = (c - c.min()) / (c.max() - c.min())
+        c1 = c[:20, :, :]
+        c2 = c[20:, :, :]
+        c1 = (c1 - c1.min()) / (c1.max() - c1.min())
+        c2 = (c2 - c2.min()) / (c2.max() - c2.min())
+        c = np.concatenate([c1, c2], axis=0)
         c = np.concatenate([interval, c], axis=1)  # [h w c]
         c = np.uint8(255 * c)
         figs.append(c)
@@ -129,52 +140,3 @@ def add_cam_on_image(x, cam):
 
     del x, cam
     return img, heatmap, vis
-
-# class Baselines:
-#     def __init__(self, model):
-#         self.model = model
-#         self.model.eval()
-#
-#     def generate_cam_attn(self, input, index=None):
-#         output = self.model(input.cuda(), register_hook=True)
-#         if index is None:
-#             index = np.argmax(output.cpu().data.numpy())
-#
-#         one_hot = np.zeros((1, output.size()[-1]), dtype=np.float32)
-#         one_hot[0][index] = 1
-#         one_hot = torch.from_numpy(one_hot).requires_grad_(True)
-#         one_hot = torch.sum(one_hot.cuda() * output)
-#
-#         self.model.zero_grad()
-#         one_hot.backward(retain_graph=True)
-#         #################### attn
-#         grad = self.model.blocks[-1].attn.get_attn_gradients()
-#         cam = self.model.blocks[-1].attn.get_attention_map()
-#         cam = cam[0, :, 0, 1:].reshape(-1, 14, 14)
-#         grad = grad[0, :, 0, 1:].reshape(-1, 14, 14)
-#         grad = grad.mean(dim=[1, 2], keepdim=True)
-#         cam = (cam * grad).mean(0).clamp(min=0)
-#         cam = (cam - cam.min()) / (cam.max() - cam.min())
-#
-#         return cam
-#         #################### attn
-#
-#     def generate_rollout(self, input, start_layer=0):
-#         self.model(input)
-#         blocks = self.model.blocks
-#         all_layer_attentions = []
-#         for blk in blocks:
-#             attn_heads = blk.attn.get_attention_map()
-#             avg_heads = (attn_heads.sum(dim=1) / attn_heads.shape[1]).detach()
-#             all_layer_attentions.append(avg_heads)
-#         rollout = compute_rollout_attention(all_layer_attentions, start_layer=start_layer)
-#         return rollout[:, 0, 1:]
-
-
-# normalize = transforms.Normalize(mean=[0.5], std=[0.5])
-# transform = transforms.Compose([
-#     transforms.Resize(256),  # rescale the shorter-edge to 256, and keep the ratio of length/weight
-#     transforms.CenterCrop(224),  # cut at center, when input integer then return square
-#     transforms.ToTensor(),
-#     normalize,
-# ])

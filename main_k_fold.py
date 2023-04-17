@@ -15,14 +15,14 @@ from torch.utils.tensorboard import SummaryWriter
 # import os
 # import numpy as np
 from data_pipeline.dataset_szu import SZUDataset
-from model.eeg_net import EEGNet
+# from model.eeg_net import EEGNet
 # from model.field_flow_1p2 import FieldFlow1p2
-# from model.conv_tsfm_lrp import ConvTransformer
+from model.conv_tsfm_lrp import ConvTransformer
 # from model.field_flow_2p1 import FieldFlow2
 
 # random.seed = 2022
-# torch.manual_seed(2022)
-# torch.cuda.manual_seed(2022)
+torch.manual_seed(2022)
+torch.cuda.manual_seed(2022)
 
 
 # def k_fold_share(path, k):
@@ -54,13 +54,13 @@ n_epoch = 100
 k = 5
 lr = 0.01
 
-id_exp = 'EEGNet-SZ22-trial-1s-1000'
+id_exp = 'AEP-SZ22-trial-subj1-05s-512'
 # path = '../../Datasets/pkl_aep_trial_1s_4096'
-path = '/data1/zhangwuxia/Datasets/SZEEG2022/pkl_trial_subj1_1s_1000'
-time_exp = '2023-04-13--16-11'
+path = '/data1/zhangwuxia/Datasets/SZEEG2022/pkl_trial_aep_color_subj1_05s'
+time_exp = '2023-04-17--17-11'
 mkdirs(['./log/image/'+id_exp+'/'+time_exp, './log/checkpoint/'+id_exp, './log/'+id_exp])
 
-k_fold = StratifiedKFold(n_splits=k, shuffle=True)
+k_fold = StratifiedKFold(n_splits=k, shuffle=True, random_state=2023)
 filepaths = file_scanf2(path=path, contains=['run'], endswith='.pkl')
 labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
 dataset = SZUDataset(filepaths)
@@ -79,10 +79,10 @@ if __name__ == '__main__':
     #     valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
 
         # ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(device)
-        # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
-        #                      ffd_channels=64, last_channels=16, time=24, depth=2, drop=0.2).to(device)
+        ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
+                             ffd_channels=64, last_channels=16, time=24, depth=2, drop=0.2).to(device)
         # ff = FieldFlow1p2(channels=30, electrodes=127, time=512, early_drop=0.2, late_drop=0.05).to(device)
-        ff = EEGNet(classes_num=40, in_channels=1, electrodes=127, drop_out=0.2).to(device)
+        # ff = EEGNet(classes_num=40, in_channels=1, electrodes=127, drop_out=0.2).to(device)
         optim_paras = [p for p in ff.parameters() if p.requires_grad]
         optimizer = torch.optim.SGD(optim_paras, lr=lr, weight_decay=0.001, momentum=0.9)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.4)  # 设定优优化器更新的时刻表
@@ -91,7 +91,7 @@ if __name__ == '__main__':
         summary = SummaryWriter(log_dir='./log/' + id_exp + '/' + time_exp + '---' + str(fold) + '_fold/')
 
         xin = XinTrainer(n_epoch=n_epoch, model=ff, optimizer=optimizer, batch_size=batch_size, gpu_rank=0,
-                         id_exp=id_exp, device=device, train_loader=train_loader, val_loader=valid_loader,
+                         id_exp=id_exp+'/'+time_exp, device=device, train_loader=train_loader, val_loader=valid_loader,
                          summary=summary, lr_scheduler=lr_scheduler)
         for epoch in range(1, n_epoch + 1):
             xin.train_period(epoch=epoch, accumulation=accumulation_steps)

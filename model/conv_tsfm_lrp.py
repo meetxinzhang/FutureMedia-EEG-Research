@@ -260,20 +260,20 @@ class ConvTransformer(nn.Module):
         self.elu = layers_lrp.ELU()
         self.pool = layers_lrp.MaxPool2d(kernel_size=(1, 2), stride=(1, 2), padding=0)
 
-        # self.classifier = layers_lrp.Sequential(
-        # layers_lrp.Dropout(p=drop),
-        # layers_lrp.Linear(in_features=192, out_features=128),
-        # layers_lrp.ReLU(),
-        # layers_lrp.Linear(in_features=128, out_features=num_classes),
-        # layers_lrp.Softmax(dim=-1)
-        # )
-        self.arc_eeg = ArcEEG(dim=128, num_classes=40, margin=0.9, easy_margin=True, requires_grad=True)
-        self.softmax = layers_lrp.Softmax(dim=-1)
+        self.classifier = layers_lrp.Sequential(
+            layers_lrp.Dropout(p=drop),
+            layers_lrp.Linear(in_features=192, out_features=128),
+            layers_lrp.ReLU(),
+            layers_lrp.Linear(in_features=128, out_features=num_classes),
+            layers_lrp.Softmax(dim=-1)
+        )
+        # self.arc_eeg = ArcEEG(dim=128, num_classes=40, margin=0.9, easy_margin=True, requires_grad=True)
+        # self.softmax = layers_lrp.Softmax(dim=-1)
 
         self.clone = layers_lrp.Clone()
         self.cat = layers_lrp.Cat()
 
-    def forward(self, x, y):
+    def forward(self, x):
         x = einops.rearrange(x, 'b t c w h -> b c w h t')
         # [b, 1, M, M, T]
         x = self.lfe(x)  # [b, c, p=m*m, T/2]
@@ -289,10 +289,10 @@ class ConvTransformer(nn.Module):
         x = self.cat((x1, x2), dim=1)  # [b, F, 1, T/2]
         x = self.bn(x).squeeze(dim=2)  # [b f 1 T/2] -> [b f T/2]
         x = self.elu(x)
-        # x = self.pool(x)  # [b, F, t]
-        # x = rearrange(x, 'b f t -> b (f t)')
-        x = self.arc_eeg(x, y)  # [b classes]
-        x = self.softmax(x)
+        x = self.pool(x)  # [b, F, t]
+        x = rearrange(x, 'b f t -> b (f t)')
+        # x = self.arc_eeg(x, y)  # [b classes]
+        x = self.classifier(x)
         return x  # [b, classes]
 
     def relprop(self, cam, **kwargs):

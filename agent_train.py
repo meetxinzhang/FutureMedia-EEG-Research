@@ -9,7 +9,7 @@
 import torch
 import torch.nn.functional as F
 import torch.distributed as dist
-# from agent_lrp import ignite_relprop, get_heatmap_gallery
+from agent_lrp import ignite_relprop, get_heatmap_gallery
 from torch.cuda.amp import autocast, GradScaler
 scaler = GradScaler()
 
@@ -128,11 +128,11 @@ class XinTrainer:
                 self.summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
                 self.summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
 
-            # if epoch > 50 and step % 50 == 0:
-            #     cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
-            #     get_heatmap_gallery(cam.squeeze(0),
-            #                         save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
-            #                             label[0].cpu().numpy()))
+            if epoch > 50 and step % 50 == 0:
+                cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
+                get_heatmap_gallery(cam.squeeze(0).cpu(), x[0],  # tensor[] is a cpu op
+                                    save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
+                                        label[0].cpu().numpy()))
             self.global_step += 1
         self.lr_scheduler.step()
 

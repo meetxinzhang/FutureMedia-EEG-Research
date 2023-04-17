@@ -32,10 +32,10 @@ os.environ['MASTER_PORT'] = '7890'
 torch.manual_seed(1994)
 torch.cuda.manual_seed(1994)
 
-id_exp = 'EEGNet-SZ-trial-subj1-cwt-1s-1000-8bs'
+id_exp = 'EEGNet-SZ-trial-subj1-cwt-05s-512-8bs'
 data_path = '/data1/zhangwuxia/Datasets/SZEEG2022/pkl_trial_cwt_subj1_1s_1000'
 # data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_cwt_1s_1024'
-time_exp = '2023-04-16--22-22'
+time_exp = '2023-04-17--15-40'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
 device_list = [0, 1, 2, 3, 4, 5]
