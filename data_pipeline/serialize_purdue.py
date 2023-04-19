@@ -11,11 +11,12 @@ from joblib import Parallel, delayed
 from tqdm import tqdm
 import numpy as np
 from data_pipeline.mne_reader import MNEReader
+import mne
 from utils.my_tools import file_scanf2
-from pre_process.difference import trial_average, frame_stair_delta_ave
-from pre_process.time_frequency import cwt_scipy
-# from pre_process.aep import gen_images, azim_proj
-
+from pre_process.difference import trial_average
+# from pre_process.time_frequency import cwt_scipy
+from pre_process.aep import gen_images, azim_proj
+from pre_process.time_frequency import three_bands
 
 classes = {"n02106662": 0,
            "n02124075": 1,
@@ -110,17 +111,17 @@ def thread_write(x, y, pos, pkl_filename):
     # x = frame_stair_delta_ave(x)  # [2048 96] -> [512 96]
 
     # AEP
-    # x = three_bands(x)  # [t=63, 3*96]
-    # locs_2d = np.array([azim_proj(e) for e in pos])
-    # x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=3, W, H]
-    # assert np.shape(x) == (50, 3, 20, 20)
+    x = three_bands(x)  # [t=63, 3*96]
+    locs_2d = np.array([azim_proj(e) for e in pos])
+    x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=3, W, H]
+    assert np.shape(x) == (23, 3, 20, 20)
 
     # Spectrogram
     # _, _, x = spectrogram_scipy(x)  # [c f t]
 
     # CWT
-    x = cwt_scipy(x)  # [c f=30 t=1024]
-    assert np.shape(x) == (96, 30, 1024)
+    # x = cwt_scipy(x)  # [c f=30 t=1024]
+    # assert np.shape(x) == (96, 30, 1024)
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -128,8 +129,9 @@ def thread_write(x, y, pos, pkl_filename):
 
 
 def thread_read(bdf_path, labels_dir, pkl_path):
-    len_x = 2048
-    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=len_x, stim_channel='Status', montage=None,
+    len_x = 1024
+    montage = mne.channels.read_custom_montage(fname='other/biosemi96.sfp', head_size=0.095, coord_frame='head')
+    bdf_reader = MNEReader(filetype='bdf', resample=1024, length=len_x, stim_channel='Status', montage=montage,
                            exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
     label_reader = LabelReader(one_hot=False)
 
@@ -141,9 +143,9 @@ def thread_read(bdf_path, labels_dir, pkl_path):
     assert len(times) == len(ys)
     assert np.shape(xs[0]) == (len_x, 96)  # [length, channels]
 
-    # xs = np.reshape(xs, (len(xs) * len_x, 96))
-    # xs = trial_average(xs, axis=0)  # ave in session
-    # xs = np.reshape(xs, (-1, len_x, 96))
+    xs = np.reshape(xs, (len(xs) * len_x, 96))
+    xs = trial_average(xs, axis=0)  # ave in session
+    xs = np.reshape(xs, (-1, len_x, 96))
 
     name = bdf_path.split('/')[-1].replace('.bdf', '')
 
@@ -175,18 +177,16 @@ if __name__ == "__main__":
     label_dir = path + '/design'
     # self.image_path = path + '/stimuli'
 
-    pkl_filenames = file_scanf2('/data1/zhangwuxia/Datasets/pkl_trial_cwt_2s_2048', contains=['1000-1'], endswith='.pkl')
-    Parallel(n_jobs=64)(
-        delayed(thread_process_pkl)(
-            f, save_path='/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024')
-        for f in tqdm(pkl_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
-    )
-
-    # bdf_filenames = file_scanf2(bdf_dir, contains=['1000-1'], endswith='.bdf')
-    # Parallel(n_jobs=12)(
-    #     delayed(thread_read)(
-    #         f, label_dir, pkl_path='/data1/zhangwuxia/Datasets' + '/pkl_cwt_2s_2048')
-    #     for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', position=0, leave=True, ncols=80)
+    # pkl_filenames = file_scanf2('/data1/zhangwuxia/Datasets/PD/pkl_trial_1s_1024', contains=['1000-1'], endswith='.pkl')
+    # Parallel(n_jobs=64)(
+    #     delayed(thread_process_pkl)(
+    #         f, save_path='/data1/zhangwuxia/Datasets/pkl_trial_cwt_1s_1024')
+    #     for f in tqdm(pkl_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     # )
 
-
+    bdf_filenames = file_scanf2(bdf_dir, contains=['1000-1'], endswith='.bdf')
+    Parallel(n_jobs=12)(
+        delayed(thread_read)(
+            f, label_dir, pkl_path='/data1/zhangwuxia/Datasets/PD/pkl_trial_aep_color_05s_1024')
+        for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', position=0, leave=True, ncols=80)
+    )

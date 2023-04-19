@@ -40,7 +40,7 @@ class SZUDataset(torch.utils.data.Dataset):
             x = pickle.load(f)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
             y = int(pickle.load(f))
 
-            y = y - 1  # Ziyan He created EEG form
+            # y = y - 1  # Ziyan He created EEG form
 
             # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
             # x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet

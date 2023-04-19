@@ -112,7 +112,7 @@ class XinTrainer:
             self.summary.add_scalar(tag='ValAcc', scalar_value=epoch_acc_val, global_step=epoch)
             self.summary.flush()
 
-    def train_period(self, epoch, accumulation=1, print_step=10):
+    def train_period(self, epoch, accumulation=1, fold=0, print_step=10):
         for step, (x, label) in enumerate(self.train_loader):  # [b, 1, 500, 127], [b]
             if x is None and label is None:
                 continue
@@ -128,12 +128,13 @@ class XinTrainer:
                 self.summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
                 self.summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
 
-            if epoch > 50 and step % 50 == 0:
+            if fold == 3 and epoch > 50 and step % 10 == 0:
                 cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
                 get_heatmap_gallery(cam.squeeze(0).cpu(), x[0],  # tensor[] is a cpu op
                                     save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
                                         label[0].cpu().numpy()))
             self.global_step += 1
+
         self.lr_scheduler.step()
 
     def val_period(self, epoch):
