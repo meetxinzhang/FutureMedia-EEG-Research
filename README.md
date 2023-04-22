@@ -29,16 +29,6 @@ CVPR2021-02785
 Our own dataset will be open together with publications.
 
 
-### Needs:
-torch
-python3
-mne   # to read .bdf
-
-### Usage:
-Run main_k_fold.py file or main_parallel.py with multi-gpu.
-
-
-
 We are organizing and submitting our current research and continuing to the next stage.
 
 
