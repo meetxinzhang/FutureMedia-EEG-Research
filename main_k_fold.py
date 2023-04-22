@@ -17,8 +17,9 @@ from torch.utils.tensorboard import SummaryWriter
 from data_pipeline.dataset_szu import SZUDataset
 # from model.eeg_net import EEGNet
 # from model.field_flow_1p2 import FieldFlow1p2
-from model.conv_tsfm_lrp import ConvTransformer
+# from model.conv_tsfm_lrp import ConvTransformer
 # from model.field_flow_2p1 import FieldFlow2
+from model.video_tsfm import VideoTransformer
 
 # random.seed = 2022
 torch.manual_seed(2022)
@@ -79,8 +80,9 @@ if __name__ == '__main__':
     #     valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
 
         # ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(device)
-        ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
-                             ffd_channels=64, last_channels=16, time=23, depth=2, drop=0.2).to(device)
+        # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
+        #                      ffd_channels=64, last_channels=16, time=23, depth=2, drop=0.2).to(device)
+        ff = VideoTransformer()
         # ff = FieldFlow1p2(channels=30, electrodes=127, time=512, early_drop=0.2, late_drop=0.05).to(device)
         # ff = EEGNet(classes_num=40, in_channels=1, electrodes=127, drop_out=0.2).to(device)
         optim_paras = [p for p in ff.parameters() if p.requires_grad]

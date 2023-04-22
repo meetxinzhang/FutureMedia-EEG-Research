@@ -65,7 +65,7 @@ def get_heatmap_gif(cam, save_name=None):
 def get_heatmap_gallery(cam, x, save_name=None):
     # [t h w c] cpu
     x = einops.rearrange(x, 't c h w -> t h w c')
-    line = torch.ones([24, 1, 20, 3])
+    line = torch.ones([23, 1, 20, 3])
     # x = (x - x.min()) / (x.max() - x.min())
     # cam = (cam - cam.min()) / (cam.max() - cam.min())
     cam = torch.cat([cam, line,  x], dim=1)
