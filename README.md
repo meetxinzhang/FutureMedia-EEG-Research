@@ -2,7 +2,7 @@
 
 The open-source repository for EEG classification projects.
 
-We are organizing and submitting our current research and continuing to the next stage of research
+We are organizing and submitting our current research and continuing to the next stage.
 
 
 @ Research Institute for Future Media Computing, 
