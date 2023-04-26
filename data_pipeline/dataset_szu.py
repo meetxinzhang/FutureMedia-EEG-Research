@@ -40,7 +40,7 @@ class SZUDataset(torch.utils.data.Dataset):
             x = pickle.load(f)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
             y = int(pickle.load(f))
 
-            # y = y - 1  # Ziyan He created EEG form
+            y = y - 1  # Ziyan He created EEG form
 
             # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
             # x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet
@@ -86,12 +86,12 @@ class ListDataset(torch.utils.data.Dataset):
 
             # x = x[::2, :]  # [512, 96]
             # x = downsample(x, ratio=4)  # SZU, [500, 127]
-            # x = x[2000:2512, :]               # [512 96]
+            x = x[:512, :]               # [512 96]
             # x = difference(x, fold=4)     # SZU, [500, 127]
-            y = y-1                  # Ziyan He created EEG form
+            # y = y-1                  # Ziyan He created EEG form
 
-            # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
-            x = einops.rearrange(x, 'c f t -> f c t')  # EEGChannelNet, EEGNet
+            x = np.expand_dims(x, axis=0)  # added channel for EEGNet
+            x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
         # return torch.tensor(x, dtype=torch.float).permute(1, 2, 0).unsqueeze(0), torch.tensor(y, dtype=torch.long)

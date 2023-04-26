@@ -11,6 +11,7 @@ import torch.nn.functional as F
 import torch.distributed as dist
 from agent_lrp import ignite_relprop, get_heatmap_gallery
 from torch.cuda.amp import autocast, GradScaler
+
 scaler = GradScaler()
 
 
@@ -60,10 +61,12 @@ class XinTrainer:
                 continue
 
             if step % print_step != 0:
-                _, _ = self.train_step_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=False)
+                _, _ = self.train_step_accumulate(x=x, label=label, step=step, accumulation=accumulation,
+                                                  cal_acc=False)
 
             else:
-                loss, acc = self.train_step_accumulate(x=x, label=label, step=step, accumulation=accumulation, cal_acc=True)
+                loss, acc = self.train_step_accumulate(x=x, label=label, step=step, accumulation=accumulation,
+                                                       cal_acc=True)
                 dist.reduce(loss, op=dist.ReduceOp.SUM, dst=0)
                 dist.reduce(acc, op=dist.ReduceOp.SUM, dst=0)
 
@@ -120,7 +123,8 @@ class XinTrainer:
             if step % print_step != 0:
                 _, _ = self.train_step_accumulate(x, label, step=step, accumulation=accumulation, cal_acc=False)
             else:
-                loss, acc = self.train_step_accumulate(x, label, step=step, accumulation=accumulation, cal_acc=True)
+                loss, acc = self.train_step_accumulate(x, label, step=step, accumulation=accumulation,
+                                                       cal_acc=True)
 
                 lr = self.optimizer.param_groups[0]['lr']
                 print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f}'.
@@ -128,11 +132,15 @@ class XinTrainer:
                 self.summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
                 self.summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
 
-            if fold == 3 and epoch > 50 and step % 10 == 0:
-                cam = ignite_relprop(model=self.model, x=x[0].unsqueeze(0), index=label[0], device=self.device)
-                get_heatmap_gallery(cam.squeeze(0).cpu(), x[0],  # tensor[] is a cpu op
-                                    save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
-                                        label[0].cpu().numpy()))
+                # if epoch > 50 and fold == 3:
+                #     for i, cor in enumerate(corrects):
+                #         if torch.any(cor):  # 只有分类正确才画图
+                #             if label[i].cpu().numpy() == 1:
+                #                 cam = ignite_relprop(model=self.model, x=x[i].unsqueeze(0), index=label[i],
+                #                                      device=self.device)
+                #                 get_heatmap_gallery(cam.squeeze(0).cpu(), x[i],  # tensor[] is a cpu op
+                #                                     save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
+                #                                         label[i].cpu().numpy()))
             self.global_step += 1
 
         self.lr_scheduler.step()
@@ -176,11 +184,12 @@ class XinTrainer:
             self.optimizer.zero_grad()
 
         accuracy = None
+        # corrects = None
         if cal_acc:
-            corrects = (torch.argmax(y, dim=1) == label).float().sum()
-            accuracy = torch.div(corrects, self.batch_size)
+            corrects = (torch.argmax(y, dim=1) == label)
+            accuracy = torch.div(corrects.float().sum(), self.batch_size)
 
-        return loss, accuracy
+        return loss, accuracy  # , corrects
 
     def validate_step_accumulate(self, x, label):
         x = x.to(self.device)

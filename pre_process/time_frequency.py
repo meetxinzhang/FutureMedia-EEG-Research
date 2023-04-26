@@ -17,7 +17,7 @@ def stft_scipy(signal, nperseg=64):
     return f, t, zxx  # [f t]
 
 
-def spectrogram_scipy(signal, fs=4096, nperseg=256, overlap=0.7):
+def spectrogram_scipy(signal, fs=1024, nperseg=128, overlap=0.7):
     """ https://stackoverflow.com/questions/55683936/what-is-the-difference-between-scipy-signal-spectrogram-and-scipy-signal-stft
     """
     # [t c]
@@ -90,7 +90,7 @@ if __name__ == "__main__":
     import PIL.Image as Image
 
     print(pywt.wavelist(family=None, kind='continuous'))
-    filepath = '/data1/zhangwuxia/Datasets/pkl_trial_1s_1024/imagenet40-1000-1-99_79_254638_7.pkl'
+    filepath = '/data1/zhangwuxia/Datasets/PD/pkl_trial_1s_1024/imagenet40-1000-1-00_0_10934_8.pkl'
     # filepath = 'G:/Datasets/SZUEEG/EEG/pkl_ave/run_1_test_hzy_66_195501_38.pkl'
     # filepath = 'G:/Datasets/SZUEEG/EEG/pkl_ave/run_1_test_hzy_4_12501_18.pkl'
     # filepath = 'G:/Datasets/SZUEEG/EEG/pkl_ave/run_1_test_hzy_88_261501_18.pkl'
@@ -100,12 +100,13 @@ if __name__ == "__main__":
         x = pickle.load(file)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
         print('xxxx', np.shape(x))
         y = int(pickle.load(file))
+        # x = x[:512, :]
 
         # f, t, zxx = stft_scipy(x)
 
-        zxx = cwt_scipy(x)
+        # zxx = cwt_scipy(x)
         # x = np.concatenate([x, x], axis=0)
-        # f, t, zxx = spectrogram_scipy(x, fs=4096)
+        f, t, zxx = spectrogram_scipy(x, fs=1024)
 
         print(np.shape(zxx))
         plt.contourf(t, f, abs(zxx[0]))
