@@ -74,7 +74,7 @@ class XinTrainer:
                     loss = loss.item() / ws
                     acc = acc.item() / ws
                     lr = self.optimizer.param_groups[0]['lr']
-                    if step == 0:
+                    if epoch == 1 and step == 0:
                         print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f}'.
                               format(epoch, self.n, step, self.train_num, lr, loss, acc))
                     epoch_loss.append(loss)

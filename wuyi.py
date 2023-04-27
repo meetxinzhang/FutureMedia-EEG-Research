@@ -40,14 +40,14 @@ data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_2s_2048'
 
 device_list = [0, 1, 2, 3, 4, 5]
 main_gpu_rank = 0
-train_loaders = 8
-valid_loaders = 8
+train_loaders = 6
+valid_loaders = 6
 
 batch_size = 8
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
-learn_rate = 0.02
+learn_rate = 0.012
 
 
 def main_func(gpu_rank, device_id, fold_rank,
@@ -121,7 +121,7 @@ def main_func(gpu_rank, device_id, fold_rank,
     # lr_scheduler = torch_lr.ReduceLROnPlateau(optimizer, mode='min', factor=0.7, patience=10, verbose=True,
     #                                           threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0.001,
     #                                           eps=1e-08)
-    lr_scheduler = torch_lr.StepLR(optimizer, step_size=10, gamma=0.4, last_epoch=-1)
+    lr_scheduler = torch_lr.StepLR(optimizer, step_size=10, gamma=0.5, last_epoch=-1)
 
     xin = XinTrainer(n_epoch=n_epoch, model=ff, train_loader=train_loader, val_loader=valid_loader,
                      optimizer=optimizer, batch_size=batch_size, lr_scheduler=lr_scheduler,
@@ -144,12 +144,15 @@ def main_func(gpu_rank, device_id, fold_rank,
 if __name__ == '__main__':
     torch.multiprocessing.set_start_method('spawn')
 
-    models = ['cnn1d', 'resnet2d', 'lstm', 'mlp', 'resnet1d', 'syncnet', 'eegchannelnet']
+    # 'cnn1d',
+    models = ['resnet2d', 'lstm', 'mlp', 'resnet1d', 'syncnet', 'eegchannelnet']
     exps = ['nm', 'dct1d', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b']
 
     for m in models:
         for exp in exps:
-            id_exp = '-----' + m + '-' + exp + '-PD-trial'
+            id_exp = '-----' + m + '-' + exp + '-PD-trial-4in5fold'
+            if m == 'cnn1d' and exp == 'nm':
+                continue
 
             mkdirs(['./log/image/' + id_exp + '/' + time_exp, './log/checkpoint/' + id_exp, './log/' + id_exp])
             # filepaths = file_scanf2(path=data_path, contains=['-1-00_'], endswith='.pkl', sub_ratio=0.5)
@@ -161,7 +164,7 @@ if __name__ == '__main__':
             # print(len(filepaths), ' total')
 
             for fold, (train_idx, valid_idx) in enumerate(k_fold.split(X=dataset, y=labels)):
-                if fold != 0:
+                if fold in [1, 2, 3]:
                     continue
 
                 train_set = tud.Subset(dataset, train_idx)

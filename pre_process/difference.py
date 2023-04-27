@@ -110,11 +110,11 @@ def noise_deactivate(eeg, threshold=0.1):
     return re
 
 
-def dct_1d(eeg, invers=False):
+def dct_1d(eeg, inverse=False):
     # [t d]
     eeg = torch.from_numpy(eeg).T.cuda()  # [d=96 t=512]
     sf = dct.dct(eeg)  # tensor [96 512]
-    if invers:
+    if inverse:
         fea_dim = sf.size()[-1]  # 512
         principle = fea_dim // 4  # 128
         fea_mask = torch.arange(1, fea_dim + 1)  # [512,]
