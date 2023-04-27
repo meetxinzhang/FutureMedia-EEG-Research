@@ -11,7 +11,7 @@ import torch
 import pickle
 from utils.my_tools import file_scanf
 from torch.utils.data.dataloader import default_collate
-from pre_process.difference import frame_delta
+from pre_process.difference import *
 import numpy as np
 import os
 
@@ -48,9 +48,11 @@ class SZUDataset(torch.utils.data.Dataset):
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
 
 
-class ListDataset(torch.utils.data.Dataset):
-    def __init__(self, path_list):
+class AdaptedListDataset(torch.utils.data.Dataset):
+    def __init__(self, path_list, exp, model):
         self.path_list = path_list
+        self.exp = exp
+        self.model = model
 
     def __len__(self):  # called by torch.utils.data.DataLoader
         return len(self.path_list)
@@ -62,18 +64,67 @@ class ListDataset(torch.utils.data.Dataset):
             print(filepath)
             return
         with open(filepath, 'rb') as f:
-            x = pickle.load(f)       # SZU: [t=2000, channels=127], Purdue: [512, 96]
+            x = pickle.load(f)       # 2048 96
             y = int(pickle.load(f))
 
-            # jiang
-            # x = jiang_delta_ave(x)  # [2048 96] -> [512 96]
-            # x = jiang_four_ave(x, fold=4)  # [2048 96] -> [512 96]
+            # exps = ['nm', 'dct1d', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b']
+            if self.exp == 'nm':
+                x = x[:512, :]
+            elif self.exp == 'dct1d':
+                x = x[:512, :]
+                x = dct_1d(x)  # same with x [512 96]
+            elif self.exp == 'dct2d':
+                x = x[:512, :]
+                x = dct2d(x)
+            elif self.exp == 'adct':
+                x = x[:512, :]
+                x = approximated_dct(x)
+            elif self.exp == 'ave':
+                x = four_ave(x, fold=4)  # [2048 96] -> [512 96]
+            elif self.exp == 't_dff':
+                x = x[:514, :]
+                x = frame_delta(x)
+                x = x[:512, :]
+            elif self.exp == 'dff_1':
+                x = delta_1(x)
+            elif self.exp == 'dff_b':
+                x = delta_b(x)
+
+            # models = ['cnn1d', 'cnn2d', 'resnet2d', 'lstm', 'mlp', 'resnet1d', 'eegchannelnet']
+            if self.model =='cnn2d':
+                x = np.expand_dims(x, axis=0)
+                x = einops.rearrange(x, 'f t c -> f c t')
+            if self.model == 'lstm':
+                pass
+                # t c
+            if self.model =='mlp':
+                pass
+                # t c
+            if self.model =='resnet1d':
+                x = einops.rearrange(x, 't c -> c t')
+            if self.model =='cnn1d':
+                x = einops.rearrange(x, 't c -> c t')
+            if self.model =='syncnet':
+                x = einops.rearrange(x, 't c -> c t')
+            if self.model == 'eegchannelnet':
+                x = np.expand_dims(x, axis=0)
+                x = einops.rearrange(x, 'f t c ->f c t')
+            if self.model =='resnet2d':
+                x = np.expand_dims(x, axis=0)
+                x = einops.rearrange(x, 'f t c ->f c t')
+
+            # down sample
+            # x = x[::2, :]  # [512, 96]
+            # x = x[:512, :]  # [512 96]
+
+            # x = delta_ave(x)  # [2048 96] -> [512 96]
+            # x = four_ave(x, fold=2)  # [2048 96] -> [512 96]
             # x = time_delta_ave(x)  # [2048->512 96]
 
             # 1D-DCT
             # x = dct_1d(x)  # same with x [512 96]
             # 2D-DCT
-            # x = dct_2d(x) # same with x
+            # x = block_img_dct(x)
             # approximated dct
             # x = approximated_dct(x)  # 1/2 of x shape [4, 256 48]
 
@@ -84,14 +135,20 @@ class ListDataset(torch.utils.data.Dataset):
             # cwt  [c=96 f=30 t=1024]
             # x = x[:, :, :512]
 
-            # x = x[::2, :]  # [512, 96]
-            # x = downsample(x, ratio=4)  # SZU, [500, 127]
-            x = x[:512, :]               # [512 96]
+            # AEP
+            # x = x[:512, :, :, :]
+            # x = einops.rearrange(x, 't c w h -> c w h t')
+
+            # CNN 2D
+            # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
+            # x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet
+
             # x = difference(x, fold=4)     # SZU, [500, 127]
             # y = y-1                  # Ziyan He created EEG form
 
-            x = np.expand_dims(x, axis=0)  # added channel for EEGNet
-            x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet
+            # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
+            # x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet  raw data
+            # x = einops.rearrange(x, 'c f t -> f c t')  # EEGChannelNet, EEGNet
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
         # return torch.tensor(x, dtype=torch.float).permute(1, 2, 0).unsqueeze(0), torch.tensor(y, dtype=torch.long)

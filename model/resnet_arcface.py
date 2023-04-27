@@ -119,7 +119,7 @@ class ResNet(nn.Module):
 
     def forward(self, x):
         # x = einops.rearrange(x, 'b c f t -> b f c t')
-        x = x.transpose(1, 2)  # [f c t] needed
+        # x = x.transpose(1, 2)  # [f c t] needed
         x = self.conv1(x)
         x = self.bn1(x)
         x = self.relu(x)

@@ -8,7 +8,7 @@
 
 import torch
 from torch import nn
-from modules.linear_conv2d import LinearConv2D
+import torch_dct as dct
 from modules.nn_lrp import Block
 import einops
 
@@ -121,8 +121,9 @@ class EEGTransformer(nn.Module):
         )
 
     def forward(self, x):
-        # Our:[b c=127 f=85 t=500]  Purdue:[b 96 30 1024]
+        # [b 1 c t] needed
         # x = self.extra(x)
+        # x = dct.dct(x)
 
         x = self.block_1(x)
         x = self.block_2(x)

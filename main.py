@@ -10,7 +10,7 @@ from torch.utils.data import DataLoader
 import time
 from torch.utils.tensorboard import SummaryWriter
 from utils.my_tools import file_scanf
-from data_pipeline.dataset_szu import ListDataset
+from data_pipeline.dataset_szu import AdaptedListDataset
 from model.eeg_net import EEGNet
 from agent_train import train, test
 from utils.my_tools import IterForever
@@ -35,10 +35,10 @@ test_files = file_scanf(path='../../Datasets/CVPR2021-02785/pkl_512', contains='
 # ff = ComplexEEGNet(classes_num=40, drop_out=0.25).cuda()
 
 if __name__ == '__main__':
-    train_set = ListDataset(path_list=train_files)
+    train_set = AdaptedListDataset(path_list=train_files)
     loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, drop_last=True)
 
-    val_set = ListDataset(path_list=test_files)
+    val_set = AdaptedListDataset(path_list=test_files)
     val_loader = DataLoader(val_set, batch_size=batch_size, num_workers=1, shuffle=True, drop_last=True)
     val_iterable = IterForever(val_loader)
 

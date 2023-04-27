@@ -111,10 +111,10 @@ def thread_write(x, y, pos, pkl_filename):
     # x = frame_stair_delta_ave(x)  # [2048 96] -> [512 96]
 
     # AEP
-    x = three_bands(x)  # [t=63, 3*96]
-    locs_2d = np.array([azim_proj(e) for e in pos])
-    x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=3, W, H]
-    assert np.shape(x) == (23, 3, 20, 20)
+    # x = three_bands(x)  # [t=63, 3*96]
+    # locs_2d = np.array([azim_proj(e) for e in pos])
+    # x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=3, W, H]
+    # assert np.shape(x) == (23, 3, 20, 20)
 
     # Spectrogram
     # _, _, x = spectrogram_scipy(x)  # [c f t]
@@ -129,7 +129,7 @@ def thread_write(x, y, pos, pkl_filename):
 
 
 def thread_read(bdf_path, labels_dir, pkl_path):
-    len_x = 1024
+    len_x = 2048
     montage = mne.channels.read_custom_montage(fname='other/biosemi96.sfp', head_size=0.095, coord_frame='head')
     bdf_reader = MNEReader(filetype='bdf', resample=1024, length=len_x, stim_channel='Status', montage=montage,
                            exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
@@ -187,6 +187,6 @@ if __name__ == "__main__":
     bdf_filenames = file_scanf2(bdf_dir, contains=['1000-1'], endswith='.bdf')
     Parallel(n_jobs=12)(
         delayed(thread_read)(
-            f, label_dir, pkl_path='/data1/zhangwuxia/Datasets/PD/pkl_trial_aep_color_05s_1024')
+            f, label_dir, pkl_path='/data1/zhangwuxia/Datasets/PD/pkl_trial_2s_2048')
         for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', position=0, leave=True, ncols=80)
     )

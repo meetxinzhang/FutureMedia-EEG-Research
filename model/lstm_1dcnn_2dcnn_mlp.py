@@ -153,7 +153,7 @@ class ResNet1D(torch.nn.Module):
 
     def forward(self, x):
         # [b t c] -> [b c t]
-        x = x.transpose(1, 2)
+        # x = x.transpose(1, 2)
         x = self.features(x)
         x = x.view(-1, 2048)
         x = self.classifier(x)
@@ -165,9 +165,36 @@ def resnet50():
     return model
 
 
-class SyncNet(nn.Module):
-    def __init__(self, in_channels, num_layers_in_fc_layers=1024):
-        super(SyncNet, self).__init__()
+class CNN1D(nn.Module):
+    def __init__(self, in_channels, classes):
+        super(CNN1D, self).__init__()
+        self.features = torch.nn.Sequential(
+            torch.nn.Conv1d(in_channels, 128, kernel_size=15, stride=2, padding=7),
+            torch.nn.MaxPool1d(kernel_size=3, stride=2),
+
+            Bottleneck(128, 128, 256, False),
+            Bottleneck(256, 128, 256, False),
+            Bottleneck(256, 128, 256, False),
+
+            torch.nn.AdaptiveAvgPool1d(1)
+        )
+        self.classifier = torch.nn.Sequential(
+            torch.nn.Linear(256, classes),
+            nn.Softmax(dim=-1)
+        )
+
+    def forward(self, x):
+        # [b t c] -> [b c t]
+        # x = x.transpose(1, 2)
+        x = self.features(x)
+        x = x.view(-1, 256)
+        x = self.classifier(x)
+        return x
+
+
+class CNN2D(nn.Module):
+    def __init__(self, in_channels, classes=40):
+        super(CNN2D, self).__init__()
 
         # self.__nFeatures__ = 24
         # self.__nChs__ = 32
@@ -205,10 +232,10 @@ class SyncNet(nn.Module):
         )
 
         self.fc_aud = nn.Sequential(
-            nn.Linear(7680, 512),
+            nn.Linear(4608, 512),
             nn.BatchNorm1d(512),
             nn.ReLU(),
-            nn.Linear(512, num_layers_in_fc_layers),
+            nn.Linear(512, classes),
             nn.Softmax(dim=-1)
         )
 

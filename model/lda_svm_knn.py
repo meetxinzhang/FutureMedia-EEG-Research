@@ -10,6 +10,7 @@ import einops
 from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
 from sklearn.decomposition import PCA
 from sklearn.svm import LinearSVC
+from sklearn.neighbors import KNeighborsClassifier
 from utils.my_tools import file_scanf2
 import pickle
 from tqdm import tqdm
