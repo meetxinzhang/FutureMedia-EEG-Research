@@ -31,7 +31,3 @@ Our own dataset will be open together with publications.
 
 We are organizing and submitting our current research and continuing to the next stage.
 
-
-@ Research Institute for Future Media Computing, 
-Shenzhen University, 
-Shenzhen, China
