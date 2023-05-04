@@ -16,13 +16,13 @@ import os
 from agent_train import XinTrainer
 from data_pipeline.dataset_szu import AdaptedListDataset
 from data_pipeline.data_loader_x import DataLoaderX
-# from model.eeg_transformer import EEGTransformer  # wuyi
+from model.eeg_transformer import EEGTransformer  # wuyi
 # from model.conv_tsfm_lrp import ConvTransformer
-# from model.eeg_net import EEGNet, ComplexEEGNet
-from model.lstm_1dcnn_2dcnn_mlp import CNN2D, LSTM, CNN1D, ResNet1D, SlidMLP
+from model.eeg_net import EEGNet
+# from model.lstm_1dcnn_2dcnn_mlp import CNN2D, LSTM, CNN1D, ResNet1D, SlidMLP
 from model.eeg_channel_net import EEGChannelNet
 from model.resnet_arcface import resnet18 as resnet2d
-from model.sync_net import SyncNet
+# from model.sync_net import SyncNet
 from utils.my_tools import file_scanf2, mkdirs
 
 os.environ['MASTER_ADDR'] = 'localhost'
@@ -33,7 +33,7 @@ os.environ['MASTER_PORT'] = '7890'
 torch.manual_seed(2022)
 torch.cuda.manual_seed(2022)
 
-time_exp = '2023-04-27--10-40'
+time_exp = '2023-05-01--10-40'
 # data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_aep_color_05s_1024'
 data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_2s_2048'
 # data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_cwt_1s_1024'
@@ -71,24 +71,16 @@ def main_func(gpu_rank, device_id, fold_rank,
                                num_workers=valid_loaders)
 
     # models = ['cnn1d', 'cnn2d', 'resnet2d', 'lstm', 'mlp', 'resnet1d', 'eegchannelnet']
-    if model == 'cnn2d':
-        ff = CNN2D(in_channels=1, classes=40).to(the_device)
-    if model == 'syncnet':
-        ff = SyncNet(channel=96, time=512, classes=40, dropout=0.1).to(the_device)
-    if model == 'lstm':
-        ff = LSTM(classes=40, input_size=96, depth=3).to(the_device)
-    if model == 'mlp':
-        ff = SlidMLP(in_features=96, classes=40).to(the_device)
-    if model == 'resnet1d':
-        ff = ResNet1D(in_channels=96, classes=40).to(the_device)
-    if model == 'cnn1d':
-        ff = CNN1D(in_channels=96, classes=40).to(the_device)
     if model == 'eegchannelnet':
         ff = EEGChannelNet(in_channels=1, input_height=96, input_width=512, num_classes=40,
                            num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3,
                            down_stride=2).to(the_device)
     if model == 'resnet2d':
         ff = resnet2d(pretrained=False, n_classes=40, input_channels=1).to(the_device)
+    if model == 'eegTsfm':
+        ff = EEGTransformer(in_channels=30, electrodes=96, early_drop=0.1, late_drop=0.1).to(the_device)
+    if model == 'eegnet':
+        ff = EEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(the_device)
 
     # ff = EEGChannelNet(in_channels=30, input_height=96, input_width=512, num_classes=40,
     #                  num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
@@ -146,8 +138,8 @@ if __name__ == '__main__':
 
     # 'resnet2d', 'lstm', 'mlp', 'resnet1d', 'syncnet', 'eegchannelnet'
     # 'nm', 'dct1d', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b'
-    models = ['EEGNet', 'resnet2d', 'eegchannelnet', 'eegTsfm']
-    exps = ['stft', 'cwt', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b']
+    models = ['EEGNet', 'eegchannelnet', 'eegTsfm', 'resnet2d']
+    exps = ['stft', 'cwt']
 
     for m in models:
         for exp in exps:
