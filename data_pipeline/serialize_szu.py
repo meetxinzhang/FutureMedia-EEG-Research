@@ -15,7 +15,7 @@ import numpy as np
 import einops
 from pre_process.difference import trial_average
 from pre_process.aep import azim_proj, gen_images
-from pre_process.time_frequency import three_bands, cwt_scipy, cwt_pywt
+from pre_process.time_frequency import three_bands, cwt_scipy
 
 
 def ziyan_read(file_path):
@@ -55,9 +55,9 @@ def thread_write(x, y, pos, pkl_filename):
     #     specs.append(spectrum)
 
     # CWT
-    # x = cwt_scipy(x)  # [c f=30 t=1000]
+    x = cwt_scipy(x)  # [c f=30 t=1000]
     # x = cwt_pywt(x)  # [c f=33 t=1000]
-    # assert np.shape(x) == (127, 30, 1000)
+    assert np.shape(x) == (127, 30, 1000)
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -87,13 +87,14 @@ def thread_read(label_file, pkl_path):
 
 if __name__ == "__main__":
     # path = 'G:/Datasets/SZFace2/EEG/10-17'
-    path = '/data1/zhangwuxia/Datasets/SZEEG2022/Raw'
-    label_filenames = file_scanf2(path, contains=['subject1', 'hzy', 'test1016'], endswith='.Markers')
+    path = '/data1/zhangwuxia/Datasets/SZEEG2023/Raw'
+    label_filenames = file_scanf2(path, contains=['run_30', 'run_31', 'run_32', 'run_33', 'run_34', 'run_35', 'run_36',
+                                                  'run_37', 'run_38', 'run_39', ], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2022/pkl_trial_subj1_1s_1000'
+            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_05s_512'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

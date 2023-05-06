@@ -14,7 +14,7 @@ from agent_train import XinTrainer
 from torch.utils.tensorboard import SummaryWriter
 # import os
 # import numpy as np
-from data_pipeline.dataset_szu import SZUDataset
+from data_pipeline.dataset_szu import ListDataset
 # from model.eeg_net import EEGNet
 # from model.field_flow_1p2 import FieldFlow1p2
 from model.conv_tsfm_lrp import ConvTransformer
@@ -65,7 +65,7 @@ filepaths = file_scanf2(path=path, contains=['run'], endswith='.pkl')
 # filepaths = file_scanf2(path=path, contains=['-1-00_', '-1-00_', '-1-01_', '-1-02_', '-1-03_', '-1-04_'],
 #                         endswith='.pkl')
 labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
-dataset = SZUDataset(filepaths)
+dataset = ListDataset(filepaths)
 print(len(filepaths), ' total')
 
 if __name__ == '__main__':

@@ -23,7 +23,7 @@ def collate_(batch):  # [b, 2], [x, y]
     return default_collate(batch)
 
 
-class SZUDataset(torch.utils.data.Dataset):
+class ListDataset(torch.utils.data.Dataset):
     def __init__(self, path_list):
         self.path_list = path_list
 
@@ -37,13 +37,13 @@ class SZUDataset(torch.utils.data.Dataset):
             print(filepath)
             return
         with open(filepath, 'rb') as f:
-            x = pickle.load(f)  # SZU: [t=2000, channels=127], Purdue: [512, 96]
+            x = pickle.load(f)
             y = int(pickle.load(f))
 
             y = y - 1  # Ziyan He created EEG form
 
-            # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
-            # x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet
+            x = x[:, :, :512]
+            x = einops.rearrange(x, 'c f t -> f c t')
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
 
@@ -107,6 +107,9 @@ class AdaptedListDataset(torch.utils.data.Dataset):
             if self.model =='syncnet':
                 x = einops.rearrange(x, 't c -> c t')
             if self.model == 'eegchannelnet':
+                x = np.expand_dims(x, axis=0)
+                x = einops.rearrange(x, 'f t c ->f c t')
+            if self.model == 'eegnet':
                 x = np.expand_dims(x, axis=0)
                 x = einops.rearrange(x, 'f t c ->f c t')
             if self.model =='resnet2d':
