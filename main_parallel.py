@@ -33,10 +33,10 @@ os.environ['MASTER_PORT'] = '7890'
 torch.manual_seed(2022)
 torch.cuda.manual_seed(2022)
 
-id_exp = 'EEGNet-SZ40-trial-CWT'
+id_exp = 'EEGNet-SZ40-CWT'
 # data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_aep_color_05s_1024'
 # data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_2s_2048'
-data_path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_trial_cwt_05s_512'
+data_path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_cwt_05s_127x250'
 time_exp = '2023-05-06--19-40'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
@@ -74,7 +74,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # ff = EEGChannelNet(in_channels=30, input_height=96, input_width=512, num_classes=40,
     #                  num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
     # ff = LSTM(classes=40, input_size=96, depth=3)
-    ff = EEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(the_device)
+    ff = EEGNet(classes_num=40, in_channels=40, electrodes=127, drop_out=0.1).to(the_device)
     # ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(the_device)
     # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
     #                      ffd_channels=64, last_channels=16, time=23, depth=2, drop=0.2).to(the_device)

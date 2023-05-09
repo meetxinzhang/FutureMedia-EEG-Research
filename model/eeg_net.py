@@ -118,8 +118,8 @@ class EEGNet(nn.Module):
             nn.Conv2d(
                 in_channels=in_channels,  # input shape (1, C, T)
                 out_channels=8,  # num_filters
-                kernel_size=(1, 64),  # filter size
-                # kernel_size=(1, 3),  # filter size 1111111111111 short T
+                # kernel_size=(1, 64),  # filter size
+                kernel_size=(1, 16),  # filter size 1111111111111 short T
                 bias=False
             ),  # output shape (b, 8, C, T)
             # nn.AvgPool2d((1, 2)),  # output shape (16, 1, T//4)
@@ -137,8 +137,8 @@ class EEGNet(nn.Module):
             ),  # output shape (16, 1, T)
             nn.BatchNorm2d(16),  # output shape (16, 1, T)
             nn.ELU(),
-            nn.AvgPool2d((1, 4)),  # output shape (16, 1, T//4)
-            # nn.AvgPool2d((1, 2)),  # output shape (16, 1, T//2) 1111111111111 short T
+            # nn.AvgPool2d((1, 4)),  # output shape (16, 1, T//4)
+            nn.AvgPool2d((1, 2)),  # output shape (16, 1, T//2) 1111111111111 short T
             nn.Dropout(drop_out)  # output shape (16, 1, T//4)
         )
 
@@ -160,35 +160,38 @@ class EEGNet(nn.Module):
             ),  # output shape (16, 1, T//4)
             nn.BatchNorm2d(16),  # output shape (16, 1, T//4)
             nn.ELU(),
-            nn.AvgPool2d((1, 8)),  # output shape (16, 1, T//32)
+            # nn.AvgPool2d((1, 8)),  # output shape (16, 1, T//32)
+            nn.MaxPool2d((1, 2)),  # 1111111111111 short T
+            nn.Dropout(drop_out)
+        )
+
+        self.block_4 = nn.Sequential(
+            nn.ZeroPad2d((4, 3, 0, 0)),
+            nn.Conv2d(
+                in_channels=16,  # input shape (16, 1, T//4)
+                out_channels=16,  # num_filters
+                kernel_size=(1, 7),  # filter size
+                # kernel_size=(1, 3),  # 1111111111111 short T
+                groups=16,
+                bias=False
+            ),  # output shape (16, 1, T//4)
+            nn.Conv2d(
+                in_channels=16,  # input shape (16, 1, T//4)
+                out_channels=16,  # num_filters
+                kernel_size=(1, 1),  # filter size
+                bias=False
+            ),  # output shape (16, 1, T//4)
+            nn.BatchNorm2d(16),  # output shape (16, 1, T//4)
+            nn.ELU(),
+            nn.MaxPool2d((1, 4)),  # output shape (16, 1, T//32)
             # nn.AvgPool2d((1, 4)),  # 1111111111111 short T
             nn.Dropout(drop_out)
         )
 
-        # self.block_4 = nn.Sequential(
-        #     nn.ZeroPad2d((4, 3, 0, 0)),
-        #     nn.Conv2d(
-        #         in_channels=16,  # input shape (16, 1, T//4)
-        #         out_channels=16,  # num_filters
-        #         kernel_size=(1, 7),  # filter size
-        #         # kernel_size=(1, 3),  # 1111111111111 short T
-        #         groups=16,
-        #         bias=False
-        #     ),  # output shape (16, 1, T//4)
-        #     nn.Conv2d(
-        #         in_channels=16,  # input shape (16, 1, T//4)
-        #         out_channels=16,  # num_filters
-        #         kernel_size=(1, 1),  # filter size
-        #         bias=False
-        #     ),  # output shape (16, 1, T//4)
-        #     nn.BatchNorm2d(16),  # output shape (16, 1, T//4)
-        #     nn.ELU(),
-        #     nn.MaxPool2d((1, 2)),  # output shape (16, 1, T//32)
-        #     # nn.AvgPool2d((1, 4)),  # 1111111111111 short T
-        #     nn.Dropout(drop_out)
-        # )
-
-        self.out = nn.Linear(192, classes_num)
+        self.out = nn.Sequential(
+            nn.Linear(208, 128),
+            nn.Linear(128, classes_num)
+        )
 
     def forward(self, x):
         # f c t needed
@@ -196,6 +199,7 @@ class EEGNet(nn.Module):
         x = self.block_1(x)
         x = self.block_2(x)
         x = self.block_3(x)
+        x = self.block_4(x)
 
         x = x.view(x.size(0), -1)
         x = self.out(x)

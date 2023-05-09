@@ -63,7 +63,7 @@ def cwt_pywt(signal, wavelet='morl'):
 
         fs = 1000  # Hz
         # dt = 1 / fs
-        interested = np.array(range(33, 0, -1))
+        interested = np.array(range(40, 0, -1))
         frequencies = interested / fs  # normalize
         scale = pywt.frequency2scale(wavelet=wavelet, freq=frequencies)
         cwtmatr, _ = pywt.cwt(data=s, scales=scale, wavelet=wavelet, sampling_period=0.001)
