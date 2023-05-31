@@ -24,12 +24,13 @@ def ziyan_read(file_path):
         stim = []
         y = []
         for line in f.readlines():
-            if line.strip().startswith('Stimulus'):
+            if line.startswith('Stimulus'):
                 line = line.strip().split(',')
                 classes = int(line[1][-2:])  # 'S 17'
-                time = int(line[2].strip())  # ' 39958'
+                time = int(line[2].strip())+2500  # ' 39958'
                 stim.append(time)
                 y.append(classes)
+    print(len(y), ' - ', file_path)
     return stim, y
 
 
@@ -74,8 +75,9 @@ def thread_read(label_file, pkl_path):
     x = edf_reader.get_set(file_path=label_file.replace('.Markers', '.edf'), stim_list=stim)
     pos = edf_reader.get_pos()
     assert len(x) == len(y)
-    x = x[:-1]  # For SZ2023, remove the last one of (2499, 127)
-    y = y[:-1]
+    print(len(x), 'number of samples')
+    # x = x[:-1]  # For SZ2023, remove the last one of (2499, 127)
+    # y = y[:-1]
 
     # x = einops.rearrange(x, 'b t c -> (b t) c')
     # x = trial_average(x, axis=0)
@@ -89,14 +91,14 @@ def thread_read(label_file, pkl_path):
 
 
 if __name__ == "__main__":
-    # path = 'G:/Datasets/SZFace2/EEG/10-17'
-    path = '/data1/zhangwuxia/Datasets/SZEEG2023/Raw'
-    label_filenames = file_scanf2(path, contains=['run'], endswith='.Markers')
+    path = '/data1/zhangwuxia/Datasets/SZEEG0524/Raw'
+    # path = '/data1/zhangwuxia/Datasets/SZEEG2023/Raw'
+    label_filenames = file_scanf2(path, contains=['M'], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG2023/pkl_cwt_05s_127x256'
+            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG0524/pkl_cwt_tu_4-500'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

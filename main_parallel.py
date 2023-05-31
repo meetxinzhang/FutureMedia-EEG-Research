@@ -19,7 +19,7 @@ from data_pipeline.dataset_szu import ListDataset
 from data_pipeline.data_loader_x import DataLoaderX
 # from model.eeg_transformer import EEGTransformer  # wuyi
 # from model.conv_tsfm_lrp import ConvTransformer
-from model.eeg_net import EEGNet
+from model.eeg_net import EEGNet, ComplexEEGNet
 # from model.lstm_1dcnn_2dcnn_mlp import CNN2D
 # from model.eeg_channel_net import EEGChannelNet
 # from model.resnet_arcface import resnet18 as resnet2d
@@ -33,11 +33,11 @@ os.environ['MASTER_PORT'] = '7890'
 torch.manual_seed(2022)
 torch.cuda.manual_seed(2022)
 
-id_exp = 'EEGNet-SZ40-CWT'
+id_exp = 'EEGNet-SZ40-CWT40x248'
 # data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_aep_color_05s_1024'
 # data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_2s_2048'
 data_path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_cwt_05s_127x250'
-time_exp = '2023-05-06--19-40'
+time_exp = '2023-05-10--15-40'
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
 device_list = [0, 1, 2, 3, 4, 5]
@@ -47,9 +47,9 @@ valid_loaders = 8
 
 batch_size = 8
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
-n_epoch = 50
+n_epoch = 100
 k = 5
-learn_rate = 0.02
+learn_rate = 0.01
 
 
 def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_dataset: ListDataset):
@@ -75,7 +75,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     #                  num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
     # ff = LSTM(classes=40, input_size=96, depth=3)
     ff = EEGNet(classes_num=40, in_channels=40, electrodes=127, drop_out=0.1).to(the_device)
-    # ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(the_device)
+    # ff = ComplexEEGNet(classes_num=40, in_channels=40, electrodes=127, drop_out=0.1).to(the_device)
     # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
     #                      ffd_channels=64, last_channels=16, time=23, depth=2, drop=0.2).to(the_device)
     # ff = EEGTransformer(in_channels=30, electrodes=96, early_drop=0.1, late_drop=0.1).to(the_device)
@@ -96,12 +96,12 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     print(str(gpu_rank) + ' rank is initialized')
 
     optim_paras = [p for p in ff.parameters() if p.requires_grad]
-    # optimizer = torch.optim.SGD(optim_paras, lr=learn_rate, momentum=0.9, weight_decay=0.001, nesterov=True)
+    # optimizer = torch.optim.AdamW(optim_paras, lr=learn_rate, weight_decay=0.001)
     optimizer = torch.optim.SGD(optim_paras, lr=learn_rate, weight_decay=0.001, momentum=0.9)
     # lr_scheduler = torch_lr.ReduceLROnPlateau(optimizer, mode='min', factor=0.7, patience=10, verbose=True,
     #                                           threshold=0.0001, threshold_mode='rel', cooldown=0, min_lr=0.001,
     #                                           eps=1e-08)
-    lr_scheduler = torch_lr.StepLR(optimizer, step_size=10, gamma=0.5, last_epoch=-1)
+    lr_scheduler = torch_lr.StepLR(optimizer, step_size=10, gamma=0.9, last_epoch=-1)
 
     xin = XinTrainer(n_epoch=n_epoch, model=ff, train_loader=train_loader, val_loader=valid_loader,
                      optimizer=optimizer, batch_size=batch_size, lr_scheduler=lr_scheduler,

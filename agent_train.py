@@ -127,13 +127,15 @@ class XinTrainer:
                 loss, acc = self.train_step_accumulate(x, label, step=step, accumulation=accumulation,
                                                        cal_acc=True)
 
-                lr = self.optimizer.param_groups[0]['lr']
-                print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f}'.
-                      format(epoch, self.n, step, self.train_num, lr, loss, acc))
+                if epoch == 1 and step == 0:
+                    lr = self.optimizer.param_groups[0]['lr']
+                    print('epoch:{}/{} step:{}/{} lr:{:.4f} loss={:.5f} acc={:.5f}'.
+                          format(epoch, self.n, step, self.train_num, lr, loss, acc))
                 self.summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=self.global_step)
                 self.summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=self.global_step)
 
                 # if epoch > 50 and fold == 3:
+
                 #     for i, cor in enumerate(corrects):
                 #         if torch.any(cor):  # 只有分类正确才画图
                 #             if label[i].cpu().numpy() == 1:

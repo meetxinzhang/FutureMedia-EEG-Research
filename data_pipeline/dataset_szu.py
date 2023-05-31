@@ -42,7 +42,7 @@ class ListDataset(torch.utils.data.Dataset):
 
             y = y - 1  # Ziyan He created EEG form
 
-            x = x[:, :, :512]
+            x = x[:, :, :248]  # 127 40 250
             x = einops.rearrange(x, 'c f t -> f c t')
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
