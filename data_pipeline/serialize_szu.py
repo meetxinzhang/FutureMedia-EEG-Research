@@ -27,7 +27,7 @@ def ziyan_read(file_path):
             if line.startswith('Stimulus'):
                 line = line.strip().split(',')
                 classes = int(line[1][-2:])  # 'S 17'
-                time = int(line[2].strip())+2500  # ' 39958'
+                time = int(line[2].strip())  # ' 39958'
                 stim.append(time)
                 y.append(classes)
     print(len(y), ' - ', file_path)
@@ -60,8 +60,8 @@ def thread_write(x, y, pos, pkl_filename):
     # CWT
     # x = cwt_scipy(x)  # [c f=30 t=1000]
     x = cwt_pywt(x)  # [c f=33 t=1000]
-    x = x[:, :, ::2]
-    assert np.shape(x) == (127, 40, 250)
+    # x = x[:, :, ::2]
+    # assert np.shape(x) == (127, 40, 250)
 
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
@@ -91,14 +91,14 @@ def thread_read(label_file, pkl_path):
 
 
 if __name__ == "__main__":
-    path = '/data1/zhangwuxia/Datasets/SZEEG0524/Raw'
+    path = '/data1/zhangxin/Datasets/SZEEG0801/Raw'
     # path = '/data1/zhangwuxia/Datasets/SZEEG2023/Raw'
-    label_filenames = file_scanf2(path, contains=['M'], endswith='.Markers')
+    label_filenames = file_scanf2(path, contains=['xy'], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangwuxia/Datasets/SZEEG0524/pkl_cwt_tu_4-500'
+            f, pkl_path='/data1/zhangxin/Datasets/SZEEG0801/pkl_cwt_500'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

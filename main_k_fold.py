@@ -54,14 +54,14 @@ n_epoch = 100
 k = 5
 lr = 0.001
 
-id_exp = 'szeeg-0524-tu-2-2'
+id_exp = 'szeeg-0801_xy'
 # path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_aep_color_05s_1024'
-path = '/data1/zhangwuxia/Datasets/SZEEG0524/pkl_cwt_tu_2-500'
-time_exp = '2023-05-29--21-38'
+path = '/data1/zhangxin/Datasets/SZEEG0801/pkl_cwt_500'
+time_exp = '2023-08-02'
 mkdirs(['./log/image/' + id_exp + '/' + time_exp, './log/checkpoint/' + id_exp, './log/' + id_exp])
 
 k_fold = StratifiedKFold(n_splits=k, shuffle=True, random_state=2023)
-filepaths = file_scanf2(path=path, contains=['0524'], endswith='.pkl')
+filepaths = file_scanf2(path=path, contains=['_'], endswith='.pkl')
 # filepaths = file_scanf2(path=path, contains=['-1-00_', '-1-00_', '-1-01_', '-1-02_', '-1-03_', '-1-04_'],
 #                         endswith='.pkl')
 labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
