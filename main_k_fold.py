@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 # import os
 # import numpy as np
 from data_pipeline.dataset_szu import ListDataset
-from model.eeg_net import EEGNet
+from model.eeg_net import ComplexEEGNet
 # from model.field_flow_1p2 import FieldFlow1p2
 # from model.conv_tsfm_lrp import ConvTransformer
 # from model.field_flow_2p1 import FieldFlow2
@@ -54,10 +54,11 @@ n_epoch = 100
 k = 5
 lr = 0.001
 
-id_exp = 'szeeg-0801_xy'
+id_exp = 'szeeg-zwx-tu7'
+# id_exp = 'szeeg-08-11-tu2-500-1000''
 # path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_aep_color_05s_1024'
-path = '/data1/zhangxin/Datasets/SZEEG0801/pkl_cwt_500'
-time_exp = '2023-08-02'
+path = '/data1/zhangxin/Datasets/SZEEG0801/pkl_cwt_zwx_tu7'
+time_exp = '2023-08-16'
 mkdirs(['./log/image/' + id_exp + '/' + time_exp, './log/checkpoint/' + id_exp, './log/' + id_exp])
 
 k_fold = StratifiedKFold(n_splits=k, shuffle=True, random_state=2023)
@@ -80,12 +81,12 @@ if __name__ == '__main__':
         #     train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=1, shuffle=False)
         #     valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
 
-        # ff = ComplexEEGNet(classes_num=40, in_channels=30, electrodes=127, drop_out=0.1).to(device)
+        ff = ComplexEEGNet(classes_num=40, in_channels=40, electrodes=127, drop_out=0.1).to(device)
         # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
         #                      ffd_channels=64, last_channels=16, time=23, depth=2, drop=0.2).to(device)
         # ff = VideoTransformer()
         # ff = FieldFlow1p2(channels=30, electrodes=127, time=512, early_drop=0.2, late_drop=0.05).to(device)
-        ff = EEGNet(classes_num=40, in_channels=40, electrodes=127, drop_out=0.2).to(device)
+        # ff = EEGNet(classes_num=40, in_channels=40, electrodes=127, drop_out=0.2).to(device)
         optim_paras = [p for p in ff.parameters() if p.requires_grad]
         optimizer = torch.optim.SGD(optim_paras, lr=lr, weight_decay=0.001, momentum=0.9)
         lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.4)  # 设定优优化器更新的时刻表
