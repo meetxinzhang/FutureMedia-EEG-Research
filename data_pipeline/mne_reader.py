@@ -27,7 +27,7 @@ class MNEReader(object):
                  montage=None):
         """
         @method: auto, stim, manual, default=stim
-        @stim_channel: str. default=auto, in default case the stim_list is needed, and method=manual.
+        @stim_channel: str. Default=auto, in default case, the stim_list is needed, and method=manual.
         """
         self.filetype = filetype
         self.file_path = None

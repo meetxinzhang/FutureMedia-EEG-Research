@@ -37,13 +37,15 @@ class ListDataset(torch.utils.data.Dataset):
             print(filepath)
             return
         with open(filepath, 'rb') as f:
-            x = pickle.load(f)
+            x = pickle.load(f)  # [t c]
             y = int(pickle.load(f))
 
-            y = y - 1  # Ziyan He created EEG form
+            x = trial_average(x, axis=0)  # ave in session
+            # y = y - 1  # Ziyan He created EEG form
 
-            x = x[:, :, :248]  # 127 40 250
-            x = einops.rearrange(x, 'c f t -> f c t')
+            # x = x[:, :, :248]  # 127 40 250
+            x = np.expand_dims(x, axis=0)  # [t c] -> [1, t, c]
+            x = einops.rearrange(x, 'f t c -> f c t')
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
 

@@ -188,7 +188,7 @@ class EEGNet(nn.Module):
         )
 
         self.out = nn.Sequential(
-            nn.Linear(208, 128),
+            nn.Linear(480, 128),
             nn.Linear(128, classes_num)
         )
 
