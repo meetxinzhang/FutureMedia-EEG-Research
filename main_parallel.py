@@ -24,7 +24,7 @@ from model.eeg_net import EEGNet, ComplexEEGNet
 # from model.eeg_channel_net import EEGChannelNet
 # from model.resnet_arcface import resnet18 as resnet2d
 from utils.my_tools import file_scanf2, mkdirs
-
+from datetime import datetime
 os.environ['MASTER_ADDR'] = 'localhost'
 os.environ['MASTER_PORT'] = '7890'
 # os.environ['NCCL_LL_THRESHOLD'] = '0'
@@ -37,13 +37,14 @@ id_exp = 'EEGNet-PD-ave-as-code'
 # data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_aep_color_05s_1024'
 data_path = '/data1/zhangxin/Datasets/PD/pkl_20231124'
 # data_path = '/data1/zhangwuxia/Datasets/SZEEG2023/pkl_cwt_05s_127x250'
-time_exp = '2023-11-24--17-00'
+# time_exp = '2023-11-24--17-00'
+time_exp = str(datetime.now()).replace(' ', '-').split('.')[0]
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
 device_list = [0, 1, 2, 3, 4, 5]
 main_gpu_rank = 0
-train_loaders = 8
-valid_loaders = 8
+train_loaders = 10
+valid_loaders = 10
 
 batch_size = 16
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
