@@ -12,9 +12,10 @@ from tqdm import tqdm
 import numpy as np
 from data_pipeline.mne_reader import MNEReader
 import mne
+import einops
 from utils.my_tools import file_scanf2
 from pre_process.difference import trial_average
-# from pre_process.time_frequency import cwt_scipy
+from pre_process.time_frequency import cwt_scipy
 from pre_process.aep import gen_images, azim_proj
 from pre_process.time_frequency import three_bands
 
@@ -104,6 +105,7 @@ def thread_write(x, y, pos, pkl_filename):
     """Writes and dumps the processed pkl file for each stimulus(or called subject).
     [time=2999, channels=127], y
     """
+    x = trial_average(x, axis=0)
 
     # x = jiang_delta_ave(x)  # [2048, 96] -> [512, 96]
     # x = time_delta(x)  # [1025 96] -> [1024 96]
@@ -120,9 +122,10 @@ def thread_write(x, y, pos, pkl_filename):
     # _, _, x = spectrogram_scipy(x)  # [c f t]
 
     # CWT
-    # x = cwt_scipy(x)  # [c f=30 t=1024]
-    # assert np.shape(x) == (96, 30, 1024)
+    x = cwt_scipy(x)  # [c f=30 t=1024]
+    assert np.shape(x) == (96, 30, 512)
 
+    x = einops.rearrange(x, 'c f t -> f c t')
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
         pickle.dump(y, file)
@@ -188,6 +191,6 @@ if __name__ == "__main__":
     bdf_filenames = file_scanf2(bdf_dir, contains=['1000-1'], endswith='.bdf')
     Parallel(n_jobs=12)(
         delayed(thread_read)(
-            f, label_dir, pkl_path='/data1/zhangxin/Datasets/PD/pkl_20231124')
+            f, label_dir, pkl_path='/data1/zhangxin/Datasets/PD/pkl_cwt_20231208')
         for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', position=0, leave=True, ncols=80)
     )
