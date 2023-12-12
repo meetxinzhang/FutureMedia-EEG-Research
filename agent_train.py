@@ -83,7 +83,7 @@ class XinTrainer:
                 self.global_step += 1
             # step end
         # epoch end
-        # self.lr_scheduler.step()
+        self.lr_scheduler.step()
 
         if self.gpu_rank == 0:
             for i in range(len(epoch_loss)):

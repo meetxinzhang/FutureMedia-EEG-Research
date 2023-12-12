@@ -23,28 +23,29 @@ class ComplexEEGNet(nn.Module):
         super(ComplexEEGNet, self).__init__()
         ci = in_channels
         self.freq_block = nn.Sequential(
-            nn.Conv2d(in_channels=ci, out_channels=ci*2, kernel_size=(1, 1), groups=4, bias=False),
-            nn.BatchNorm2d(ci*2),  # output shape (16, 1, T//16)
+            nn.Conv2d(in_channels=ci, out_channels=ci, kernel_size=(1, 7), groups=1, bias=False),
+            nn.BatchNorm2d(ci),  # output shape (16, 1, T//16)
             nn.ELU(),
-            nn.Dropout(0.2),
+            nn.Dropout(drop_out),
 
-            nn.Conv2d(in_channels=ci*2, out_channels=ci, kernel_size=(1, 1), groups=1, bias=False),
+            nn.Conv2d(in_channels=ci, out_channels=ci, kernel_size=(1, 1), groups=1, bias=False),
             nn.BatchNorm2d(ci),
-            nn.ELU()
+            nn.ELU(),
+            nn.AvgPool2d(kernel_size=(1, 2), stride=(1, 2))  # (63, C, T/2)
         )
 
         self.time_block1 = nn.Sequential(
             nn.ZeroPad2d((1, 1, 0, 0)),  # left, right, top, bottom of 2D img
-            nn.Conv2d(in_channels=ci, out_channels=128, kernel_size=(1, 15), bias=False),
-            nn.BatchNorm2d(128),  # output shape (63, C, T)
+            nn.Conv2d(in_channels=ci, out_channels=40, kernel_size=(1, 15), bias=False),
+            nn.BatchNorm2d(40),  # output shape (63, C, T)
             nn.ELU(),
-            nn.AvgPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
+            # nn.AvgPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
 
             nn.ZeroPad2d((1, 1, 0, 0)),  # left, right, top, bottom of 2D img
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=(1, 15), bias=False),
-            nn.BatchNorm2d(128),  # output shape (63, C, T)
+            nn.Conv2d(in_channels=40, out_channels=40, kernel_size=(1, 15), bias=False),
+            nn.BatchNorm2d(40),  # output shape (63, C, T)
             nn.ELU(),
-            nn.AvgPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
+            nn.AvgPool2d(kernel_size=(1, 2), stride=(1, 2))  # (63, C, T/2)
         )
         # self.time_residue1 = nn.Sequential(
         #     nn.Conv2d(in_channels=ci, out_channels=128, kernel_size=(1, 15), stride=(1, 4), bias=False),
@@ -53,21 +54,21 @@ class ComplexEEGNet(nn.Module):
         # )
 
         self.ch_block = nn.Sequential(
-            nn.Conv2d(in_channels=128, out_channels=128, kernel_size=(electrodes, 1), groups=128, bias=False),
-            nn.BatchNorm2d(128),  # output shape (128, 1, T//2)
+            nn.Conv2d(in_channels=40, out_channels=120, kernel_size=(electrodes, 1), groups=40, bias=False),
+            nn.BatchNorm2d(120),  # output shape (128, 1, T//2)
             nn.ELU(),
         )
 
         self.time_block2 = nn.Sequential(
             nn.ZeroPad2d((1, 1, 0, 0)),  # left, right, top, bottom of 2D img
-            nn.Conv2d(in_channels=128, out_channels=256, kernel_size=(1, 15), groups=128, bias=False),
-            nn.BatchNorm2d(256),  # output shape (63, C, T)
+            nn.Conv2d(in_channels=120, out_channels=80, kernel_size=(1, 15), groups=40, bias=False),
+            nn.BatchNorm2d(80),  # output shape (63, C, T)
             nn.ELU(),
             nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
 
             nn.ZeroPad2d((1, 1, 0, 0)),  # left, right, top, bottom of 2D img
-            nn.Conv2d(in_channels=256, out_channels=512, kernel_size=(1, 15), groups=128, bias=False),
-            nn.BatchNorm2d(512),  # output shape (63, C, T)
+            nn.Conv2d(in_channels=80, out_channels=40, kernel_size=(1, 15), groups=40, bias=False),
+            nn.BatchNorm2d(40),  # output shape (63, C, T)
             nn.ELU(),
             nn.ZeroPad2d((0, 1, 0, 0)),  # left, right, top, bottom of 2D img -----------------
             nn.MaxPool2d(kernel_size=(1, 2), stride=(1, 2)),  # (63, C, T/2)
@@ -79,12 +80,11 @@ class ComplexEEGNet(nn.Module):
         # )
 
         self.classifier = nn.Sequential(
-            nn.Conv2d(in_channels=512, out_channels=1024, kernel_size=(1, 1), bias=False),
             nn.AdaptiveAvgPool2d((1, 1)),
             nn.Flatten(),
-            nn.Linear(1024, 128),
-            nn.ELU(),
-            nn.Linear(128, classes_num),
+            # nn.Linear(40, 128),
+            # nn.ELU(),
+            # nn.Linear(128, classes_num),
             nn.Softmax(dim=-1)
         )
 
@@ -188,7 +188,8 @@ class EEGNet(nn.Module):
         )
 
         self.out = nn.Sequential(
-            nn.Linear(480, 128),
+            nn.Linear(464, 128),
+
             nn.Linear(128, classes_num)
         )
 

@@ -12,8 +12,8 @@ from tqdm import tqdm
 from data_pipeline.mne_reader import MNEReader
 from utils.my_tools import file_scanf2
 import numpy as np
-# import einops
-# from pre_process.difference import trial_average
+import einops
+from pre_process.difference import trial_average
 # from pre_process.aep import azim_proj, gen_images
 from pre_process.time_frequency import cwt_pywt
 
@@ -42,6 +42,7 @@ def thread_write(x, y, pos, pkl_filename):
     # if np.shape(x) != (256, 127):
     #     print(np.shape(x), pkl_filename)
     assert np.shape(x) == (500, 127)
+    x = trial_average(x, axis=0)
 
     # AEP
     # x = three_bands(x)  # [t=24, 3*127]
@@ -58,8 +59,8 @@ def thread_write(x, y, pos, pkl_filename):
     #     specs.append(spectrum)
 
     # CWT
-    # x = cwt_scipy(x)  # [c f=30 t=1000]
-    x = cwt_pywt(x)  # [c f=33 t=1000]
+    # # x = cwt_scipy(x)  # [c f=30 t=1000]
+    # x = cwt_pywt(x)  # [c f=33 t=1000]
     # x = x[:, :, ::2]
     # assert np.shape(x) == (127, 40, 250)
 
@@ -76,12 +77,12 @@ def thread_read(label_file, pkl_path):
     pos = edf_reader.get_pos()
     assert len(x) == len(y)
     print(len(x), 'number of samples')
-    # x = x[:-1]  # For SZ2023, remove the last one of (2499, 127)
-    # y = y[:-1]
+    x = x[:-1]  # For SZ2023, remove the last one of (2499, 127)
+    y = y[:-1]
 
-    # x = einops.rearrange(x, 'b t c -> (b t) c')
-    # x = trial_average(x, axis=0)
-    # x = einops.rearrange(x, '(b t) c -> b t c', t=1000)
+    x = einops.rearrange(x, 'b t c -> (b t) c')
+    x = trial_average(x, axis=0)
+    x = einops.rearrange(x, '(b t) c -> b t c', t=500)
 
     name = label_file.split('/')[-1].replace('.Markers', '')
     Parallel(n_jobs=6)(
@@ -91,14 +92,14 @@ def thread_read(label_file, pkl_path):
 
 
 if __name__ == "__main__":
-    path = '/data1/zhangxin/Datasets/SZEEG0801/Raw'
-    # path = '/data1/zhangwuxia/Datasets/SZEEG2023/Raw'
-    label_filenames = file_scanf2(path, contains=['zwx'], endswith='.Markers')
+    # path = '/data1/zhangxin/Datasets/SZEEG0801/Raw'
+    path = '/data1/zhangxin/Datasets/SZEEG2022/Raw'
+    label_filenames = file_scanf2(path, contains=['subject1', 'hzy', 'test1016'], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangxin/Datasets/SZEEG0801/pkl_cwt_zwx_tu7'
+            f, pkl_path='/data1/zhangxin/Datasets/SZEEG2022/pkl_20231210'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

@@ -41,11 +41,11 @@ class ListDataset(torch.utils.data.Dataset):
             y = int(pickle.load(f))
 
             # x = trial_average(x, axis=0)
-            # y = y - 1  # Ziyan He created EEG form
+            y = y - 1  # Ziyan He created EEG form
 
             # x = x[:, :, :248]  # 127 40 250
-            # x = np.expand_dims(x, axis=0)  # [t c] -> [1, t, c]  # eegnet
-            # x = einops.rearrange(x, 'f t c -> f c t')  # eegnet
+            x = np.expand_dims(x, axis=0)  # [t c] -> [1, t, c]  # eegnet
+            x = einops.rearrange(x, 'f t c -> f c t')  # eegnet
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
 
