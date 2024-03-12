@@ -27,7 +27,7 @@ def ziyan_read(file_path):
             if line.startswith('Stimulus'):
                 line = line.strip().split(',')
                 classes = int(line[1][-2:])  # 'S 17'
-                time = int(line[2].strip())+3000  # ' 39958'
+                time = int(line[2].strip())+100  # ' 39958'
                 stim.append(time)
                 y.append(classes)
     print(len(y), ' - ', file_path)
@@ -93,13 +93,13 @@ def thread_read(label_file, pkl_path):
 
 if __name__ == "__main__":
     # path = '/data1/zhangxin/Datasets/SZEEG0801/Raw'
-    path = '/data1/zhangxin/Datasets/SZEEG2022/Raw'
-    label_filenames = file_scanf2(path, contains=['subject1', 'hzy', 'test1016'], endswith='.Markers')
+    path = '/data1/zhangxin/Datasets/SZEEG20240308/Raw'
+    label_filenames = file_scanf2(path, contains=['CN'], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangxin/Datasets/SZEEG2022/pkl_20231210'
+            f, pkl_path='/data1/zhangxin/Datasets/SZEEG20240308/pkl_cn_500'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

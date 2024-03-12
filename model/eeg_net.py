@@ -125,6 +125,7 @@ class EEGNet(nn.Module):
             nn.BatchNorm2d(8)  # output shape (8, C, T)
         )
 
+
         # block 2 and 3 are implementations of Depthwise Convolution and Separable Convolution
         self.block_2 = nn.Sequential(
             nn.Conv2d(

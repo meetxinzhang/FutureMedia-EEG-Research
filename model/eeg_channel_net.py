@@ -152,8 +152,8 @@ class FeaturesExtractor(nn.Module):
         )
 
     def forward(self, x):
-        out = self.temporal_block(x)
-
+        # [1, 1, 127, 512]
+        out = self.temporal_block(x)  # [1, 40, 127, 256]
         out = self.spatial_block(out)
 
         if len(self.res_blocks) > 0:
@@ -202,13 +202,12 @@ class EEGChannelNet(nn.Module):
                                          num_spatial_layers, spatial_stride, num_residual_blocks, down_kernel,
                                          down_stride
                                          )
-
+        # print(self.encoder(torch.zeros(1, in_channels, input_height, input_width)).size(), 'encoder_size')
         encoding_size = \
             self.encoder(torch.zeros(1, in_channels, input_height, input_width)).contiguous().view(-1).size()[0]
-        # print(self.encoder(torch.zeros(1, in_channels, input_height, input_width)).size(), 'encoder_size')
 
         self.classifier = nn.Sequential(
-            nn.Linear(encoding_size, embedding_size),
+            nn.Linear(7000, embedding_size),
             nn.ReLU(True),
             nn.Linear(embedding_size, num_classes),
             nn.Softmax(dim=-1)

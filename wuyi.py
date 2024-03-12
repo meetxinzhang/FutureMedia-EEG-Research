@@ -20,10 +20,11 @@ from data_pipeline.data_loader_x import DataLoaderX
 # from model.conv_tsfm_lrp import ConvTransformer
 # from model.eeg_net import EEGNet, ComplexEEGNet
 from model.lstm_1dcnn_2dcnn_mlp import CNN2D, LSTM, CNN1D, ResNet1D, SlidMLP
-from model.eeg_channel_net import EEGChannelNet
+# from model.eeg_channel_net import EEGChannelNet
 from model.resnet_arcface import resnet18 as resnet2d
 from model.sync_net import SyncNet
 from utils.my_tools import file_scanf2, mkdirs
+from datetime import datetime
 
 os.environ['MASTER_ADDR'] = 'localhost'
 os.environ['MASTER_PORT'] = '7890'
@@ -33,21 +34,20 @@ os.environ['MASTER_PORT'] = '7890'
 torch.manual_seed(2022)
 torch.cuda.manual_seed(2022)
 
-time_exp = '2023-04-27--10-40'
-# data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_aep_color_05s_1024'
-data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_2s_2048'
-# data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_cwt_1s_1024'
+time_exp = str(datetime.now()).replace(' ', '-').split('.')[0]
+# data_path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_2s_2048'
+data_path = '/data1/zhangxin/Datasets/SZEEG2022/pkl_20231210'
 
 device_list = [0, 1, 2, 3, 4, 5]
 main_gpu_rank = 0
-train_loaders = 6
-valid_loaders = 6
+train_loaders = 10
+valid_loaders = 10
 
 batch_size = 8
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
-learn_rate = 0.012
+learn_rate = 0.001
 
 
 def main_func(gpu_rank, device_id, fold_rank,
@@ -70,25 +70,25 @@ def main_func(gpu_rank, device_id, fold_rank,
     valid_loader = DataLoaderX(local_rank=device_id, dataset=valid_dataset, batch_sampler=valid_b_s, pin_memory=True,
                                num_workers=valid_loaders)
 
-    # models = ['cnn1d', 'cnn2d', 'resnet2d', 'lstm', 'mlp', 'resnet1d', 'eegchannelnet']
-    if model == 'cnn2d':
-        ff = CNN2D(in_channels=1, classes=40).to(the_device)
+    # models = ['EEGNet', 'eegchannelnet', 'eegTsfm', 'lstm', 'mlp', 'syncnet', 'resnet1d']
+    # if model == 'cnn2d':
+    #     ff = CNN2D(in_channels=1, classes=40).to(the_device)
     if model == 'syncnet':
-        ff = SyncNet(channel=96, time=512, classes=40, dropout=0.1).to(the_device)
+        ff = SyncNet(channel=127, time=512, classes=40, dropout=0.2).to(the_device)
     if model == 'lstm':
-        ff = LSTM(classes=40, input_size=96, depth=3).to(the_device)
+        ff = LSTM(classes=40, input_size=127, depth=3).to(the_device)
     if model == 'mlp':
-        ff = SlidMLP(in_features=96, classes=40).to(the_device)
+        ff = SlidMLP(in_features=127, classes=40).to(the_device)
     if model == 'resnet1d':
-        ff = ResNet1D(in_channels=96, classes=40).to(the_device)
-    if model == 'cnn1d':
-        ff = CNN1D(in_channels=96, classes=40).to(the_device)
+        ff = ResNet1D(in_channels=127, classes=40).to(the_device)
+    # if model == 'cnn1d':
+    #     ff = CNN1D(in_channels=127, classes=40).to(the_deviwce)
     if model == 'eegchannelnet':
-        ff = EEGChannelNet(in_channels=1, input_height=96, input_width=512, num_classes=40,
+        ff = EEGChannelNet(in_channels=1, input_height=127, input_width=512, num_classes=40,
                            num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3,
                            down_stride=2).to(the_device)
-    if model == 'resnet2d':
-        ff = resnet2d(pretrained=False, n_classes=40, input_channels=1).to(the_device)
+    # if model == 'resnet2d':
+    #     ff = resnet2d(pretrained=False, n_classes=40, input_channels=1).to(the_device)
 
     # ff = EEGChannelNet(in_channels=30, input_height=96, input_width=512, num_classes=40,
     #                  num_spatial_layers=3, spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
@@ -146,8 +146,9 @@ if __name__ == '__main__':
 
     # 'resnet2d', 'lstm', 'mlp', 'resnet1d', 'syncnet', 'eegchannelnet'
     # 'nm', 'dct1d', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b'
-    models = ['EEGNet', 'resnet2d', 'eegchannelnet', 'eegTsfm']
-    exps = ['stft', 'cwt', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b']
+    models = ['EEGNet', 'eegTsfm', 'lstm', 'mlp', '1dcnn', 'syncnet', 'resnet1d']
+    # exps = ['stft', 'cwt', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b']
+    exps = ['ascode']
 
     for m in models:
         for exp in exps:

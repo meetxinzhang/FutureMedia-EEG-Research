@@ -122,10 +122,10 @@ def thread_write(x, y, pos, pkl_filename):
     # _, _, x = spectrogram_scipy(x)  # [c f t]
 
     # CWT
-    x = cwt_scipy(x)  # [c f=30 t=1024]
-    assert np.shape(x) == (96, 30, 512)
+    # x = cwt_scipy(x)  # [c f=30 t=1024]
+    # assert np.shape(x) == (96, 30, 512)
 
-    x = einops.rearrange(x, 'c f t -> f c t')
+    # x = einops.rearrange(x, 'c f t -> f c t')
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
         pickle.dump(y, file)
@@ -188,9 +188,11 @@ if __name__ == "__main__":
     #     for f in tqdm(pkl_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     # )
 
-    bdf_filenames = file_scanf2(bdf_dir, contains=['1000-1'], endswith='.bdf')
+    bdf_filenames = file_scanf2(bdf_dir, contains=['1000-1-00', '1000-1-01', '1000-1-02', '1000-1-03', '1000-1-04',
+                                                   '1000-1-05', '1000-1-06'],
+                                endswith='.bdf')
     Parallel(n_jobs=12)(
         delayed(thread_read)(
-            f, label_dir, pkl_path='/data1/zhangxin/Datasets/PD/pkl_cwt_20231208')
+            f, label_dir, pkl_path='/data1/zhangxin/Datasets/PD/pkl_500_7sets')
         for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', position=0, leave=True, ncols=80)
     )

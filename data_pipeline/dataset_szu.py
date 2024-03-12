@@ -40,12 +40,14 @@ class ListDataset(torch.utils.data.Dataset):
             x = pickle.load(f)  # [t c]
             y = int(pickle.load(f))
 
-            # x = trial_average(x, axis=0)
-            y = y - 1  # Ziyan He created EEG form
+            x = trial_average(x, axis=0)
+            # y = y - 1  # Ziyan He created EEG form
 
             # x = x[:, :, :248]  # 127 40 250
             x = np.expand_dims(x, axis=0)  # [t c] -> [1, t, c]  # eegnet
             x = einops.rearrange(x, 'f t c -> f c t')  # eegnet
+            # x = einops.rearrange(x, 't c -> c t')  # resnet1d
+
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
 
@@ -64,10 +66,13 @@ class AdaptedListDataset(torch.utils.data.Dataset):
         if os.path.getsize(filepath) <= 0:
             print('EOFError: Ran out of input')
             print(filepath)
+
             return
         with open(filepath, 'rb') as f:
             x = pickle.load(f)       # 2048 96
             y = int(pickle.load(f))
+
+            x = trial_average(x, axis=0)
 
             # exps = ['nm', 'dct1d', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b']
             if self.exp == 'nm':
@@ -149,7 +154,7 @@ class AdaptedListDataset(torch.utils.data.Dataset):
             # x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet
 
             # x = difference(x, fold=4)     # SZU, [500, 127]
-            # y = y-1                  # Ziyan He created EEG form
+            y = y-1  # Ziyan He created EEG form
 
             # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
             # x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet  raw data

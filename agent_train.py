@@ -83,7 +83,8 @@ class XinTrainer:
                 self.global_step += 1
             # step end
         # epoch end
-        self.lr_scheduler.step()
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.step()
 
         if self.gpu_rank == 0:
             for i in range(len(epoch_loss)):
@@ -145,8 +146,8 @@ class XinTrainer:
                 #                                     save_name=self.id_exp + '/S' + str(self.global_step) + '_C' + str(
                 #                                         label[i].cpu().numpy()))
             self.global_step += 1
-
-        self.lr_scheduler.step()
+        if self.lr_scheduler is not None:
+            self.lr_scheduler.step()
 
     def val_period(self, epoch):
         epoch_loss_val = torch.tensor(0).float().to(self.device)
