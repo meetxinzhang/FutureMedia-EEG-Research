@@ -10,7 +10,7 @@ import torch
 import torch.utils.data as tud
 import torch.multiprocessing as mp
 import torch.distributed as dist
-import torch.optim.lr_scheduler as torch_lr
+# import torch.optim.lr_scheduler as torch_lr
 from torch.utils.tensorboard import SummaryWriter
 from sklearn.model_selection import StratifiedKFold
 import os
@@ -33,10 +33,12 @@ os.environ['MASTER_PORT'] = '7890'
 torch.manual_seed(2022)
 torch.cuda.manual_seed(2022)
 
-id_exp = 'EEGNet-SZ-CN-512-ave-as-code'
-data_path = '/data1/zhangxin/Datasets/SZEEG20240308/pkl_cn_500'
-# data_path = '/data1/zhangxin/Datasets/PD/pkl_500_7sets'
-time_exp = str(datetime.now()).replace(' ', '-').split('.')[0]
+# id_exp = '2024-PD-table-aep-ConvTsfm-dff_1'
+id_exp = '2024-PD-Multi-4-Nm-EEGNet'
+
+data_path = '/data1/zhangxin/Datasets/PD/pkl_2048_2s_full_2ave_as_paper'
+# data_path = '/data1/zhangxin/Datasets/SZEEG2022/pkl_hzy_2000_s2_ave2_as_paper'
+time_exp = str(datetime.now()).replace(':', '-').split('.')[0]
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
 device_list = [0, 1, 2, 3, 4, 5]
@@ -73,10 +75,11 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # ff = EEGChannelNet(in_channels=1, input_height=127, input_width=512, num_classes=40, num_spatial_layers=2,
     #                    spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
     # ff = LSTM(classes=40, input_size=96, depth=3)
-    ff = EEGNet(classes_num=40, in_channels=1, electrodes=127, drop_out=0.3).to(the_device)
+    ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.2).to(the_device)
     # ff = ComplexEEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.1).to(the_device)
-    # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
-    #                      ffd_channels=64, last_channels=16, time=23, depth=2, drop=0.2).to(the_device)
+
+    # ff = ConvTransformer(num_classes=40, in_channels=1, att_channels=64, num_heads=8,
+    #                      ffd_channels=64, last_channels=16, time=128, depth=2, drop=0.2).to(the_device)
     # ff = EEGTransformer(in_channels=1, electrodes=96, early_drop=0.3, late_drop=0.1).to(the_device)
     # ff = ResNet1D(in_channels=96, classes=40).to(the_device)
     # ff = MLP2layers(in_features=96, hidden_size=128, classes=40).to(the_device)
@@ -127,7 +130,7 @@ if __name__ == '__main__':
     mkdirs(['./log/image/' + id_exp + '/' + time_exp, './log/checkpoint/' + id_exp, './log/' + id_exp])
     # filepaths = file_scanf2(path=data_path, contains=['-1-00_', '-1-01_', '-1-02_', '-1-03_', '-1-04_'],
     #                         endswith='.pkl')
-    filepaths = file_scanf2(path=data_path, contains=['0'], endswith='.pkl')
+    filepaths = file_scanf2(path=data_path, contains=['_'], endswith='.pkl')
     labels = [int(f.split('_')[-1].replace('.pkl', '')) for f in filepaths]
 
     k_fold = StratifiedKFold(n_splits=k, shuffle=True, random_state=2023)

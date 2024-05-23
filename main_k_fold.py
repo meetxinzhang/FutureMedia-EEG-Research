@@ -15,7 +15,7 @@ from torch.utils.tensorboard import SummaryWriter
 # import os
 # import numpy as np
 from data_pipeline.dataset_szu import ListDataset
-from model.eeg_net import ComplexEEGNet
+from model.eeg_net import EEGNet, ComplexEEGNet
 # from model.field_flow_1p2 import FieldFlow1p2
 # from model.conv_tsfm_lrp import ConvTransformer
 # from model.field_flow_2p1 import FieldFlow2
@@ -80,8 +80,8 @@ if __name__ == '__main__':
         #     print(len(train_files), len(valid_files))
         #     train_loader = DataLoader(ListDataset(train_files), batch_size=batch_size, num_workers=1, shuffle=False)
         #     valid_loader = DataLoader(ListDataset(valid_files), batch_size=batch_size, num_workers=1, shuffle=False)
-
-        ff = ComplexEEGNet(classes_num=40, in_channels=40, electrodes=127, drop_out=0.1).to(device)
+        ff = EEGNet(classes_num=40, in_channels=1, electrodes=127, drop_out=0.2).to(device)
+        # ff = ComplexEEGNet(classes_num=40, in_channels=40, electrodes=127, drop_out=0.1).to(device)
         # ff = ConvTransformer(num_classes=40, in_channels=3, att_channels=64, num_heads=8,
         #                      ffd_channels=64, last_channels=16, time=23, depth=2, drop=0.2).to(device)
         # ff = VideoTransformer()

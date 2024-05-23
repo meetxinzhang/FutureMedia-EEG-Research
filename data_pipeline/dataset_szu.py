@@ -37,16 +37,36 @@ class ListDataset(torch.utils.data.Dataset):
             print(filepath)
             return
         with open(filepath, 'rb') as f:
-            x = pickle.load(f)  # [t c]
+            x = pickle.load(f)  # [t c]  aep: [2048, 20, 20]
             y = int(pickle.load(f))
-
-            x = trial_average(x, axis=0)
             # y = y - 1  # Ziyan He created EEG form
 
+            x = x[:512, :]
+            x = trial_average(x, axis=0)
+            x = trial_average(x, axis=0)
+
+            x = np.expand_dims(x, axis=0)  # 1 512 96
+            x = einops.rearrange(x, 'f t c ->f c t')
+
+            # x = x[:512, :]
+            # x = dct_1d_numpy(x)  # same with x [512 96]
+            # x = np.expand_dims(x, axis=0)  # 1 512 96
+            # x = einops.rearrange(x, 'f t c ->f c t')
+
             # x = x[:, :, :248]  # 127 40 250
-            x = np.expand_dims(x, axis=0)  # [t c] -> [1, t, c]  # eegnet
-            x = einops.rearrange(x, 'f t c -> f c t')  # eegnet
+            # x = np.expand_dims(x, axis=0)  # [t c] -> [1, t, c]  # eegnet
+            # x = einops.rearrange(x, 'c f t -> f c t')  # eegnet
             # x = einops.rearrange(x, 't c -> c t')  # resnet1d
+
+            # eeg_conv_tsfm: b c w h t
+            # x = x[:512, :, :]
+            # x = x[::4, :, :]
+            # x = four_ave(x, fold=4)  # [1024 96] -> [512 96]
+            # x = np.expand_dims(x, axis=0)  # [t, w, h] -> [1, t, w, h]
+            # x = einops.rearrange(x, 'c t w h -> c w h t')
+
+            # x = delta_1(x)
+            # x = x[::4, :, :]
 
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
@@ -69,17 +89,18 @@ class AdaptedListDataset(torch.utils.data.Dataset):
 
             return
         with open(filepath, 'rb') as f:
-            x = pickle.load(f)       # 2048 96
+            x = pickle.load(f)       # 512 96
             y = int(pickle.load(f))
 
             x = trial_average(x, axis=0)
 
-            # exps = ['nm', 'dct1d', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b']
+            # exps = ['nm', 'dct1d', 'dct2d', 'adc`1`   as  1
+            # t', 'ave', 't_dff', 'dff_1', 'dff_b']
             if self.exp == 'nm':
                 x = x[:512, :]
             elif self.exp == 'dct1d':
                 x = x[:512, :]
-                x = dct_1d(x)  # same with x [512 96]
+                x = dct_1d_numpy(x)  # same with x [512 96]
             elif self.exp == 'dct2d':
                 x = x[:512, :]
                 x = dct2d(x)
@@ -87,7 +108,7 @@ class AdaptedListDataset(torch.utils.data.Dataset):
                 x = x[:512, :]
                 x = approximated_dct(x)
             elif self.exp == 'ave':
-                x = four_ave(x, fold=4)  # [2048 96] -> [512 96]
+                x = four_ave(x, fold=4)  # [1024 96] -> [512 96]
             elif self.exp == 't_dff':
                 x = x[:514, :]
                 x = frame_delta(x)
@@ -117,9 +138,12 @@ class AdaptedListDataset(torch.utils.data.Dataset):
                 x = np.expand_dims(x, axis=0)
                 x = einops.rearrange(x, 'f t c ->f c t')
             if self.model == 'eegnet':
+                x = np.expand_dims(x, axis=0)  # 1 512 96
+                x = einops.rearrange(x, 'f t c ->f c t')
+            if self.model == 'resnet2d':
                 x = np.expand_dims(x, axis=0)
                 x = einops.rearrange(x, 'f t c ->f c t')
-            if self.model =='resnet2d':
+            if self.model == 'eegTsfm':
                 x = np.expand_dims(x, axis=0)
                 x = einops.rearrange(x, 'f t c ->f c t')
 
@@ -154,7 +178,7 @@ class AdaptedListDataset(torch.utils.data.Dataset):
             # x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet
 
             # x = difference(x, fold=4)     # SZU, [500, 127]
-            y = y-1  # Ziyan He created EEG form
+            # y = y-1  # Ziyan He created EEG form
 
             # x = np.expand_dims(x, axis=0)  # added channel for EEGNet
             # x = einops.rearrange(x, 'f t c -> f c t')  # EEGChannelNet, EEGNet  raw data
@@ -162,3 +186,70 @@ class AdaptedListDataset(torch.utils.data.Dataset):
             assert 0 <= y <= 39
         return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)
         # return torch.tensor(x, dtype=torch.float).permute(1, 2, 0).unsqueeze(0), torch.tensor(y, dtype=torch.long)
+
+
+
+class AdaptedListDataset3d(torch.utils.data.Dataset):
+    def __init__(self, path_list, exp, model):
+        self.path_list = path_list
+        self.exp = exp
+        self.model = model
+
+    def __len__(self):  # called by torch.utils.data.DataLoader
+        return len(self.path_list)
+
+    def __getitem__(self, idx):
+        filepath = self.path_list[idx]
+        if os.path.getsize(filepath) <= 0:
+            print('EOFError: Ran out of input')
+            print(filepath)
+
+            return
+        with open(filepath, 'rb') as f:
+            x = pickle.load(f)       # 512 96
+            y = int(pickle.load(f))
+            # x = trial_average(x, axis=0)
+            # print(x, 'qqq')  # 2048, 20, 20
+
+            # exps = ['nm', 'dct1d', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b']
+            if self.exp == 'nm':
+                x = x[:512, :, :]
+            elif self.exp == 'dct1d':
+                x = x[:512, :, :]
+                x = dct_1d_numpy(x, axis=0)  # same with x [512 96]
+            elif self.exp == 'dct2d':
+                x = x[:512, :, :]
+                new_x = []
+                for xi in x:
+                    new_x.append(dct2d(xi, block=4))
+                x = new_x
+            elif self.exp == 'adct':
+                x = x[:512, :, :]
+                new_x = []
+                for xi in x:
+                    new_x.append(approximated_dct(xi))
+                x = new_x
+            elif self.exp == 'ave':
+                x = four_ave(x, fold=4)  # [1024 96] -> [512 96]
+            elif self.exp == 't_dff':
+                x = x[:514, :, :]
+                x = frame_delta_video(x)
+                x = x[:512, :, :]
+            elif self.exp == 'dff_1':
+                x = delta_1(x)
+            elif self.exp == 'dff_b':
+                x = delta_b(x)
+
+            x = np.array(x)
+            x = x[::4, :, :]
+
+            # models = ['VideoTsfm', 'ConvTsfm']
+            if self.model =='VideoTsfm':
+                x = np.expand_dims(x, axis=0)  # [t, w, h] -> [1, t, w, h]
+                x = einops.rearrange(x, 'c t w h -> c t h w')
+            if self.model == 'ConvTsfm':
+                x = np.expand_dims(x, axis=0)  # [t, w, h] -> [1, t, w, h]
+                x = einops.rearrange(x, 'c t w h -> c w h t')
+
+            assert 0 <= y <= 39
+        return torch.tensor(x, dtype=torch.float), torch.tensor(y, dtype=torch.long)

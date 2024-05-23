@@ -114,25 +114,27 @@ def thread_write(x, y, pos, pkl_filename):
 
     # AEP
     # x = three_bands(x)  # [t=63, 3*96]
-    # locs_2d = np.array([azim_proj(e) for e in pos])
-    # x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=3, W, H]
-    # assert np.shape(x) == (23, 3, 20, 20)
+    locs_2d = np.array([azim_proj(e) for e in pos])
+    # print(locs_2d)
+    x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=3 (if cwt), W, H]
+    assert np.shape(x) == (2048, 20, 20)
 
     # Spectrogram
     # _, _, x = spectrogram_scipy(x)  # [c f t]
 
     # CWT
-    # x = cwt_scipy(x)  # [c f=30 t=1024]
+    # x = cwt_scipy(x)  # [c f=30 t=same]
     # assert np.shape(x) == (96, 30, 512)
 
     # x = einops.rearrange(x, 'c f t -> f c t')
     with open(pkl_filename + '.pkl', 'wb') as file:
         pickle.dump(x, file)
+
         pickle.dump(y, file)
 
 
 def thread_read(bdf_path, labels_dir, pkl_path):
-    len_x = 2048
+    len_x = int(4096*2)
     montage = mne.channels.read_custom_montage(fname='other/biosemi96.sfp', head_size=0.095, coord_frame='head')
     bdf_reader = MNEReader(filetype='bdf', resample=None, length=len_x, stim_channel='Status', montage=montage,
                            exclude=['EXG1', 'EXG2', 'EXG3', 'EXG4', 'EXG5', 'EXG6', 'EXG7', 'EXG8'])
@@ -149,12 +151,12 @@ def thread_read(bdf_path, labels_dir, pkl_path):
     xs = np.reshape(xs, (len(xs) * len_x, 96))
     xs = trial_average(xs, axis=0)  # ave in session
     xs = np.reshape(xs, (-1, len_x, 96))
-    xs = xs[:, ::4, :]  # down sampling [b, t/4, c]
+    xs = xs[:, ::4, :]  # down sampling [b, t/
+    # print(xs[0])
 
     name = bdf_path.split('/')[-1].replace('.bdf', '')
 
     Parallel(n_jobs=3)(
-
         delayed(thread_write)(
             xs[i], ys[i], pos, pkl_path + '/' + name + '_' + str(i) + '_' + str(times[i]) + '_' + str(ys[i])
         )
@@ -188,11 +190,12 @@ if __name__ == "__main__":
     #     for f in tqdm(pkl_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     # )
 
-    bdf_filenames = file_scanf2(bdf_dir, contains=['1000-1-00', '1000-1-01', '1000-1-02', '1000-1-03', '1000-1-04',
-                                                   '1000-1-05', '1000-1-06'],
-                                endswith='.bdf')
+    bdf_filenames = file_scanf2(bdf_dir, contains=[
+        # '1000-1-00', '1000-1-01', '1000-1-02', '1000-1-03', '1000-1-04', '1000-1-05', '1000-1-06'
+        '-'
+        ], endswith='.bdf')
     Parallel(n_jobs=12)(
         delayed(thread_read)(
-            f, label_dir, pkl_path='/data1/zhangxin/Datasets/PD/pkl_500_7sets')
+            f, label_dir, pkl_path='/data1/zhangxin/Datasets/PD/aep')
         for f in tqdm(bdf_filenames, desc=' read ', colour='WHITE', position=0, leave=True, ncols=80)
     )

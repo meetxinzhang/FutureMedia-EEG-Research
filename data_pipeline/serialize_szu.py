@@ -41,8 +41,8 @@ def thread_write(x, y, pos, pkl_filename):
     # x = x[::2, :]
     # if np.shape(x) != (256, 127):
     #     print(np.shape(x), pkl_filename)
-    assert np.shape(x) == (500, 127)
-    x = trial_average(x, axis=0)
+    assert np.shape(x) == (2000, 127)
+    # x = trial_average(x, axis=0)
 
     # AEP
     # x = three_bands(x)  # [t=24, 3*127]
@@ -70,7 +70,7 @@ def thread_write(x, y, pos, pkl_filename):
 
 
 def thread_read(label_file, pkl_path):
-    edf_reader = MNEReader(filetype='edf', method='manual', length=500, montage='brainproducts-RNP-BA-128')
+    edf_reader = MNEReader(filetype='edf', method='manual', length=2000, montage='brainproducts-RNP-BA-128')
 
     stim, y = ziyan_read(label_file)  # [frame_point], [class]
     x = edf_reader.get_set(file_path=label_file.replace('.Markers', '.edf'), stim_list=stim)
@@ -82,7 +82,7 @@ def thread_read(label_file, pkl_path):
 
     x = einops.rearrange(x, 'b t c -> (b t) c')
     x = trial_average(x, axis=0)
-    x = einops.rearrange(x, '(b t) c -> b t c', t=500)
+    x = einops.rearrange(x, '(b t) c -> b t c', t=2000)
 
     name = label_file.split('/')[-1].replace('.Markers', '')
     Parallel(n_jobs=6)(
@@ -93,13 +93,13 @@ def thread_read(label_file, pkl_path):
 
 if __name__ == "__main__":
     # path = '/data1/zhangxin/Datasets/SZEEG0801/Raw'
-    path = '/data1/zhangxin/Datasets/SZEEG20240308/Raw'
-    label_filenames = file_scanf2(path, contains=['CN'], endswith='.Markers')
+    path = '/data1/zhangxin/Datasets/SZEEG2022/Raw'
+    label_filenames = file_scanf2(path, contains=['run_0_', 'run_1_', 'run_2_', 'run_3_', 'run_4_'], endswith='.Markers')
 
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangxin/Datasets/SZEEG20240308/pkl_cn_500'
+            f, pkl_path='/data1/zhangxin/Datasets/SZEEG2022/pkl_hzy_2000_s2_ave2_as_paper'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

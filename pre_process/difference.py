@@ -11,6 +11,7 @@ import numpy as np
 import torch_dct as dct
 import torch
 import cv2
+import scipy
 
 
 # def delta(eeg, fold):
@@ -29,7 +30,7 @@ def four_ave(eeg, fold):
     assert len(eeg) % fold == 0
     eeg = np.split(eeg, fold, axis=0)  # [fold length 96]
     eeg = np.average(eeg, axis=0)
-    assert np.shape(eeg) == (512, 96)
+    # assert np.shape(eeg) == (512, 96)
     return eeg
 
 
@@ -100,6 +101,15 @@ def frame_delta(eeg):
     return a-b
 
 
+def frame_delta_video(eeg):
+    # [t c]
+    a = eeg[1:, :, :]
+    b = eeg[:-1, :, :]
+    assert len(a) == len(b)
+    # assert np.shape(a) == (1024, 96)
+    return a-b
+
+
 def noise_deactivate(eeg, threshold=0.1):
     # [t=512 c]
     ave = np.mean(eeg, axis=0)
@@ -130,6 +140,25 @@ def dct_1d(eeg, inverse=False):
         return sf.T.cpu().numpy()
 
 
+def dct_1d_numpy(eeg, axis=-1, inverse=False):
+    # [t d]
+    # eeg = torch.from_numpy(eeg).T.cuda()  # [d=96 t=512]
+    sf = scipy.fft.dct(eeg, axis=axis)
+    # print(np.shape(sf), 'qqqqqqqqqqqqqqqqq')
+    if inverse:
+        fea_dim = sf.size()[-1]  # 512
+        principle = fea_dim // 4  # 128
+        fea_mask = np.arange(1, fea_dim + 1)  # [512,]
+        fea_mask = (fea_mask < principle).type(np.uint8)  # >高频  <低频
+        # print(fea_mask)
+        _sf = sf * fea_mask
+        _s = scipy.fft.idct(_sf)  # [96 512]
+        assert _s.size() == (512, 96)
+        return _s
+    else:
+        return sf
+
+
 # def dct_2d(eeg, inverse=False):
 #     # https://zhuanlan.zhihu.com/p/114626779
 #     #  [t d]
@@ -146,20 +175,20 @@ def dct_1d(eeg, inverse=False):
 #         return abs(freqs)
 
 # 分块图 DCT 变换
-def dct2d(img_f32):
+def dct2d(img_f32, block=8):
     height, width = img_f32.shape[:2]
-    block_y = height // 8
-    block_x = width // 8
-    height_ = block_y * 8
-    width_ = block_x * 8
+    block_y = height // block
+    block_x = width // block
+    height_ = block_y * block
+    width_ = block_x * block
     img_f32_cut = img_f32[:height_, :width_]
     img_dct = np.zeros((height_, width_), dtype=np.float32)
     # new_img = img_dct.copy()
     for h in range(block_y):
         for w in range(block_x):
             # 对图像块进行dct变换
-            img_block = img_f32_cut[8*h: 8*(h+1), 8*w: 8*(w+1)]
-            img_dct[8*h: 8*(h+1), 8*w: 8*(w+1)] = cv2.dct(img_block)
+            img_block = img_f32_cut[block*h: block*(h+1), block*w: block*(w+1)]
+            img_dct[block*h: block*(h+1), block*w: block*(w+1)] = cv2.dct(img_block)
 
             # 进行 idct 反变换
             # dct_block = img_dct[8*h: 8*(h+1), 8*w: 8*(w+1)]

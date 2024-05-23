@@ -207,7 +207,7 @@ class EEGChannelNet(nn.Module):
             self.encoder(torch.zeros(1, in_channels, input_height, input_width)).contiguous().view(-1).size()[0]
 
         self.classifier = nn.Sequential(
-            nn.Linear(7000, embedding_size),
+            nn.Linear(4350, embedding_size),
             nn.ReLU(True),
             nn.Linear(embedding_size, num_classes),
             nn.Softmax(dim=-1)

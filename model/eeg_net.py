@@ -189,13 +189,14 @@ class EEGNet(nn.Module):
         )
 
         self.out = nn.Sequential(
-            nn.Linear(464, 128),
-
+            # nn.Linear(464, 128),
+            nn.Linear(480, 128),
             nn.Linear(128, classes_num)
         )
 
     def forward(self, x):
-        # f c t needed
+        # print(x.shape, 'qqqq')
+        # b f c t needed
         # x = x.transpose(2, 3)  # [b 1 c t] needed
         x = self.block_1(x)
         x = self.block_2(x)

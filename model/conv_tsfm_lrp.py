@@ -107,7 +107,7 @@ class MHA(nn.Module):
         # scale factor
         self.scale = self.d ** -0.5
 
-        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=256, dim_head=184, heads=None)  # print q for size at 90 line
+        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=256, dim_head=1024, heads=None)  # print q for size at 90 line
 
         self.conv_qkv = layers_lrp.Conv2d(in_channels=channels, out_channels=3 * channels, kernel_size=(1, 1),
                                           stride=(1, 1))
@@ -262,7 +262,7 @@ class ConvTransformer(nn.Module):
 
         self.classifier = layers_lrp.Sequential(
             layers_lrp.Dropout(p=drop),
-            layers_lrp.Linear(in_features=176, out_features=128),
+            layers_lrp.Linear(in_features=1024, out_features=128),
             layers_lrp.ReLU(),
             layers_lrp.Linear(in_features=128, out_features=num_classes),
             layers_lrp.Softmax(dim=-1)
@@ -274,7 +274,11 @@ class ConvTransformer(nn.Module):
         self.cat = layers_lrp.Cat()
 
     def forward(self, x):
-        x = einops.rearrange(x, 'b t c w h -> b c w h t')
+        x = torch.where(torch.isnan(x), torch.zeros_like(x), x)
+        x = torch.where(torch.isinf(x), torch.zeros_like(x), x)
+        # print(x.shape, 'qqqqqqqqqqqqqq')
+        # assert 1 == 0
+        # x = einops.rearrange(x, 'b t c w h -> b c w h t')
         # [b, 1, M, M, T]
         x = self.lfe(x)  # [b, c, p=m*m, T/2]
         # ct = self.channel_token.expand(x.size()[0], -1, -1, -1).to(x.device)  # [b, c, 1, T/2]
