@@ -107,7 +107,7 @@ class MHA(nn.Module):
         # scale factor
         self.scale = self.d ** -0.5
 
-        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=256, dim_head=1024, heads=None)  # print q for size at 90 line
+        self.rel_pos_emb = RelPosEmb1DAISummer(tokens=256, dim_head=1000, heads=None)  # print q for size at 90 line
 
         self.conv_qkv = layers_lrp.Conv2d(in_channels=channels, out_channels=3 * channels, kernel_size=(1, 1),
                                           stride=(1, 1))
@@ -262,7 +262,7 @@ class ConvTransformer(nn.Module):
 
         self.classifier = layers_lrp.Sequential(
             layers_lrp.Dropout(p=drop),
-            layers_lrp.Linear(in_features=1024, out_features=128),
+            layers_lrp.Linear(in_features=992, out_features=128),
             layers_lrp.ReLU(),
             layers_lrp.Linear(in_features=128, out_features=num_classes),
             layers_lrp.Softmax(dim=-1)

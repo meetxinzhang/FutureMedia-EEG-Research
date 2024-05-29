@@ -11,19 +11,18 @@ import time
 from torch.utils.tensorboard import SummaryWriter
 from utils.my_tools import file_scanf
 from data_pipeline.dataset_szu import AdaptedListDataset
-from model.eeg_net import EEGNet
-from agent_train import train, test
+from model.conv_tsfm_lrp import ConvTransformer
+from agent_train import train_step, validate_step
+from agent_lrp import ignite_relprop, generate_visualization
 from utils.my_tools import IterForever
-
-# from model.lrp_manager import ignite_relprop, generate_visualization
 # from utils.weight_init import get_state_dict
 
 torch.cuda.set_device(7)
-batch_size = 64
-n_epoch = 50
-lr = 0.01
+batch_size = 8
+n_epoch = 100
+lr = 0.001
 
-id_experiment = 'aep-lrp-ConvTsfm-50e01l64b'
+id_experiment = 'aep-lrp-ConvTsfm'
 t_experiment = time.strftime("%Y-%m-%d-%H-%M-%S", time.localtime())
 train_files = file_scanf(path='../../Datasets/CVPR2021-02785/pkl_delta_ave_512', contains='i', endswith='.pkl')
 test_files = file_scanf(path='../../Datasets/CVPR2021-02785/pkl_512', contains='i', endswith='.pkl')
@@ -43,7 +42,9 @@ if __name__ == '__main__':
     val_iterable = IterForever(val_loader)
 
     # ff = FieldFlow2(channels=127).cuda()
-    ff = EEGNet(classes_num=40, electrodes=96, drop_out=0.2).cuda()
+    # ff = EEGNet(classes_num=40, electrodes=96, drop_out=0.2).cuda()
+    ff = ConvTransformer(num_classes=40, in_channels=1, att_channels=64, num_heads=8,
+                         ffd_channels=64, last_channels=16, time=128, depth=2, drop=0.2).cuda()
     optimizer = torch.optim.Adam(ff.parameters(), lr=lr)
     lr_scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=10, gamma=0.4)
 
@@ -59,7 +60,7 @@ if __name__ == '__main__':
             if x is None and label is None:
                 continue
 
-            loss, acc = train(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
+            loss, acc = train_step(ff, x, label, optimizer, batch_size=batch_size, cal_acc=True)
             lr = optimizer.param_groups[0]['lr']
             summary.add_scalar(tag='TrainLoss', scalar_value=loss, global_step=global_step)
             summary.add_scalar(tag='TrainAcc', scalar_value=acc, global_step=global_step)
@@ -67,17 +68,17 @@ if __name__ == '__main__':
             global_step += 1
             if step % 1 == 0:
                 x_test, label_test = val_iterable.next()
-                loss_test, acc_test = test(model=ff, x=x_test, label=label_test, batch_size=batch_size)
+                loss_test, acc_test = validate_step(model=ff, x=x_test, label=label_test, batch_size=batch_size)
                 print('epoch:{}/{} step:{}/{} global_step:{} lr=P{:.4f} '
                       'loss={:.5f} acc={:.3f} test_loss={:.5f} test_acc={:.3f}'.
                       format(epoch, n_epoch, step, int(total_train / batch_size), global_step, lr,
                              loss, acc, loss_test, acc_test))
                 summary.add_scalar(tag='TestLoss', scalar_value=loss_test, global_step=global_step)
                 summary.add_scalar(tag='TestAcc', scalar_value=acc_test, global_step=global_step)
-            # if step % 10 == 0:
-            #     cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
-            #     generate_visualization(x[0].squeeze(), cam.squeeze(),
-            #                            save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
+            if step % 10 == 0:
+                cam = ignite_relprop(model=ff, x=x[0].unsqueeze(0), index=label[0])  # [1, 1, 512, 96]
+                generate_visualization(x[0].squeeze(), cam.squeeze(),
+                                       save_name='S' + str(global_step) + '_C' + str(label[0].cpu().numpy()))
 
         lr_scheduler.step()
     # torch.save(ff.state_dict(), 'log/checkpoint/' + t_experiment + id_experiment + '.pkl')

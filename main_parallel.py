@@ -18,8 +18,9 @@ from agent_train import XinTrainer
 from data_pipeline.dataset_szu import ListDataset
 from data_pipeline.data_loader_x import DataLoaderX
 # from model.eeg_transformer import EEGTransformer  # wuyi
-# from model.conv_tsfm_lrp import ConvTransformer
-from model.eeg_net import EEGNet, ComplexEEGNet
+from model.conv_tsfm_lrp import ConvTransformer
+# from model.eeg_net import EEGNet, ComplexEEGNet
+# from model.think_net import ThinkNet
 # from model.lstm_1dcnn_2dcnn_mlp import CNN2D, LSTM, CNN1D, ResNet1D
 # from model.eeg_channel_net import EEGChannelNet
 # from model.resnet_arcface import resnet18 as resnet2d
@@ -34,10 +35,11 @@ torch.manual_seed(2022)
 torch.cuda.manual_seed(2022)
 
 # id_exp = '2024-PD-table-aep-ConvTsfm-dff_1'
-id_exp = '2024-PD-Multi-4-Nm-EEGNet'
+id_exp = '2024-PD-Multi-3-Nm-MyNet'
 
-data_path = '/data1/zhangxin/Datasets/PD/pkl_2048_2s_full_2ave_as_paper'
+# data_path = '/data1/zhangxin/Datasets/PD/pkl_2048_2s_full_2ave_as_paper'
 # data_path = '/data1/zhangxin/Datasets/SZEEG2022/pkl_hzy_2000_s2_ave2_as_paper'
+data_path = '/data1/zhangxin/Datasets/SZEEG2022/pkl_aep_hzy_500_s05_ave3_as_paper'
 time_exp = str(datetime.now()).replace(':', '-').split('.')[0]
 init_state = './log/checkpoint/rank0_init_' + id_exp + '.pkl'
 
@@ -75,7 +77,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # ff = EEGChannelNet(in_channels=1, input_height=127, input_width=512, num_classes=40, num_spatial_layers=2,
     #                    spatial_stride=(2, 1), num_residual_blocks=3, down_kernel=3, down_stride=2)
     # ff = LSTM(classes=40, input_size=96, depth=3)
-    ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.2).to(the_device)
+    # ff = EEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.2).to(the_device)
     # ff = ComplexEEGNet(classes_num=40, in_channels=1, electrodes=96, drop_out=0.1).to(the_device)
 
     # ff = ConvTransformer(num_classes=40, in_channels=1, att_channels=64, num_heads=8,
@@ -85,6 +87,7 @@ def main_func(gpu_rank, device_id, fold_rank, train_dataset: ListDataset, valid_
     # ff = MLP2layers(in_features=96, hidden_size=128, classes=40).to(the_device)
     # ff = CNN2D(in_channels=1, classes=40)
     # ff = resnet2d(pretrained=False, n_classes=40, input_channels=30).to(the_device)
+    # ff = ThinkNet(classes=40)
     ff = torch.nn.SyncBatchNorm.convert_sync_batchnorm(ff).to(the_device)
     ff = torch.nn.parallel.DistributedDataParallel(ff, broadcast_buffers=False, device_ids=[device_id],
                                                    output_device=device_id)
@@ -138,6 +141,9 @@ if __name__ == '__main__':
     print(len(filepaths), ' total')
 
     for fold, (train_idx, valid_idx) in enumerate(k_fold.split(X=dataset, y=labels)):
+        # if fold in [0, 1, 2]:
+        #     continue
+
         train_set = tud.Subset(dataset, train_idx)
         valid_set = tud.Subset(dataset, valid_idx)
 

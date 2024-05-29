@@ -29,6 +29,33 @@ scaler = GradScaler()
 # ----- Testing code end-----------------------------------------------------------
 
 
+def train_step(model, x, label, optimizer, batch_size, cal_acc=False):
+    model.train()
+    optimizer.zero_grad()
+
+    y = model(x)  # [bs, 40]
+    loss = F.cross_entropy(y, label)
+    loss.backward()
+    optimizer.step()
+
+    accuracy = None
+    if cal_acc:
+        corrects = (torch.argmax(y, dim=1) == label).float().sum()
+        accuracy = torch.div(corrects, batch_size)
+    return loss, accuracy
+
+
+def validate_step(model, x, label, batch_size):
+    model.eval()
+    y = model(x)  # [bs, 40]
+    loss = F.cross_entropy(y, label)
+
+    corrects = (torch.argmax(y, dim=1) == label).float().sum()
+    accuracy = torch.div(corrects, batch_size)
+
+    return loss, accuracy
+
+
 class XinTrainer:
     def __init__(self, n_epoch, model, optimizer, train_loader, val_loader, batch_size, lr_scheduler,
                  id_exp, summary, gpu_rank, device):

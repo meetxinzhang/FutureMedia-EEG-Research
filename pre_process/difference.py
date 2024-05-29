@@ -224,6 +224,19 @@ def trial_average(eeg, axis=0):
     std = np.std(eeg, axis=axis)
     return (eeg - ave) / std
 
+def wrapping(eeg, n=3):
+    eeg = np.where(eeg > 1, eeg + (1-n)/n, np.power(eeg, n)/n)
+    return eeg
+
+class Wrapping(torch.nn.Module):
+    def __init__(self, b=0, n=3):
+        super(Wrapping, self).__init__()
+        self.b = b
+        self.n = n
+
+    def forward(self, x):
+        return torch.where(x > 1, x + self.b + (1-self.n)/self.n, torch.pow((x+self.b), self.n)/self.n)
+
 
 def DE_PSD(data, stft_para):
     '''

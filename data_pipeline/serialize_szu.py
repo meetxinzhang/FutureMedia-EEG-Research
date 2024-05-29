@@ -14,7 +14,7 @@ from utils.my_tools import file_scanf2
 import numpy as np
 import einops
 from pre_process.difference import trial_average
-# from pre_process.aep import azim_proj, gen_images
+from pre_process.aep import azim_proj, gen_images
 from pre_process.time_frequency import cwt_pywt
 
 
@@ -41,14 +41,14 @@ def thread_write(x, y, pos, pkl_filename):
     # x = x[::2, :]
     # if np.shape(x) != (256, 127):
     #     print(np.shape(x), pkl_filename)
-    assert np.shape(x) == (2000, 127)
-    # x = trial_average(x, axis=0)
+    assert np.shape(x) == (500, 127)
+    x = trial_average(x, axis=0)
 
     # AEP
     # x = three_bands(x)  # [t=24, 3*127]
-    # locs_2d = np.array([azim_proj(e) for e in pos])
-    # x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=1, W, H]
-    # assert np.shape(x) == (24, 3, 20, 20)
+    locs_2d = np.array([azim_proj(e) for e in pos])
+    x = gen_images(locs=locs_2d, features=x, len_grid=20, normalize=True).squeeze()  # [time, colors=1, W, H]
+    assert np.shape(x) == (500, 20, 20)
 
     # time-spectrum
     # x = downsample(x, ratio=4)
@@ -70,19 +70,19 @@ def thread_write(x, y, pos, pkl_filename):
 
 
 def thread_read(label_file, pkl_path):
-    edf_reader = MNEReader(filetype='edf', method='manual', length=2000, montage='brainproducts-RNP-BA-128')
+    edf_reader = MNEReader(filetype='edf', method='manual', length=500, montage='brainproducts-RNP-BA-128')
 
     stim, y = ziyan_read(label_file)  # [frame_point], [class]
     x = edf_reader.get_set(file_path=label_file.replace('.Markers', '.edf'), stim_list=stim)
     pos = edf_reader.get_pos()
     assert len(x) == len(y)
     print(len(x), 'number of samples')
-    x = x[:-1]  # For SZ2023, remove the last one of (2499, 127)
-    y = y[:-1]
+    # x = x[:-1]  # For SZ2023, remove the last one of (2499, 127)
+    # y = y[:-1]
 
     x = einops.rearrange(x, 'b t c -> (b t) c')
     x = trial_average(x, axis=0)
-    x = einops.rearrange(x, '(b t) c -> b t c', t=2000)
+    x = einops.rearrange(x, '(b t) c -> b t c', t=500)
 
     name = label_file.split('/')[-1].replace('.Markers', '')
     Parallel(n_jobs=6)(
@@ -93,13 +93,14 @@ def thread_read(label_file, pkl_path):
 
 if __name__ == "__main__":
     # path = '/data1/zhangxin/Datasets/SZEEG0801/Raw'
-    path = '/data1/zhangxin/Datasets/SZEEG2022/Raw'
-    label_filenames = file_scanf2(path, contains=['run_0_', 'run_1_', 'run_2_', 'run_3_', 'run_4_'], endswith='.Markers')
-
+    # path = '/data1/zhangxin/Datasets/SZEEG2022/Raw'
+    path = '/data1/zhangxin/Datasets/SZEEG20240308/Raw'
+    # label_filenames = file_scanf2(path, contains=['run_0_', 'run_1_', 'run_2_', 'run_3_', 'run_4_'], endswith='.Markers')
+    label_filenames = file_scanf2(path, contains=['CN_'], endswith='.Markers')
     # go_through(label_filenames, pkl_path=path+'/pkl_cwt_torch/')
     Parallel(n_jobs=6)(
         delayed(thread_read)(
-            f, pkl_path='/data1/zhangxin/Datasets/SZEEG2022/pkl_hzy_2000_s2_ave2_as_paper'
+            f, pkl_path='/data1/zhangxin/Datasets/SZEEG20240308/pkl_aep_cn_500_s05_ave3_as_paper'
         )
         for f in tqdm(label_filenames, desc=' read ', colour='WHITE', position=1, leave=True, ncols=80)
     )

@@ -195,6 +195,7 @@ class EEGNet(nn.Module):
         )
 
     def forward(self, x):
+        x = torch.sigmoid(x)
         # print(x.shape, 'qqqq')
         # b f c t needed
         # x = x.transpose(2, 3)  # [b 1 c t] needed
@@ -205,4 +206,4 @@ class EEGNet(nn.Module):
 
         x = x.view(x.size(0), -1)
         x = self.out(x)
-        return F.softmax(x, dim=1)
+        return F.softmax(x, dim=-1)

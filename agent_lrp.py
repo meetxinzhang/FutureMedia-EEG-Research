@@ -64,20 +64,23 @@ def get_heatmap_gif(cam, save_name=None):
 
 def get_heatmap_gallery(cam, x, save_name=None):
     # [t h w c] cpu
-    x = einops.rearrange(x, 't c h w -> t h w c')
-    line = torch.ones([24, 1, 20, 3])
-    # x = (x - x.min()) / (x.max() - x.min())
+    x = einops.rearrange(x, 'h w t -> t h w')
+    # cam = einops.rearrange(cam, 'h w t -> t h w')
+
+    line = torch.ones([125, 1, 20]).to(x.device)
+    x = (x - x.min()) / (x.max() - x.min())
     # cam = (cam - cam.min()) / (cam.max() - cam.min())
     cam = torch.cat([cam, line,  x], dim=1)
 
-    cam = cam.data.numpy()  # cpu
+    # cam = einops.rearrange(cam, 'h w t -> t h w')
+    cam = cam.data.cpu().numpy()  # cpu
     h = np.shape(cam)[1]
-    interval = np.ones([h, 1, 3])
+    interval = np.ones([h, 1])
     figs = []
     for c in cam:
         # c = (c - c.min()) / (c.max() - c.min())
-        c1 = c[:20, :, :]
-        c2 = c[20:, :, :]
+        c1 = c[:20, :]
+        c2 = c[20:, :]
         c1 = (c1 - c1.min()) / (c1.max() - c1.min())
         c2 = (c2 - c2.min()) / (c2.max() - c2.min())
         c = np.concatenate([c1, c2], axis=0)
@@ -85,9 +88,9 @@ def get_heatmap_gallery(cam, x, save_name=None):
         c = np.uint8(255 * c)
         figs.append(c)
     figs = np.array(figs)
-    figs = einops.rearrange(figs, 't h w c -> h (t w) c')
-    figs = Image.fromarray(figs, mode="RGB")
-    figs.save('./log/image/' + save_name + '_gallery.jpg')
+    figs = einops.rearrange(figs, 't h w -> h (t w)')
+    figs = Image.fromarray(figs)
+    figs.save(save_name + '_gallery.jpg')
     print('saved ' + save_name)
 
 

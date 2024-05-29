@@ -26,6 +26,7 @@ def collate_(batch):  # [b, 2], [x, y]
 class ListDataset(torch.utils.data.Dataset):
     def __init__(self, path_list):
         self.path_list = path_list
+        self.wrap = Wrapping(n=3)
 
     def __len__(self):  # called by torch.utils.data.DataLoader
         return len(self.path_list)
@@ -41,9 +42,12 @@ class ListDataset(torch.utils.data.Dataset):
             y = int(pickle.load(f))
             # y = y - 1  # Ziyan He created EEG form
 
+            # x = wrapping(x)
+            x = trial_average(x, axis=0)
             x = x[:512, :]
-            x = trial_average(x, axis=0)
-            x = trial_average(x, axis=0)
+            # x = trial_average(x, axis=0)
+
+            # x = trial_average(x, axis=0)
 
             x = np.expand_dims(x, axis=0)  # 1 512 96
             x = einops.rearrange(x, 'f t c ->f c t')
@@ -208,12 +212,13 @@ class AdaptedListDataset3d(torch.utils.data.Dataset):
         with open(filepath, 'rb') as f:
             x = pickle.load(f)       # 512 96
             y = int(pickle.load(f))
+            y = y - 1  # Ziyan He created EEG form
             # x = trial_average(x, axis=0)
             # print(x, 'qqq')  # 2048, 20, 20
 
             # exps = ['nm', 'dct1d', 'dct2d', 'adct', 'ave', 't_dff', 'dff_1', 'dff_b']
             if self.exp == 'nm':
-                x = x[:512, :, :]
+                x = x[:500, :, :]
             elif self.exp == 'dct1d':
                 x = x[:512, :, :]
                 x = dct_1d_numpy(x, axis=0)  # same with x [512 96]
