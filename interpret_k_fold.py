@@ -56,11 +56,11 @@ n_epoch = 100
 k = 5
 lr = 0.001
 
-id_exp = 'interp-aep-szeeg-cn'
+id_exp = 'interp-aep-szeeg-hzy'
 # id_exp = 'szeeg-08-11-tu2-500-1000''
 # path = '/data1/zhangwuxia/Datasets/PD/pkl_trial_aep_color_05s_1024'
-# path = '/data1/zhangxin/Datasets/SZEEG2022/pkl_aep_hzy_500_s05_ave3_as_paper'
-path = '/data1/zhangxin/Datasets/SZEEG20240308/pkl_aep_cn_500_s05_ave3_as_paper'
+path = '/data1/zhangxin/Datasets/SZEEG2022/pkl_aep_hzy_500_s05_ave3_as_paper'
+# path = '/data1/zhangxin/Datasets/SZEEG20240308/pkl_aep_cn_500_s05_ave3_as_paper'
 time_exp = '2024-05-29-15-04'
 img_path = './log/image/' + id_exp + '/' + time_exp
 mkdirs([img_path, './log/checkpoint/' + id_exp, './log/' + id_exp])
@@ -130,7 +130,9 @@ if __name__ == '__main__':
                     epoch_loss_val += loss_val.item()
                     epoch_acc_val += acc_val.item()
 
-                    if step % 10 == 0:
+                    # if step % 10 == 0:
+                    # print(label_val[0].data.cpu().numpy())
+                    if label_val[0].data.cpu().numpy() == 0:
                         cam = ignite_relprop(model=ff, x=x_val[0].unsqueeze(0), index=label_val[0], device=device)  # [1, 1, 512, 96]
                         get_heatmap_gallery(cam=cam.squeeze(),
                                             x=x_val[0].squeeze(),

@@ -47,7 +47,7 @@ batch_size = 8
 accumulation_steps = 1  # to accumulate gradient when you want to set larger batch_size but out of memory.
 n_epoch = 50
 k = 5
-learn_rate = 0.012
+learn_rate = 0.001
 
 
 def main_func(gpu_rank, device_id, fold_rank,
